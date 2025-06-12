@@ -1,0 +1,39 @@
+"""
+Database models for the test entry application.
+
+Includes:
+- User: authentication and password management
+- TestEntry: stores test data, file uploads, and user association
+"""
+
+from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy.dialects.sqlite import JSON
+
+db = SQLAlchemy()
+
+class User(db.Model):
+    """User model for authentication."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+
+    def set_password(self, password):
+        """Hash and set the user's password."""
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        """Check the user's password against the stored hash."""
+        return check_password_hash(self.password_hash, password)
+
+class TestEntry(db.Model):
+    """Model for storing test entry data and file uploads."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    data = db.Column(JSON)
+    file_name = db.Column(db.String(120))
+    user = db.relationship('User', backref=db.backref('entries', lazy=True))

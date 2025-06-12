@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}All Data{% endblock %}
+{% block page_title %}All Data{% endblock %}
+
+{% block content %}
+<div class="container history-container">
+  <table class="history-table">
+    <tr>
+      <th>Time</th><th>User</th>
+      {% for field in fields %}<th>{{ field.label }}</th>{% endfor %}
+      <th>File</th>
+    </tr>
+    {% for e in entries %}
+    <tr>
+      <td>{{ e.timestamp }}</td><td>{{ e.user.username }}</td>
+      {% for field in fields %}
+        <td>{{ e.data.get(field.name) }}</td>
+      {% endfor %}
+      <td>{% if e.file_name %}<a href="/uploads/{{ e.file_name }}">{{ e.file_name }}</a>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <a href="/export_csv">Download CSV</a> | <a href="/">Back to Form</a> | <a href="unique_cm_serials">View Unique CM Serial Numbers</a>
+</div>
+{% endblock %}
