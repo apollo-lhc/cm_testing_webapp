@@ -1,0 +1,72 @@
+[MASTER]
+# Python code to analyze
+ignore = migrations, tests
+ignore-patterns = ^test_.*\.py$
+
+
+# List of plugins (comma-separated)
+load-plugins = 
+
+[MESSAGES CONTROL]
+# Disable some common noisy or less useful warnings
+disable = 
+    missing-docstring,
+    invalid-name,
+    too-few-public-methods,
+    too-many-arguments,
+    too-many-locals,
+    too-many-instance-attributes,
+    too-many-branches,
+    too-many-statements,
+    too-many-return-statements,
+    duplicate-code,
+    fixme,
+    no-member,
+    broad-except,
+    import-error,
+    line-too-long
+
+[REPORTS]
+# Disable the full report at the end of the Pylint output
+reports = no
+output-format = colorized
+
+[REFACTORING]
+# Set reasonable complexity thresholds
+max-args = 7
+max-locals = 20
+max-returns = 6
+max-branches = 15
+max-statements = 50
+max-parents = 7
+max-attributes = 10
+
+[FORMAT]
+# Code style rules
+max-line-length = 100
+indent-string = '    '
+indent-after-paren = 4
+
+[DESIGN]
+# Adjust naming style and thresholds
+max-args = 7
+min-public-methods = 0
+max-public-methods = 30
+
+[TYPECHECK]
+# Avoid false positives for Flask and SQLAlchemy dynamic attributes
+ignored-modules = flask, flask_sqlalchemy
+ignored-classes = flask_sqlalchemy.Model
+
+[VARIABLES]
+# Allow unused variables if they start with _
+dummy-variables-rgx=(_+[a-zA-Z0-9]*?$)
+
+[LOGGING]
+# Allow logging format style other than old-style '%'
+logging-format-style = new
+
+[IMPORTS]
+# Avoid relative imports beyond top-level package
+known-standard-library = typing, unittest
+known-third-party = flask, flask_sqlalchemy, sqlalchemy
