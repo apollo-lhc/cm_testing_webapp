@@ -24,6 +24,13 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Define multiple forms, each with its own fields and a unique name
+
+#Field: name, label, type, display_history
+
+
+
+
+
 FORMS = [
     {
         "name": "hardware_test",
@@ -41,15 +48,41 @@ FORMS = [
         ]
     },
     {
-        "name": "electrical_test",
-        "label": "Electrical Test",
+        "name": "power_test",
+        "label": "Power Test",
         "fields": [
-            { "name": "mcu_test_program", "label": "MCU test program", "type": "boolean" },
-            { "name": "current_draw", "label": "Current Draw (mA)", "type": "float" },
-            { "name": "voltage", "label": "Voltage (V)", "type": "float" },
+            { "name": "management_power", "label": "Management Power", "type": "float" },
+            { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
+            { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },          
             { "name": "resistance", "label": "Resistance (Ohms)", "type": "float" },
+            { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type": "boolean" }
         ]
     },
+    {
+        "name": "i2c_tests",
+        "label": "I2C Tests",
+        #should add links to help page for each of these tests w/ explanation and link to github where tests can be found
+        "fields": [
+            { "name": "i2c_to_dcdc", "label": "I2C to DC-DC Converter Passed", "type": "boolean"},
+            { "name": "dcdc_converter_test", "label": "All DC-DC Converters Passed", "type": "boolean"},
+            { "name": "i2c_to_clockchips", "label": "Clock Chips I2C Test Passed", "type": "boolean" },
+            { "name": "i2c_to_fpgas", "label": "I2C to FPGA's Passed", "type": "boolean"}, #may need to adjust if dont have fpga's on board
+            { "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank Passed", "type": "boolean"},
+            { "name": "i2c_to_eeprom", "label": "I2C to EEPROM Passed", "type": "boolean"},
+            #{ "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank passed", "type": "boolean"}, #"havent given much thought yet" -prod test doc
+        ]    
+        
+    },
+    {
+        "name": "second_step_mcu_test",
+        "label": "Second-Step MCU Test",
+        "fields": [
+            { "name": "second_step_instruction", "label": "Set FireFly transmit switches to the 3.3v position and load second step code, (clock output sent through front panel connector)", "type": "null", "display_history": False },
+            { "name": "fpga_oscillator_clock_1", "label": "FPGA Oscillator Clock Frequency 1 (MHz)", "type": "float" },
+            { "name": "fpga_oscillator_clock_2", "label": "FPGA Oscillator Clock Frequency 2 (MHz)", "type": "float" },
+        ]
+    },
+    
     {
         "name": "report_upload",
         "label": "Upload Test Report",
@@ -182,6 +215,7 @@ def index():
     fields = current_form["fields"]
 
     errors = {}
+    prefill_values = {}
 
     if request.method == 'POST':
         is_valid, errors = validate_form(fields, request)
@@ -208,7 +242,17 @@ def index():
             # Move to next form
             session['form_index'] = form_index + 1
             return redirect(url_for('index'))
-        # else: fall through to re-render form with errors
+        # if error store previous values to refil form when displayed with errors
+        
+        else: 
+            for field in fields:
+                if field["type"] == "file":
+                    continue
+                prefill_values[field["name"]] = request.form.get(field["name"])
+    else: 
+        for field in fields:
+            prefill_values[field["name"]] = session['form_data'].get(field["name"], "")
+                 
 
     return render_template(
         "form.html",
@@ -216,7 +260,8 @@ def index():
         form_label=current_form["label"],
         form_index=form_index,
         total_forms=len(FORMS),
-        errors=errors
+        errors=errors,
+        prefill_values=prefill_values
     )
 
 @app.route('/restart_forms')
@@ -236,7 +281,7 @@ def history():
     # Use all fields from all FORMS for history display
     all_fields = []
     for form in FORMS:
-        all_fields.extend(form["fields"])
+        all_fields.extend([f for f in form["fields"] if f.get("display_history", True)])
     return render_template('history.html', entries=entries, fields=all_fields)
 
 @app.route('/export_csv')

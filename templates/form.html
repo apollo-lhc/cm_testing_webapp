@@ -11,16 +11,16 @@
       {% endif %}
       {% if field.type == 'boolean' %}
         <div style="display: flex; gap: 10px; align-items: center;">
-          <label><input type="radio" name="{{ field.name }}" value="yes"> Yes</label>
-          <label><input type="radio" name="{{ field.name }}" value="no"> No</label>
+          <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
+          <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
         </div>
         <br><br>
       {% elif field.type == 'float' %}
-        <input type="number" step="any" name="{{ field.name }}"><br><br>
+        <input type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}"><br><br>
       {% elif field.type == 'integer' %}
-        <input type="number" step="1" name="{{ field.name }}"><br><br>
+        <input type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}"><br><br>
       {% elif field.type == 'text' %}
-        <textarea name="{{ field.name }}"></textarea><br><br>
+        <textarea name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea><br><br>
       {% elif field.type == 'file' %}
         <input type="file" name="{{ field.name }}"><br><br>
       {% endif %}
