@@ -5,6 +5,7 @@
   <h2>Form: {{ form_label or name }}</h2>
   <form method="POST" enctype="multipart/form-data">
     {% for field in fields %}
+<<<<<<< HEAD
       {% if field.type is none %}
         <div style="height: 2em;"></div>
       {% else %}
@@ -28,6 +29,26 @@
         {% elif field.type == 'file' %}
           <input type="file" name="{{ field.name }}"><br><br>
         {% endif %}
+=======
+      <label>{{ field.label }}:</label><br>
+      {% if errors and errors.get(field.name) %}
+        <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>
+      {% endif %}
+      {% if field.type == 'boolean' %}
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
+          <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
+        </div>
+        <br><br>
+      {% elif field.type == 'float' %}
+        <input type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}"><br><br>
+      {% elif field.type == 'integer' %}
+        <input type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}"><br><br>
+      {% elif field.type == 'text' %}
+        <textarea name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea><br><br>
+      {% elif field.type == 'file' %}
+        <input type="file" name="{{ field.name }}"><br><br>
+>>>>>>> 01cfe29 (Added optional labels to form for explanation, added a history to form submission so data from current page is not cleared when an error is entered, added additional fields for tests outlined in the production testing document through 1.4)
       {% endif %}
     {% endfor %}
     <input type="submit" value="Submit">
