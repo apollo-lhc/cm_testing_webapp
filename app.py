@@ -364,7 +364,7 @@ def unique_cm_serials():
     return render_template('unique_cm_serials.html', entries=unique_entries, fields=all_fields)
 
 @app.route('/help')
-def help_button():
+def help():
     """Bring up static help page."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
