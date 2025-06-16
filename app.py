@@ -366,6 +366,14 @@ def unique_cm_serials():
             unique_entries.append(entry)
     return render_template('unique_cm_serials.html', entries=unique_entries, fields=all_fields)
 
+@app.route('/help')
+def help():
+    """Bring up static help page."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return send_from_directory("static", "Apollo_CMv3_Production_Testing_04Nov2024.html")
+
+
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs('instance', exist_ok=True)
