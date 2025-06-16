@@ -6,6 +6,9 @@
   <form method="POST" enctype="multipart/form-data">
     {% for field in fields %}
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 834c090 (finished test skeleton & added space)
       {% if field.type is none %}
         <div style="height: 2em;"></div>
       {% else %}
@@ -29,6 +32,7 @@
         {% elif field.type == 'file' %}
           <input type="file" name="{{ field.name }}"><br><br>
         {% endif %}
+<<<<<<< HEAD
 =======
       <label>{{ field.label }}:</label><br>
       {% if errors and errors.get(field.name) %}
@@ -49,6 +53,8 @@
       {% elif field.type == 'file' %}
         <input type="file" name="{{ field.name }}"><br><br>
 >>>>>>> 01cfe29 (Added optional labels to form for explanation, added a history to form submission so data from current page is not cleared when an error is entered, added additional fields for tests outlined in the production testing document through 1.4)
+=======
+>>>>>>> 834c090 (finished test skeleton & added space)
       {% endif %}
     {% endfor %}
     <input type="submit" value="Submit">

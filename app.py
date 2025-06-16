@@ -27,14 +27,8 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 
 #Field: name, label, type, display_history
 
-<<<<<<< HEAD
 # need to use blank.copy() after an instance of blank if no other field comes next to it
 blank = { "name": "blank", "label": "", "type": None, "display_history": False }
-=======
-
-
-
->>>>>>> 01cfe29 (Added optional labels to form for explanation, added a history to form submission so data from current page is not cleared when an error is entered, added additional fields for tests outlined in the production testing document through 1.4)
 
 FORMS = [
     {
@@ -58,15 +52,7 @@ FORMS = [
         "fields": [
             { "name": "management_power", "label": "Management Power", "type": "float" },
             { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
-<<<<<<< HEAD
-<<<<<<< HEAD
             { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
-=======
-            { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },          
->>>>>>> 01cfe29 (Added optional labels to form for explanation, added a history to form submission so data from current page is not cleared when an error is entered, added additional fields for tests outlined in the production testing document through 1.4)
-=======
-            { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
->>>>>>> 19b30b0 (fixed pylint)
             { "name": "resistance", "label": "Resistance (Ohms)", "type": "float" },
             { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type": "boolean" }
         ]
@@ -83,18 +69,7 @@ FORMS = [
             { "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank Passed", "type": "boolean"},
             { "name": "i2c_to_eeprom", "label": "I2C to EEPROM Passed", "type": "boolean"},
             #{ "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank passed", "type": "boolean"}, #"havent given much thought yet" -prod test doc
-<<<<<<< HEAD
-<<<<<<< HEAD
         ]
-
-=======
-        ]    
-        
->>>>>>> 01cfe29 (Added optional labels to form for explanation, added a history to form submission so data from current page is not cleared when an error is entered, added additional fields for tests outlined in the production testing document through 1.4)
-=======
-        ]
-
->>>>>>> 19b30b0 (fixed pylint)
     },
     {
         "name": "second_step_mcu_test",
@@ -103,7 +78,6 @@ FORMS = [
             { "name": "second_step_instruction", "label": "Set FireFly transmit switches to the 3.3v position and load second step code, (clock output sent through front panel connector)", "type": "null", "display_history": False },
             { "name": "fpga_oscillator_clock_1", "label": "FPGA Oscillator Clock Frequency 1 (MHz)", "type": "float" },
             { "name": "fpga_oscillator_clock_2", "label": "FPGA Oscillator Clock Frequency 2 (MHz)", "type": "float" },
-<<<<<<< HEAD
             { "name": "fpga_flash_memory", "label": "FPGA Flash Memory Test", "type": "boolean"},
         ]
     },
@@ -146,15 +120,6 @@ FORMS = [
     },
 
     #will probably need to change when look into specific tests more prob need to add to each automatic testing session
-=======
-        ]
-    },
-<<<<<<< HEAD
-    
->>>>>>> 01cfe29 (Added optional labels to form for explanation, added a history to form submission so data from current page is not cleared when an error is entered, added additional fields for tests outlined in the production testing document through 1.4)
-=======
-
->>>>>>> 19b30b0 (fixed pylint)
     {
         "name": "report_upload",
         "label": "Upload Test Report",
@@ -315,37 +280,13 @@ def index():
             session['form_index'] = form_index + 1
             return redirect(url_for('index'))
         # if error store previous values to refil form when displayed with errors
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 19b30b0 (fixed pylint)
-
         for field in fields:
             if field["type"] == "file":
                 continue
             prefill_values[field["name"]] = request.form.get(field["name"])
     else:
-<<<<<<< HEAD
         for field in fields:
             prefill_values[field["name"]] = session['form_data'].get(field["name"], "")
-
-=======
-        
-        else: 
-            for field in fields:
-                if field["type"] == "file":
-                    continue
-                prefill_values[field["name"]] = request.form.get(field["name"])
-    else: 
-        for field in fields:
-            prefill_values[field["name"]] = session['form_data'].get(field["name"], "")
-                 
->>>>>>> 01cfe29 (Added optional labels to form for explanation, added a history to form submission so data from current page is not cleared when an error is entered, added additional fields for tests outlined in the production testing document through 1.4)
-=======
-        for field in fields:
-            prefill_values[field["name"]] = session['form_data'].get(field["name"], "")
-
->>>>>>> 19b30b0 (fixed pylint)
 
     return render_template(
         "form.html",
