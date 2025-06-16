@@ -53,7 +53,7 @@ FORMS = [
         "fields": [
             { "name": "management_power", "label": "Management Power", "type": "float" },
             { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
-            { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },          
+            { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
             { "name": "resistance", "label": "Resistance (Ohms)", "type": "float" },
             { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type": "boolean" }
         ]
@@ -70,8 +70,8 @@ FORMS = [
             { "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank Passed", "type": "boolean"},
             { "name": "i2c_to_eeprom", "label": "I2C to EEPROM Passed", "type": "boolean"},
             #{ "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank passed", "type": "boolean"}, #"havent given much thought yet" -prod test doc
-        ]    
-        
+        ]
+
     },
     {
         "name": "second_step_mcu_test",
@@ -82,7 +82,7 @@ FORMS = [
             { "name": "fpga_oscillator_clock_2", "label": "FPGA Oscillator Clock Frequency 2 (MHz)", "type": "float" },
         ]
     },
-    
+
     {
         "name": "report_upload",
         "label": "Upload Test Report",
@@ -243,16 +243,15 @@ def index():
             session['form_index'] = form_index + 1
             return redirect(url_for('index'))
         # if error store previous values to refil form when displayed with errors
-        
-        else: 
-            for field in fields:
-                if field["type"] == "file":
-                    continue
-                prefill_values[field["name"]] = request.form.get(field["name"])
-    else: 
+
+        for field in fields:
+            if field["type"] == "file":
+                continue
+            prefill_values[field["name"]] = request.form.get(field["name"])
+    else:
         for field in fields:
             prefill_values[field["name"]] = session['form_data'].get(field["name"], "")
-                 
+
 
     return render_template(
         "form.html",
