@@ -27,9 +27,8 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 
 #Field: name, label, type, display_history
 
-
-
-
+# need to use blank.copy() after an instance of blank if no other field comes next to it
+blank = { "name": "blank", "label": "", "type": None, "display_history": False }
 
 FORMS = [
     {
@@ -80,16 +79,55 @@ FORMS = [
             { "name": "second_step_instruction", "label": "Set FireFly transmit switches to the 3.3v position and load second step code, (clock output sent through front panel connector)", "type": "null", "display_history": False },
             { "name": "fpga_oscillator_clock_1", "label": "FPGA Oscillator Clock Frequency 1 (MHz)", "type": "float" },
             { "name": "fpga_oscillator_clock_2", "label": "FPGA Oscillator Clock Frequency 2 (MHz)", "type": "float" },
+            { "name": "fpga_flash_memory", "label": "FPGA Flash Memory Test", "type": "boolean"},
         ]
     },
 
+    {
+        "name": "link_test",
+        "label": "Link Integrity Testing",
+        "fields": [
+            { "name": "fpga_second_step_tip", "label": "Load the second-step FPGA code to test FPGA-FPGA and MCU-FPGA connections", "type": "null", "display_history": False },
+            { "name": "ibert_test", "label": "IBERT link Test Passed", "type": "boolean" },
+            { "name": "full_link_test", "label": "Firefly, FPGA-FPGA, C2C, and TCDS Links Passed", "type": "boolean" },
+        ]
+    },
+
+    {
+        "name": "manual_link_testing",
+        "label": "Manual Link Testing",
+        "fields": [
+            { "name": "manual_test_tip_1", "label": "Remove the board from the test stand. Remove the FireFly devices and loopback cables. Install the proper FireFly configuraton for the end use.", "type": "null", "display_history": False},
+            blank,
+            { "name": "manual_test_tip_2", "label": "Set the FireFly transmit voltage switches to 3.8v for 25Gx12 transmitters. Install the FireFly heatsink. Route FireFly cables to the front panel. Install loopback connectors", "type": "null", "display_history": False },
+            blank,
+            { "name": "manual_test_tip_3", "label": "Connect the CM to the golden SM. Install the SM front panel board. Attach a front panel, and connect the handle switch. Install covers. Install the board in an ATCA shelf and apply power. ", "type": "null", "display_history": False },
+            blank,
+            { "name": "manual_test_tip_4", "label": "Load MCU code and configure clock chips for normal operation, then load the thrid step FPGA code", "type": "null", "display_history": False },
+            blank,
+            { "name": "third_step_fpga_test", "label": "Thrid Step FPGA Test Passed", "type": "boolean" },
+        ]
+    },
+
+    {
+        "name": "heating_tests",
+        "label": "Heating Testing",
+        "fields": [
+            { "name": "heating_test", "label": "Heater Tests Passed With Sufficent Cooling", "type": "boolean" },
+            { "name": "heating_tip", "label": "Remove the CM/SM from the ATCA shelf. Remove the FireFly loopback connectors. Separate the CM from the SM. Pack the CM for shipping", "type": "null", "display_history": False },
+            blank,
+            blank.copy(),
+        ]
+    },
+
+    #will probably need to change when look into specific tests more prob need to add to each automatic testing session
     {
         "name": "report_upload",
         "label": "Upload Test Report",
         "fields": [
             { "name": "test_report", "label": "Upload PDF", "type": "file" },
         ]
-    }
+    },
 ]
 
 db.init_app(app)
