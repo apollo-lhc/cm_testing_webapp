@@ -1,13 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Home{% endblock %}
-{% block page_title %}Home{% endblock %}
+{% block title %}Landing{% endblock %}
+{% block page_title %}Apollo CM Testing Home{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2>Apollo Board Testing</h2>
-    <p></p>
-    <a href="{{ url_for('restart_forms') }}">Start entry</a> | <a href="{{ url_for('history') }}">View History</a> |
-    <a href="/logout">Logout</a> |  <a href="/help">Help</a>
+<div class="text-center mt-5">
+    <h2 class="mb-4 fw-semibold">Welcome to Apollo Board Testing</h2>
+
+    <div class="d-grid gap-3 col-6 mx-auto">
+        <a href="{{ url_for('restart_forms') }}" class="btn btn-outline-red btn-lg">Start New Test Entry</a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline-red btn-lg">View Test History</a>
+        <a href="unique_cm_serials" class="btn btn-outline-red btn-lg">View Unique CM Serial Numbers</a>
+        <a href="/help" class="btn btn-outline-red btn-lg">Help</a>
+        <a href="/logout" class="btn btn-outline-red btn-lg">Logout</a>
+    </div>
 </div>
 {% endblock %}
-

@@ -5,10 +5,6 @@
   <h2>Form: {{ form_label or name }}</h2>
   <form method="POST" enctype="multipart/form-data">
     {% for field in fields %}
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 834c090 (finished test skeleton & added space)
       {% if field.type is none %}
         <div style="height: 2em;"></div>
       {% else %}
@@ -16,24 +12,34 @@
         {% if errors and errors.get(field.name) %}
           <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>
         {% endif %}
+<div class="container text-center">
+  <h2 class="my-4">{{ form_label or name }}</h2>
+  <div class="d-flex justify-content-center">
+    <form method="POST" enctype="multipart/form-data" class="w-100 text-start" style="max-width: 600px;">
+      {% for field in fields %}
+        {% if field.type is none %}
+          <div style="height: 2em;"></div>
+        {% else %}
+          <label>{{ field.label }}:</label><br>
+          {% if errors and errors.get(field.name) %}
+            <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>
+          {% endif %}
 
-        {% if field.type == 'boolean' %}
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
-            <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
-          </div>
-          <br><br>
-        {% elif field.type == 'float' %}
-          <input type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}"><br><br>
-        {% elif field.type == 'integer' %}
-          <input type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}"><br><br>
-        {% elif field.type == 'text' %}
-          <textarea name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea><br><br>
-        {% elif field.type == 'file' %}
-          <input type="file" name="{{ field.name }}"><br><br>
+          {% if field.type == 'boolean' %}
+            <div class="d-flex gap-3 mb-3">
+              <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
+              <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
+            </div>
+          {% elif field.type == 'float' %}
+            <input class="form-control mb-3" type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
+          {% elif field.type == 'integer' %}
+            <input class="form-control mb-3" type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
+          {% elif field.type == 'text' %}
+            <textarea class="form-control mb-3" name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea>
+          {% elif field.type == 'file' %}
+            <input class="form-control mb-3" type="file" name="{{ field.name }}">
+          {% endif %}
         {% endif %}
-<<<<<<< HEAD
-=======
       <label>{{ field.label }}:</label><br>
       {% if errors and errors.get(field.name) %}
         <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>
@@ -52,13 +58,24 @@
         <textarea name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea><br><br>
       {% elif field.type == 'file' %}
         <input type="file" name="{{ field.name }}"><br><br>
->>>>>>> 01cfe29 (Added optional labels to form for explanation, added a history to form submission so data from current page is not cleared when an error is entered, added additional fields for tests outlined in the production testing document through 1.4)
-=======
->>>>>>> 834c090 (finished test skeleton & added space)
+
       {% endif %}
     {% endfor %}
     <input type="submit" value="Submit">
   </form>
   <a href="/history">View All Submissions</a> | <a href="/logout">Logout</a> | <a href="/help">Help</a>
+      {% endfor %}
+      <div class="text-center mt-4">
+        <input type="submit" class="btn btn-primary" value="Submit">
+      </div>
+    </form>
+  </div>
+
+  <div class="mt-4">
+    <a href="/history" class="btn btn-outline-red mx-1">View All Submissions</a>
+    <a href="/help" class="btn btn-outline-red mx-1">Help</a>
+    <a href="/home" class="btn btn-outline-red mx-1">Home</a>
+    <a href="/logout" class="btn btn-outline-red mx-1">Logout</a>
+  </div>
 </div>
 {% endblock %}

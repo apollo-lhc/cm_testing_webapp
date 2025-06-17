@@ -1,10 +1,17 @@
-    {% extends "base.html" %}
-    {% block title %}Form Sequence Complete{% endblock %}
-    {% block content %}
-    <div class="container">
-        <h2>All forms completed!</h2>
-        <p>Your test entry has been saved.</p>
-        <a href="/help">Help</a> | <a href="{{ url_for('restart_forms') }}">Start another entry</a> |
-        <a href="{{ url_for('history') }}">View History</a>
+{% extends "base.html" %}
+{% block title %}Form Sequence Complete{% endblock %}
+{% block page_title %}Submission Complete{% endblock %}
+
+{% block content %}
+<div class="text-center mt-5">
+    <h2 class="mb-3 fw-semibold">All Forms Completed!</h2>
+    <p class="mb-4">Your test entry has been saved successfully.</p>
+
+    <div class="d-grid gap-3 col-6 mx-auto">
+        <a href="{{ url_for('restart_forms') }}" class="btn btn-outline-red btn-lg">Start Another Entry</a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline-red btn-lg">View History</a>
+        <a href="/home" class="btn btn-outline-red btn-lg">Home</a>
+        <a href="/help" class="btn btn-outline-red btn-lg">Help</a>
     </div>
-    {% endblock %}
+</div>
+{% endblock %}
