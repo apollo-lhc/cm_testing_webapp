@@ -321,8 +321,8 @@ def history():
     entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
     # Use all fields from all FORMS for history display
     all_fields = []
-    for form in FORMS:
-        all_fields.extend([f for f in form["fields"] if f.get("display_history", True)])
+    for single_form in FORMS:
+        all_fields.extend([f for f in single_form["fields"] if f.get("display_history", True)])
     return render_template('history.html', entries=entries, fields=all_fields)
 
 @app.route('/export_csv')
@@ -334,8 +334,8 @@ def export_csv():
     writer = csv.writer(output)
     # Combine all fields from all forms for CSV export
     all_fields = []
-    for form in FORMS:
-        all_fields.extend(form["fields"])
+    for single_form in FORMS:
+        all_fields.extend(single_form["fields"])
     writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File'])
     entries = TestEntry.query.all()
     for e in entries:
@@ -354,8 +354,8 @@ def unique_cm_serials():
         return redirect(url_for('login'))
     entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
     all_fields = []
-    for form in FORMS:
-        all_fields.extend(form["fields"])
+    for single_form in FORMS:
+        all_fields.extend(single_form["fields"])
     # Find the field name for CM_serial
     cm_serial_field = next((f["name"] for f in all_fields if f["name"].lower() == "cm_serial"), None)
     if not cm_serial_field:
