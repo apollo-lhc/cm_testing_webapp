@@ -165,7 +165,7 @@ def login():
         user = User.query.filter_by(username=request.form['username']).first()
         if user and user.check_password(request.form['password']):
             session['user_id'] = user.id
-            return redirect(url_for('index'))
+            return redirect(url_for('home'))
         return 'Invalid credentials'
     return render_template('login.html')
 
@@ -174,6 +174,13 @@ def logout():
     """logout route"""
     session.pop('user_id', None)
     return redirect(url_for('login'))
+
+@app.route('/home')
+def home():
+    """home page route"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('home.html')
 
 def validate_field(field, value):
     """Validate a single field value based on its type and requirements."""
