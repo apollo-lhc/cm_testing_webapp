@@ -175,12 +175,12 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
-@app.route('/home')
+@app.route('/')
 def home():
     """home page route"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    return render_template('home.html')
+    return render_template('index.html')
 
 def validate_field(field, value):
     """Validate a single field value based on its type and requirements."""
@@ -228,8 +228,8 @@ def validate_form(fields, req):
             errors[field["name"]] = msg
     return (len(errors) == 0), errors
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
+@app.route('/form', methods=['GET', 'POST'])
+def form():
     """Main page with sequential forms for test entries"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -285,7 +285,7 @@ def index():
                     session['form_data'][field["name"]] = request.form.get(field["name"])
             # Move to next form
             session['form_index'] = form_index + 1
-            return redirect(url_for('index'))
+            return redirect(url_for('form'))
         # if error store previous values to refil form when displayed with errors
         for field in fields:
             if field["type"] == "file":
@@ -311,7 +311,7 @@ def restart_forms():
     session.pop('form_index', None)
     session.pop('form_data', None)
     session.pop('file_name', None)
-    return redirect(url_for('index'))
+    return redirect(url_for('form'))
 
 @app.route('/history')
 def history():
