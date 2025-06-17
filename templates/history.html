@@ -4,11 +4,17 @@
 
 {% block content %}
 <div class="container history-container">
+  </div>
   <table class="history-table">
     <tr>
-      <th>Time</th><th>User</th>
-      {% for field in fields %}<th>{{ field.label }}</th>{% endfor %}
-      <th>File</th>
+      <th data-type="timestamp" onclick="sortTable(this)">Time</th>
+      <th data-type="text" onclick="sortTable(this)">User</th>
+      {% for field in fields %}
+        <th data-name="{{field.name}}" data-type="{{ field.type }}" onclick="sortTable(this)">
+          {{ field.label }}
+        </th>
+      {% endfor %}
+      <th data-type="text" onclick="sortTable(this)">File</th>
     </tr>
     {% for e in entries %}
     <tr>
@@ -20,6 +26,54 @@
     </tr>
     {% endfor %}
   </table>
-  <a href="/export_csv">Download CSV</a> | <a href="/form">Back to Form</a> | <a href="unique_cm_serials">View Unique CM Serial Numbers</a> | <a href="/">Home</a> | <a href="/help">Help</a>
+  <a href="/export_csv">Download CSV</a> | <a href="/form">Back to Form</a> |
+  <a href="unique_cm_serials">View Unique CM Serial Numbers</a> | <a href="/">Home</a> | <a href="/help">Help</a>
 </div>
+
+<script>
+  let sortDirections = {};
+
+  function parseValue(value, type) {
+    if (type == 'integer' || type == 'float') {
+      return parseFloat(value) || 0;
+    }
+    if (type == 'boolean') {
+      return value == 'True' ? 1 : 0;
+    }
+    return value.toString().toLowerCase();
+  }
+
+  function sortTable(tab) {
+    const table = tab.closest("table");
+    const colIndex = Array.from(tab.parentNode.children).indexOf(tab);
+    const type = tab.getAttribute("data-type") || "text";
+    const rows = Array.from(table.querySelectorAll("tr")).slice(1);
+    const ascending = !sortDirections[colIndex]; //change if sorting type is wrong later on first click
+    sortDirections[colIndex] = ascending;
+
+    rows.sort((a,b) => {
+      let A = a.children[colIndex].innerText.trim();
+      A = parseValue(A, type);
+      let B = b.children[colIndex].innerText.trim();
+      B = parseValue(B, type);
+
+      // if comparision is the same then compare timestamps to order
+      if (A < B) {
+        return ascending ? -1 : 1;
+      }
+      if (A > B) {
+        return ascending ? 1 : -1;
+      }
+
+      const aTime = new Date(a.children[0].innerText);
+      const bTime = new Date(b.children[0].innerText);
+      return bTime - aTime;
+    }
+    );
+
+    for (let row of rows) {
+      table.appendChild(row);
+    }
+  }
+</script>
 {% endblock %}
