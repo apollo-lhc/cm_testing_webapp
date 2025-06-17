@@ -70,7 +70,6 @@ FORMS = [
             { "name": "i2c_to_eeprom", "label": "I2C to EEPROM Passed", "type": "boolean"},
             #{ "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank passed", "type": "boolean"}, #"havent given much thought yet" -prod test doc
         ]
-
     },
     {
         "name": "second_step_mcu_test",
@@ -166,7 +165,7 @@ def login():
         user = User.query.filter_by(username=request.form['username']).first()
         if user and user.check_password(request.form['password']):
             session['user_id'] = user.id
-            return redirect(url_for('index'))
+            return redirect(url_for('home'))
         return 'Invalid credentials'
     return render_template('login.html')
 
@@ -175,6 +174,13 @@ def logout():
     """logout route"""
     session.pop('user_id', None)
     return redirect(url_for('login'))
+
+@app.route('/')
+def home():
+    """home page route"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('index.html')
 
 def validate_field(field, value):
     """Validate a single field value based on its type and requirements."""
@@ -222,8 +228,8 @@ def validate_form(fields, req):
             errors[field["name"]] = msg
     return (len(errors) == 0), errors
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
+@app.route('/form', methods=['GET', 'POST'])
+def form():
     """Main page with sequential forms for test entries"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -279,9 +285,8 @@ def index():
                     session['form_data'][field["name"]] = request.form.get(field["name"])
             # Move to next form
             session['form_index'] = form_index + 1
-            return redirect(url_for('index'))
+            return redirect(url_for('form'))
         # if error store previous values to refil form when displayed with errors
-
         for field in fields:
             if field["type"] == "file":
                 continue
@@ -289,7 +294,6 @@ def index():
     else:
         for field in fields:
             prefill_values[field["name"]] = session['form_data'].get(field["name"], "")
-
 
     return render_template(
         "form.html",
@@ -307,7 +311,7 @@ def restart_forms():
     session.pop('form_index', None)
     session.pop('form_data', None)
     session.pop('file_name', None)
-    return redirect(url_for('index'))
+    return redirect(url_for('form'))
 
 @app.route('/history')
 def history():
@@ -317,8 +321,8 @@ def history():
     entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
     # Use all fields from all FORMS for history display
     all_fields = []
-    for form in FORMS:
-        all_fields.extend([f for f in form["fields"] if f.get("display_history", True)])
+    for single_form in FORMS:
+        all_fields.extend([f for f in single_form["fields"] if f.get("display_history", True)])
     return render_template('history.html', entries=entries, fields=all_fields)
 
 @app.route('/export_csv')
@@ -330,8 +334,8 @@ def export_csv():
     writer = csv.writer(output)
     # Combine all fields from all forms for CSV export
     all_fields = []
-    for form in FORMS:
-        all_fields.extend(form["fields"])
+    for single_form in FORMS:
+        all_fields.extend(single_form["fields"])
     writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File'])
     entries = TestEntry.query.all()
     for e in entries:
@@ -350,8 +354,8 @@ def unique_cm_serials():
         return redirect(url_for('login'))
     entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
     all_fields = []
-    for form in FORMS:
-        all_fields.extend(form["fields"])
+    for single_form in FORMS:
+        all_fields.extend(single_form["fields"])
     # Find the field name for CM_serial
     cm_serial_field = next((f["name"] for f in all_fields if f["name"].lower() == "cm_serial"), None)
     if not cm_serial_field:
