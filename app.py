@@ -13,10 +13,20 @@ import os
 import io
 import csv
 from datetime import datetime
+
+#for random:
+from random import randint, uniform, choice
+
+
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from models import db, User, TestEntry
+
+
+
+
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'testsecret'
@@ -138,11 +148,6 @@ def add_dummy_entry():
 
     if 'user_id' not in session:
         return redirect(url_for('login'))
-
-    from random import randint, uniform, choice
-    from models import TestEntry
-    from flask import request
-    from datetime import datetime
 
     try:
         count = int(request.args.get('count', 1))
