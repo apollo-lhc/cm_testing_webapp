@@ -3,50 +3,78 @@
 {% block page_title %}All Data{% endblock %}
 
 {% block content %}
+<style>
+  .history-container .table {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #dee2e6 !important;
+  }
+
+  .history-container .card {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .history-container .table th,
+  .history-container .table td {
+    background-color: inherit !important;
+    color: inherit !important;
+    border-color: #dee2e6 !important;
+  }
+
+  .history-container .table-striped tbody tr:nth-of-type(odd) {
+    background-color: #f8f9fa !important;
+  }
+</style>
+
 <div class="container history-container">
-  <div style="margin-bottom: 10px;">
-    {% if show_unique %}
-      <a class="btn" href="/history">Show All Entries</a>
-    {% else %}
-      <a class="btn" href="/history?unique=true">Show Most Recent Per CM Serial</a>
-    {% endif %}
+  <div class="mb-3 d-flex justify-content-between align-items-center">
+    <div>
+      {% if show_unique %}
+        <a class="btn btn-outline-red btn" href="/history">Show All Entries</a>
+      {% else %}
+        <a class="btn btn-outline-red btn" href="/history?unique=true">Show Most Recent Per CM Serial</a>
+      {% endif %}
+    </div>
+    <div>
+      <a class="btn btn-outline-red btn me-2" href="/">Home</a>
+      <a class="btn btn-outline-red btn me-2" href="/export_csv">Download CSV</a>
+      <a class="btn btn-outline-red btn me-2" href="/form">Back to Form</a>
+      <a class="btn btn-outline-red btn" href="/help">Help</a>
+    </div>
   </div>
 
 
-  <label for="row-input">Visible Rows:</label>
-  <input type="number" id="row-input" ... >
 
 
-  <table id="data-table" class="display history-table" style="width: 100%;">
-    <thead>
-      <tr>
-        <th>Time</th>
-        <th>User</th>
-        {% for field in fields %}
-          <th>{{ field.label }}</th>
-        {% endfor %}
-        <th>File</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for e in entries %}
-      <tr>
-        <td>{{ e.timestamp }}</td>
-        <td>{{ e.user.username }}</td>
-        {% for field in fields %}
-          <td>{{ e.data.get(field.name, '') }}</td>
-        {% endfor %}
-        <td>{{ e.file_name }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <a href="/export_csv">Download CSV</a> |
-  <a href="/form">Back to Form</a> |
-  <a href="/history?unique=true">View Unique CM Serial Numbers</a> |
-  <a href="/">Home</a> |
-  <a href="/help">Help</a>
+  <div class="card p-3 shadow-sm">
+    <div class="table-responsive">
+      <table id="data-table" class="table table-bordered table-striped">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>User</th>
+            {% for field in fields %}
+              <th>{{ field.label }}</th>
+            {% endfor %}
+            <th>File</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entries %}
+          <tr>
+            <td>{{ e.timestamp }}</td>
+            <td>{{ e.user.username }}</td>
+            {% for field in fields %}
+              <td>{{ e.data.get(field.name, '') }}</td>
+            {% endfor %}
+            <td>{{ e.file_name }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -55,19 +83,16 @@
     let table;
 
     function calculateAvailableHeight() {
-      const offset = 250; // adjust based on how much space you want for headers/buttons
+      const offset = 300;
       return window.innerHeight - offset;
     }
 
     function initOrUpdateTable() {
       const height = calculateAvailableHeight();
-
       if (table) {
-        // Resize only
         $('.dataTables_scrollBody').css('max-height', `${height}px`);
         table.draw(false);
       } else {
-        // First time init
         table = tableElement.DataTable({
           scrollY: height,
           scrollCollapse: true,
@@ -80,14 +105,8 @@
       }
     }
 
-    // Initial setup
     initOrUpdateTable();
-
-    // Recalculate on window resize
-    $(window).on('resize', function () {
-      initOrUpdateTable();
-    });
+    $(window).on('resize', initOrUpdateTable);
   });
 </script>
-
 {% endblock %}
