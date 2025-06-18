@@ -14,7 +14,7 @@
 
 
   <label for="row-input">Visible Rows:</label>
-  <input type="number" id="row-input" min="5" max="200" value="20" step="1" style="width: 70px; margin-bottom: 10px;">
+  <input type="number" id="row-input" ... >
 
 
   <table id="data-table" class="display history-table" style="width: 100%;">
@@ -51,35 +51,43 @@
 
 <script>
   $(document).ready(function () {
-    const input = $('#row-input');
-    const defaultRows = parseInt(input.val()) || 20;
+    const tableElement = $('#data-table');
+    let table;
 
-    const table = $('#data-table').DataTable({
-      scrollY: defaultRows * 30,
-      scrollCollapse: true,
-      scroller: true,
-      deferRender: true,
-      pageLength: -1,
-      order: [[0, 'desc']],
-      scrollX: true
-    });
+    function calculateAvailableHeight() {
+      const offset = 250; // adjust based on how much space you want for headers/buttons
+      return window.innerHeight - offset;
+    }
 
-    table.on('draw', function () {
-      const rowHeight = $('#data-table tbody tr').first().height() || 30;
-      const rows = parseInt(input.val());
-      const newHeight = rowHeight * rows;
-      $('.dataTables_scrollBody').css('max-height', `${newHeight}px`);
-    });
+    function initOrUpdateTable() {
+      const height = calculateAvailableHeight();
 
-    input.on('change', function () {
-      const rows = parseInt(this.value);
-      if (!isNaN(rows) && rows > 0) {
-        const rowHeight = $('#data-table tbody tr').first().height() || 30;
-        const newHeight = rowHeight * rows;
-        $('.dataTables_scrollBody').css('max-height', `${newHeight}px`);
+      if (table) {
+        // Resize only
+        $('.dataTables_scrollBody').css('max-height', `${height}px`);
         table.draw(false);
+      } else {
+        // First time init
+        table = tableElement.DataTable({
+          scrollY: height,
+          scrollCollapse: true,
+          scroller: true,
+          deferRender: true,
+          pageLength: -1,
+          order: [[0, 'desc']],
+          scrollX: true
+        });
       }
+    }
+
+    // Initial setup
+    initOrUpdateTable();
+
+    // Recalculate on window resize
+    $(window).on('resize', function () {
+      initOrUpdateTable();
     });
   });
 </script>
+
 {% endblock %}
