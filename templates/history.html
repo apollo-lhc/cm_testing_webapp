@@ -4,30 +4,43 @@
 
 {% block content %}
 <div class="container history-container">
+  <div style="margin-bottom: 10px;">
+    {% if show_unique %}
+      <a class="btn" href="/history">Show All Entries</a>
+    {% else %}
+      <a class="btn" href="/history?unique=true">Show Most Recent Per CM Serial</a>
+    {% endif %}
   </div>
+
   <table class="history-table">
     <tr>
       <th data-type="timestamp" onclick="sortTable(this)">Time</th>
       <th data-type="text" onclick="sortTable(this)">User</th>
       {% for field in fields %}
-        <th data-name="{{field.name}}" data-type="{{ field.type }}" onclick="sortTable(this)">
+        <th data-name="{{ field.name }}" data-type="{{ field.type }}" onclick="sortTable(this)">
           {{ field.label }}
         </th>
       {% endfor %}
       <th data-type="text" onclick="sortTable(this)">File</th>
     </tr>
+
     {% for e in entries %}
     <tr>
-      <td>{{ e.timestamp }}</td><td>{{ e.user.username }}</td>
+      <td>{{ e.timestamp }}</td>
+      <td>{{ e.user.username }}</td>  {# using .user.username since it's a relationship #}
       {% for field in fields %}
         <td>{{ e.data.get(field.name) }}</td>
       {% endfor %}
-      <td>{% if e.file_name %}<a href="/uploads/{{ e.file_name }}">{{ e.file_name }}</a>{% endif %}</td>
+      <td>{{ e.file_name }}</td>
     </tr>
     {% endfor %}
   </table>
-  <a href="/export_csv">Download CSV</a> | <a href="/form">Back to Form</a> |
-  <a href="unique_cm_serials">View Unique CM Serial Numbers</a> | <a href="/">Home</a> | <a href="/help">Help</a>
+
+  <a href="/export_csv">Download CSV</a> |
+  <a href="/form">Back to Form</a> |
+  <a href="/history?unique=true">View Unique CM Serial Numbers</a> |
+  <a href="/">Home</a> |
+  <a href="/help">Help</a>
 </div>
 
 <script>
@@ -48,28 +61,22 @@
     const colIndex = Array.from(tab.parentNode.children).indexOf(tab);
     const type = tab.getAttribute("data-type") || "text";
     const rows = Array.from(table.querySelectorAll("tr")).slice(1);
-    const ascending = !sortDirections[colIndex]; //change if sorting type is wrong later on first click
+    const ascending = !sortDirections[colIndex];
     sortDirections[colIndex] = ascending;
 
-    rows.sort((a,b) => {
+    rows.sort((a, b) => {
       let A = a.children[colIndex].innerText.trim();
       A = parseValue(A, type);
       let B = b.children[colIndex].innerText.trim();
       B = parseValue(B, type);
 
-      // if comparision is the same then compare timestamps to order
-      if (A < B) {
-        return ascending ? -1 : 1;
-      }
-      if (A > B) {
-        return ascending ? 1 : -1;
-      }
+      if (A < B) return ascending ? -1 : 1;
+      if (A > B) return ascending ? 1 : -1;
 
       const aTime = new Date(a.children[0].innerText);
       const bTime = new Date(b.children[0].innerText);
       return bTime - aTime;
-    }
-    );
+    });
 
     for (let row of rows) {
       table.appendChild(row);
