@@ -12,28 +12,34 @@
     {% endif %}
   </div>
 
-  <table class="history-table">
-    <tr>
-      <th data-type="timestamp" onclick="sortTable(this)">Time</th>
-      <th data-type="text" onclick="sortTable(this)">User</th>
-      {% for field in fields %}
-        <th data-name="{{ field.name }}" data-type="{{ field.type }}" onclick="sortTable(this)">
-          {{ field.label }}
-        </th>
-      {% endfor %}
-      <th data-type="text" onclick="sortTable(this)">File</th>
-    </tr>
 
-    {% for e in entries %}
-    <tr>
-      <td>{{ e.timestamp }}</td>
-      <td>{{ e.user.username }}</td>  {# using .user.username since it's a relationship #}
-      {% for field in fields %}
-        <td>{{ e.data.get(field.name) }}</td>
+  <label for="row-input">Visible Rows:</label>
+  <input type="number" id="row-input" min="5" max="200" value="20" step="1" style="width: 70px; margin-bottom: 10px;">
+
+
+  <table id="data-table" class="display history-table" style="width: 100%;">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>User</th>
+        {% for field in fields %}
+          <th>{{ field.label }}</th>
+        {% endfor %}
+        <th>File</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td>{{ e.timestamp }}</td>
+        <td>{{ e.user.username }}</td>
+        {% for field in fields %}
+          <td>{{ e.data.get(field.name, '') }}</td>
+        {% endfor %}
+        <td>{{ e.file_name }}</td>
+      </tr>
       {% endfor %}
-      <td>{{ e.file_name }}</td>
-    </tr>
-    {% endfor %}
+    </tbody>
   </table>
 
   <a href="/export_csv">Download CSV</a> |
@@ -44,43 +50,36 @@
 </div>
 
 <script>
-  let sortDirections = {};
+  $(document).ready(function () {
+    const input = $('#row-input');
+    const defaultRows = parseInt(input.val()) || 20;
 
-  function parseValue(value, type) {
-    if (type == 'integer' || type == 'float') {
-      return parseFloat(value) || 0;
-    }
-    if (type == 'boolean') {
-      return value == 'True' ? 1 : 0;
-    }
-    return value.toString().toLowerCase();
-  }
-
-  function sortTable(tab) {
-    const table = tab.closest("table");
-    const colIndex = Array.from(tab.parentNode.children).indexOf(tab);
-    const type = tab.getAttribute("data-type") || "text";
-    const rows = Array.from(table.querySelectorAll("tr")).slice(1);
-    const ascending = !sortDirections[colIndex];
-    sortDirections[colIndex] = ascending;
-
-    rows.sort((a, b) => {
-      let A = a.children[colIndex].innerText.trim();
-      A = parseValue(A, type);
-      let B = b.children[colIndex].innerText.trim();
-      B = parseValue(B, type);
-
-      if (A < B) return ascending ? -1 : 1;
-      if (A > B) return ascending ? 1 : -1;
-
-      const aTime = new Date(a.children[0].innerText);
-      const bTime = new Date(b.children[0].innerText);
-      return bTime - aTime;
+    const table = $('#data-table').DataTable({
+      scrollY: defaultRows * 30,
+      scrollCollapse: true,
+      scroller: true,
+      deferRender: true,
+      pageLength: -1,
+      order: [[0, 'desc']],
+      scrollX: true
     });
 
-    for (let row of rows) {
-      table.appendChild(row);
-    }
-  }
+    table.on('draw', function () {
+      const rowHeight = $('#data-table tbody tr').first().height() || 30;
+      const rows = parseInt(input.val());
+      const newHeight = rowHeight * rows;
+      $('.dataTables_scrollBody').css('max-height', `${newHeight}px`);
+    });
+
+    input.on('change', function () {
+      const rows = parseInt(this.value);
+      if (!isNaN(rows) && rows > 0) {
+        const rowHeight = $('#data-table tbody tr').first().height() || 30;
+        const newHeight = rowHeight * rows;
+        $('.dataTables_scrollBody').css('max-height', `${newHeight}px`);
+        table.draw(false);
+      }
+    });
+  });
 </script>
 {% endblock %}
