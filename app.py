@@ -13,18 +13,11 @@ import os
 import io
 import csv
 from datetime import datetime
-
-#for random:
-from random import randint, uniform, choice
-
-
-from flask import Flask, render_template, request, redirect, url_for, session, send_file
+from random import randint, uniform, choice #for random
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, g
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from models import db, User, TestEntry
-
-
-
 
 
 
@@ -33,16 +26,19 @@ app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
+
+class EntrySlot:
+    #entry slot in progress storage and maybe authentication
+    def __init__(self, closed=False, data=None):
+        self.closed = closed
+        self.data = data
+
 # Define multiple forms, each with its own fields and a unique name
 
 #Field: name, label, type, display_history
 
 # need to use blank.copy() after an instance of blank if no other field comes next to it
 blank = { "name": "blank", "label": "", "type": None, "display_history": False }
-
-#change with the lambda expression
-latest_cm_entries = [None] * 51
-
 
 FORMS = [
     {
@@ -143,9 +139,11 @@ FORMS = [
     },
 ]
 
-
-
-
+@app.before_request
+def require_login():
+    allowed_routes = {'login', 'register', 'static'}
+    if request.endpoint not in allowed_routes and 'user_id' not in session:
+        return redirect(url_for('login'))
 
 @app.route('/add_dummy_entry')
 def add_dummy_entry():
@@ -189,12 +187,9 @@ def add_dummy_entry():
         entry = TestEntry(
             user_id=session['user_id'],
             data=test_data,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
-
         db.session.add(entry)
-        update_latest_cm_entry(entry)
-
     db.session.commit()
     return redirect(url_for('history'))
 
@@ -320,7 +315,6 @@ def form():
         )
         db.session.add(entry)
         db.session.commit()
-        update_latest_cm_entry(entry)
         session.pop('form_index')
         session.pop('form_data')
         session.pop('file_name', None)
@@ -443,48 +437,12 @@ def export_csv():
     return send_file(io.BytesIO(output.read().encode()), mimetype='text/csv',
                      as_attachment=True, download_name='test_results.csv')
 
-# @app.route('/unique_cm_serials')
-# def unique_cm_serials():
-#     """Show one entry per unique CM_serial (latest by timestamp)."""
-#     if 'user_id' not in session:
-#         return redirect(url_for('login'))
-#     entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
-#     all_fields = []
-#     for single_form in FORMS:
-#         all_fields.extend(single_form["fields"])
-#     # Find the field name for CM_serial
-#     cm_serial_field = next((f["name"] for f in all_fields if f["name"].lower() == "cm_serial"), None)
-#     if not cm_serial_field:
-#         return "CM_serial field not found.", 500
-
-#     seen = set()
-#     unique_entries = []
-#     for entry in entries:
-#         cm_serial = entry.data.get(cm_serial_field)
-#         if cm_serial not in seen:
-#             seen.add(cm_serial)
-#             unique_entries.append(entry)
-#     return render_template('unique_cm_serials.html', entries=unique_entries, fields=all_fields)
-
 @app.route('/help')
 def help_button():
     """Bring up static help page."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return send_from_directory("static", "Apollo_CMv3_Production_Testing_04Nov2024.html")
-
-def update_latest_cm_entry(entry):
-    cm_serial = entry.data.get("CM_serial")
-    if cm_serial is None:
-        return
-    user = db.session.query(User).get(entry.user_id)
-    latest_cm_entries[int(cm_serial) - 3000] = {
-        "timestamp": entry.timestamp,
-        "username": user.username,
-        "data": entry.data,
-        "file_name": entry.file_name
-    }
-
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
