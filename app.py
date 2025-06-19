@@ -76,9 +76,9 @@ FORMS = [
             { "name": "dcdc_converter_test", "label": "All DC-DC Converters Passed", "type": "boolean"},
             { "name": "i2c_to_clockchips", "label": "Clock Chips I2C Test Passed", "type": "boolean" },
             { "name": "i2c_to_fpgas", "label": "I2C to FPGA's Passed", "type": "boolean"}, #may need to adjust if dont have fpga's on board
-            { "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank Passed", "type": "boolean"},
+            { "name": "i2c_to_firefly_bank1", "label": "I2C to FireFly Bank 1 Passed", "type": "boolean"},
+            { "name": "i2c_to_firefly_bank2", "label": "I2C to FireFly Bank 2 Passed", "type": "boolean"}, #"havent given much thought yet" -prod test doc
             { "name": "i2c_to_eeprom", "label": "I2C to EEPROM Passed", "type": "boolean"},
-            #{ "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank passed", "type": "boolean"}, #"havent given much thought yet" -prod test doc
         ]
     },
     {
