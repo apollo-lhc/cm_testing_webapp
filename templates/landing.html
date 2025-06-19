@@ -1,0 +1,14 @@
+<!-- not currently in use will prob need to move home page to this if this is to be implemented -->
+{% extends "base.html" %}
+{% block title %}Landing{% endblock %}
+{% block page_title %}Landing{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Apollo Board Testing</h2>
+    <p></p>
+    <a href="{{ url_for('restart_forms') }}">Start entry</a> | <a href="{{ url_for('history') }}">View History</a> |
+    <a href="/logout">Logout</a> |  <a href="/help">Help</a>
+</div>
+{% endblock %}
+
