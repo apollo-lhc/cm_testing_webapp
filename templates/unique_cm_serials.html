@@ -1,10 +1,12 @@
 {% extends "base.html" %}
-{% block title %}All Data{% endblock %}
-{% block page_title %}All Data{% endblock %}
+
+{% block title %}Unique CM Serial Numbers{% endblock %}
+{% block page_title %}Unique CM Serial Numbers{% endblock %}
 
 {% block content %}
-<div class="container history-container">
-  <table class="history-table">
+<div class="container unique-container">
+  <h2>CM Status (Latest Only)</h2>
+  <table class="unique-table">
     <tr>
       <th>Time</th><th>User</th>
       {% for field in fields %}<th>{{ field.label }}</th>{% endfor %}
@@ -20,6 +22,6 @@
     </tr>
     {% endfor %}
   </table>
-  <a href="/export_csv">Download CSV</a> | <a href="/form">Back to Form</a> | <a href="unique_cm_serials">View Unique CM Serial Numbers</a> | <a href="/">Home</a> | <a href="/help">Help</a>
+  <a href="/history">View All Submissions</a> | <a href="/form">Back to Form</a> | <a href="/help">Help</a> | <a href="/">Home</a>
 </div>
 {% endblock %}
