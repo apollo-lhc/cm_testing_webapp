@@ -414,19 +414,46 @@ def export_csv():
     """Export all test entries to CSV."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    output = io.StringIO()
-    writer = csv.writer(output)
+
+    unique_toggle = request.args.get('unique') == "true"
+
     # Combine all fields from all forms for CSV export
     all_fields = []
     for single_form in FORMS:
         all_fields.extend(single_form["fields"])
+
+    if unique_toggle:
+        subquery = (
+            db.session.query(
+                TestEntry.data["CM_serial"].as_integer().label("cm_serial"),
+                db.func.max(TestEntry.timestamp).label("latest")
+            )
+            .group_by(TestEntry.data["CM_serial"].as_integer())
+            .subquery()
+        )
+
+        entries = (
+            db.session.query(TestEntry)
+            .join(subquery, db.and_(
+                TestEntry.data["CM_serial"].as_integer() == subquery.c.cm_serial,
+                TestEntry.timestamp == subquery.c.latest
+            ))
+            .order_by(TestEntry.timestamp.desc())
+            .all()
+        )
+    else:
+        entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
     writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File'])
-    entries = TestEntry.query.all()
+
     for e in entries:
         row = [e.timestamp, e.user.username]
         row += [e.data.get(f["name"]) for f in all_fields]
         row += [e.file_name]
         writer.writerow(row)
+
     output.seek(0)
     return send_file(io.BytesIO(output.read().encode()), mimetype='text/csv',
                      as_attachment=True, download_name='test_results.csv')
