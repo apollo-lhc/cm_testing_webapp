@@ -139,12 +139,6 @@ FORMS = [
     },
 ]
 
-@app.before_request
-def require_login():
-    allowed_routes = {'login', 'register', 'static'}
-    if request.endpoint not in allowed_routes and 'user_id' not in session:
-        return redirect(url_for('login'))
-
 @app.route('/add_dummy_entry')
 def add_dummy_entry():
     """adds dummy entires activate with:
