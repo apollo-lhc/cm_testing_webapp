@@ -13,15 +13,25 @@ import os
 import io
 import csv
 from datetime import datetime
+from random import randint, uniform, choice #for random
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from models import db, User, TestEntry
 
+
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
+
+
+class EntrySlot:
+    #entry slot in progress storage and maybe authentication
+    def __init__(self, closed=False, data=None):
+        self.closed = closed
+        self.data = data
 
 # Define multiple forms, each with its own fields and a unique name
 
@@ -66,9 +76,9 @@ FORMS = [
             { "name": "dcdc_converter_test", "label": "All DC-DC Converters Passed", "type": "boolean"},
             { "name": "i2c_to_clockchips", "label": "Clock Chips I2C Test Passed", "type": "boolean" },
             { "name": "i2c_to_fpgas", "label": "I2C to FPGA's Passed", "type": "boolean"}, #may need to adjust if dont have fpga's on board
-            { "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank Passed", "type": "boolean"},
+            { "name": "i2c_to_firefly_bank1", "label": "I2C to FireFly Bank 1 Passed", "type": "boolean"},
+            { "name": "i2c_to_firefly_bank2", "label": "I2C to FireFly Bank 2 Passed", "type": "boolean"}, #"havent given much thought yet" -prod test doc
             { "name": "i2c_to_eeprom", "label": "I2C to EEPROM Passed", "type": "boolean"},
-            #{ "name": "i2c_to_firefly_bank", "label": "I2C to FireFly Bank passed", "type": "boolean"}, #"havent given much thought yet" -prod test doc
         ]
     },
     {
@@ -128,6 +138,55 @@ FORMS = [
         ]
     },
 ]
+
+@app.route('/add_dummy_entry')
+def add_dummy_entry():
+    """adds dummy entires activate with:
+    http://localhost:5001/add_dummy_entry → adds 1 entry
+    http://localhost:5001/add_dummy_entry?count=10 → adds 10 entries"""
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        count = int(request.args.get('count', 1))
+    except ValueError:
+        count = 1
+
+    for _ in range(count):
+        test_data = {
+            "CM_serial": randint(3000, 3050),
+            "passed_visual": choice([True, False]),
+            "comments": "Auto-generated entry",
+            "management_power": round(uniform(2.5, 3.3), 2),
+            "power_supply_voltage": round(uniform(3.2, 3.5), 2),
+            "current_draw": round(uniform(200, 400), 1),
+            "resistance": round(uniform(1.0, 10.0), 2),
+            "mcu_programmed": choice([True, False]),
+            "i2c_to_dcdc": choice([True, False]),
+            "dcdc_converter_test": choice([True, False]),
+            "i2c_to_clockchips": choice([True, False]),
+            "i2c_to_fpgas": choice([True, False]),
+            "i2c_to_firefly_bank": choice([True, False]),
+            "i2c_to_eeprom": choice([True, False]),
+            "fpga_oscillator_clock_1": round(uniform(100.0, 150.0), 2),
+            "fpga_oscillator_clock_2": round(uniform(100.0, 150.0), 2),
+            "fpga_flash_memory": choice([True, False]),
+            "ibert_test": choice([True, False]),
+            "full_link_test": choice([True, False]),
+            "third_step_fpga_test": choice([True, False]),
+            "heating_test": choice([True, False])
+        }
+
+        entry = TestEntry(
+            user_id=session['user_id'],
+            data=test_data,
+            timestamp=datetime.utcnow(),
+        )
+        db.session.add(entry)
+    db.session.commit()
+    return redirect(url_for('history'))
+
 
 db.init_app(app)
 
@@ -318,57 +377,86 @@ def history():
     """Show history of all test entries."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
+    unique_toggle = request.args.get('unique') == "true"
+
     # Use all fields from all FORMS for history display
     all_fields = []
     for single_form in FORMS:
         all_fields.extend([f for f in single_form["fields"] if f.get("display_history", True)])
-    return render_template('history.html', entries=entries, fields=all_fields)
+
+    if unique_toggle:
+        subquery = (
+            db.session.query(
+                TestEntry.data["CM_serial"].as_integer().label("cm_serial"),
+                db.func.max(TestEntry.timestamp).label("latest")
+            )
+            .group_by(TestEntry.data["CM_serial"].as_integer())
+            .subquery()
+        )
+
+        entries = (
+            db.session.query(TestEntry)
+            .join(subquery, db.and_(
+                TestEntry.data["CM_serial"].as_integer() == subquery.c.cm_serial,
+                TestEntry.timestamp == subquery.c.latest
+            ))
+            .order_by(TestEntry.timestamp.desc())
+            .all()
+        )
+
+    else:
+        entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
+
+    return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle)
 
 @app.route('/export_csv')
 def export_csv():
     """Export all test entries to CSV."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    output = io.StringIO()
-    writer = csv.writer(output)
+
+    unique_toggle = request.args.get('unique') == "true"
+
     # Combine all fields from all forms for CSV export
     all_fields = []
     for single_form in FORMS:
         all_fields.extend(single_form["fields"])
+
+    if unique_toggle:
+        subquery = (
+            db.session.query(
+                TestEntry.data["CM_serial"].as_integer().label("cm_serial"),
+                db.func.max(TestEntry.timestamp).label("latest")
+            )
+            .group_by(TestEntry.data["CM_serial"].as_integer())
+            .subquery()
+        )
+
+        entries = (
+            db.session.query(TestEntry)
+            .join(subquery, db.and_(
+                TestEntry.data["CM_serial"].as_integer() == subquery.c.cm_serial,
+                TestEntry.timestamp == subquery.c.latest
+            ))
+            .order_by(TestEntry.timestamp.desc())
+            .all()
+        )
+    else:
+        entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
     writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File'])
-    entries = TestEntry.query.all()
+
     for e in entries:
         row = [e.timestamp, e.user.username]
         row += [e.data.get(f["name"]) for f in all_fields]
         row += [e.file_name]
         writer.writerow(row)
+
     output.seek(0)
     return send_file(io.BytesIO(output.read().encode()), mimetype='text/csv',
                      as_attachment=True, download_name='test_results.csv')
-
-@app.route('/unique_cm_serials')
-def unique_cm_serials():
-    """Show one entry per unique CM_serial (latest by timestamp)."""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
-    all_fields = []
-    for single_form in FORMS:
-        all_fields.extend(single_form["fields"])
-    # Find the field name for CM_serial
-    cm_serial_field = next((f["name"] for f in all_fields if f["name"].lower() == "cm_serial"), None)
-    if not cm_serial_field:
-        return "CM_serial field not found.", 500
-
-    seen = set()
-    unique_entries = []
-    for entry in entries:
-        cm_serial = entry.data.get(cm_serial_field)
-        if cm_serial not in seen:
-            seen.add(cm_serial)
-            unique_entries.append(entry)
-    return render_template('unique_cm_serials.html', entries=unique_entries, fields=all_fields)
 
 @app.route('/help')
 def help_button():
@@ -376,7 +464,6 @@ def help_button():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return send_from_directory("static", "Apollo_CMv3_Production_Testing_04Nov2024.html")
-
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
