@@ -14,7 +14,7 @@ import io
 import csv
 from datetime import datetime
 from random import randint, uniform, choice #for random
-from flask import Flask, render_template, request, redirect, url_for, session, send_file, g
+from flask import Flask, render_template, request, redirect, url_for, session, send_file
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from models import db, User, TestEntry
