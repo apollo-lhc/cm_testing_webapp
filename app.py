@@ -12,7 +12,6 @@ Features:
 import os
 import io
 import csv
-import glob
 from datetime import datetime
 from random import randint, uniform, choice #for random
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
@@ -237,8 +236,8 @@ def add_dummy_saves():
             "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         }
 
-        for form in FORMS:
-            for field in form["fields"]:
+        for form_iter in FORMS:
+            for field in form_iter["fields"]:
                 if field["type"] == "boolean":
                     entry_data[field["name"]] = choice(["yes", "no"])
                 elif field["type"] == "integer":
@@ -249,8 +248,8 @@ def add_dummy_saves():
                     entry_data[field["name"]] = "Lorem ipsum"
 
         # Determine last step with missing fields
-        for i, form in enumerate(FORMS):
-            for field in form["fields"]:
+        for i, form_iter in enumerate(FORMS):
+            for field in form_iter["fields"]:
                 if field["name"] not in entry_data:
                     form_index = i
                     break
@@ -373,7 +372,18 @@ def form():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    form_index = int(request.args.get('step', 0))
+    form_index = request.args.get('step')
+
+    if form_index is None:
+        cm_serial = session.get('form_data', {}).get("CM_serial")
+        if cm_serial:
+            index = int(cm_serial) - 3000
+            saved = session['forms_per_serial'][index]
+            if saved:
+                entry = EntrySlot.from_dict(saved)
+                form_index = entry.data.get('last_step', 0)
+
+    form_index = int(form_index or 0)
     form_index = max(0, min(form_index, len(FORMS) - 1))
     current_form = FORMS[form_index]
 
@@ -388,6 +398,7 @@ def form():
             value = request.form.get(field["name"])
             if value is not None:
                 session['form_data'][field["name"]] = value
+                session['form_data']['last_step'] = form_index
 
         is_valid, errors = validate_form(current_form["fields"], request)
         cm_serial = session['form_data'].get("CM_serial")
