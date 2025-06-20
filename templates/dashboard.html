@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}My In Progress Forms{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">My In Progress Forms</h2>
+  {% if entries %}
+  <table class="table table-striped table-bordered">
+    <thead>
+      <tr>
+        <th>Serial Number</th>
+        <th>Current Step</th>
+        <th>Started</th>
+        <th>Resume</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+      <tr>
+        <td>{{ entry.cm_serial }}</td>
+        <td>{{ entry.step_label }}</td>
+        <td>{{ entry.timestamp }}</td>
+        <td>
+          <a class="btn btn-sm btn-primary" href="{{ url_for('form', step=entry.step) }}">Resume</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>You have no saved forms.</p>
+  {% endif %}
+  <div class="mt-4">
+    <a href="/" class="btn btn-outline-red mx-1">Home</a>
+    <a href="/history" class="btn btn-outline-red mx-1">View All Submissions</a>
+    <a href="/logout" class="btn btn-outline-red mx-1">Logout</a>
+    <a href="/help" class="btn btn-outline-red mx-1">Help</a>
+  </div>
+</div>
+{% endblock %}
