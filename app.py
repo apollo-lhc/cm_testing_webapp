@@ -269,7 +269,6 @@ def add_dummy_saves():
     session.modified = True
     return redirect(url_for('dashboard'))
 
-
 db.init_app(app)
 
 with app.app_context():
@@ -526,7 +525,6 @@ def history():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     unique_toggle = request.args.get('unique') == "true"
-
     all_fields = []
     for single_form in FORMS:
         all_fields.extend([f for f in single_form["fields"] if f.get("display_history", True)])
