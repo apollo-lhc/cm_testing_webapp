@@ -369,12 +369,11 @@ def validate_form(fields, req):
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
-    """used ai to annotate, need to fix later with better ones"""
+    """had chatgpt add more comments need to fix comments later and explain this"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
     form_index = request.args.get('step')
-
     if form_index is None:
         cm_serial = session.get('form_data', {}).get("CM_serial")
         if cm_serial:
@@ -392,31 +391,45 @@ def form():
         session['form_data'] = {}
 
     if 'forms_per_serial' not in session:
-        session['forms_per_serial'] = [None] * 51  # for CM_serials 3000–3050
+        session['forms_per_serial'] = [None] * 51
 
     if request.method == 'POST':
-        # Step 1: update session['form_data'] with current step's inputs
+        # Step 1: update form_data with current inputs
         for field in current_form["fields"]:
             value = request.form.get(field["name"])
             if value is not None:
                 session['form_data'][field["name"]] = value
 
-        # Step 2: save last_step for later recovery
+        # Step 2: mark current step
         session['form_data']['last_step'] = form_index
 
-        # Step 3: validate the inputs
-        is_valid, errors = validate_form(current_form["fields"], request)
+        # Step 2.5: determine CM_serial and index
         cm_serial = session['form_data'].get("CM_serial")
+        index = None
+        serial_error = None
 
-        if cm_serial:
+        if cm_serial and cm_serial.isdigit():
             cm_serial = int(cm_serial)
-            if not 3000 <= cm_serial <= 3050:
-                return "Invalid CM Serial", 400
-            index = cm_serial - 3000
+            if 3000 <= cm_serial <= 3050:
+                index = cm_serial - 3000
+            else:
+                serial_error = "Must be between 3000 and 3050"
+        else:
+            serial_error = "Must be an integer between 3000 and 3050"
 
-        # Step 4: handle save & exit
+        # Step 3: handle Save & Exit
         if request.form.get("save_exit") == "true":
-            if cm_serial is not None:
+            if serial_error:
+                return render_template(
+                    "form.html",
+                    fields=current_form["fields"],
+                    prefill_values=session['form_data'],
+                    errors={"CM_serial": serial_error},
+                    form_label=current_form.get("label"),
+                    name="Form"
+                )
+
+            if index is not None:
                 if 'timestamp' not in session['form_data']:
                     session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 session['forms_per_serial'][index] = EntrySlot(
@@ -424,11 +437,14 @@ def form():
                     data=session['form_data'].copy()
                 ).to_dict()
                 session.modified = True
+
             return redirect(url_for('dashboard'))
 
-        # Step 5: if valid, continue or submit
+        # Step 4: full validation for Next
+        is_valid, errors = validate_form(current_form["fields"], request)
+
         if is_valid:
-            # Handle file uploads before final submission
+            # Handle file uploads
             for field in current_form["fields"]:
                 if field["type"] == "file":
                     file = request.files.get(field["name"])
@@ -438,8 +454,7 @@ def form():
                         file.save(filepath)
                         session['form_data'][field["name"]] = filename
 
-            # Save updated form state to session
-            if cm_serial is not None:
+            if index is not None:
                 if 'timestamp' not in session['form_data']:
                     session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 session['forms_per_serial'][index] = EntrySlot(
@@ -448,7 +463,6 @@ def form():
                 ).to_dict()
                 session.modified = True
 
-            # Move to next step if not done
             if form_index + 1 < len(FORMS):
                 return redirect(url_for('form', step=form_index + 1))
 
@@ -458,15 +472,17 @@ def form():
             db.session.add(entry)
             db.session.commit()
 
-            # Clear form data after submission
-            if cm_serial is not None:
+            if index is not None:
                 session['forms_per_serial'][index] = None
                 session.modified = True
             session.pop('form_data', None)
 
             return redirect(url_for('form_complete'))
 
-        # If invalid, re-render with errors
+        # Step 5: re-render form with inline errors
+        if serial_error:
+            errors["CM_serial"] = serial_error
+
         return render_template(
             "form.html",
             fields=current_form["fields"],
@@ -476,9 +492,9 @@ def form():
             name="Form"
         )
 
-    # Reload saved data if it exists
+    # GET request: load saved state if exists
     cm_serial = session.get('form_data', {}).get("CM_serial")
-    if cm_serial is not None:
+    if cm_serial and cm_serial.isdigit():
         cm_serial = int(cm_serial)
         if 3000 <= cm_serial <= 3050:
             index = cm_serial - 3000
@@ -488,19 +504,13 @@ def form():
                 session['form_data'] = entry.data.copy()
 
     return render_template(
-    "form.html",
-    fields=current_form["fields"],
-    prefill_values=session['form_data'],
-    form_label=current_form.get("label"),
-    errors={},
-    name="Form"
+        "form.html",
+        fields=current_form["fields"],
+        prefill_values=session['form_data'],
+        errors={},
+        form_label=current_form.get("label"),
+        name="Form"
     )
-
-@app.route('/form_complete')
-def form_complete():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template("form_complete.html")
 
 @app.route('/restart_forms')
 def restart_forms():
