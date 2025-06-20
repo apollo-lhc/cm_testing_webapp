@@ -12,6 +12,7 @@ Features:
 import os
 import io
 import csv
+import glob
 from datetime import datetime
 from random import randint, uniform, choice #for random
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
@@ -26,12 +27,25 @@ app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-
 class EntrySlot:
-    #entry slot in progress storage and maybe authentication
     def __init__(self, closed=False, data=None):
         self.closed = closed
-        self.data = data
+        self.data = data or {}
+
+    def to_dict(self):
+        return {
+            'closed': self.closed,
+            'data': self.data
+        }
+
+    @staticmethod
+    def from_dict(d):
+        return EntrySlot(
+            closed=d.get('closed', False),
+            data=d.get('data', {})
+        )
+
+serial_locks = {}
 
 # Define multiple forms, each with its own fields and a unique name
 
@@ -187,6 +201,75 @@ def add_dummy_entry():
     db.session.commit()
     return redirect(url_for('history'))
 
+@app.route('/add_dummy_saves')
+def add_dummy_saves():
+    # activate with http://localhost:5001/add_dummy_saves?entries=5
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        num_entries = int(request.args.get('entries', 5))  # default to 5
+    except ValueError:
+        num_entries = 5
+
+    if 'forms_per_serial' not in session:
+        session['forms_per_serial'] = [None] * 51
+
+    used_serials = {
+        3000 + i for i, val in enumerate(session['forms_per_serial']) if val is not None
+    }
+
+    for _ in range(num_entries):
+        cm_serial = randint(3000, 3050)
+        attempts = 0
+        while cm_serial in used_serials and attempts < 20:
+            cm_serial = randint(3000, 3050)
+            attempts += 1
+        if cm_serial in used_serials:
+            continue
+
+        used_serials.add(cm_serial)
+        index = cm_serial - 3000
+
+        entry_data = {
+            "CM_serial": cm_serial,
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        }
+
+        for form in FORMS:
+            for field in form["fields"]:
+                if field["type"] == "boolean":
+                    entry_data[field["name"]] = choice(["yes", "no"])
+                elif field["type"] == "integer":
+                    entry_data[field["name"]] = str(randint(0, 1000))
+                elif field["type"] == "float":
+                    entry_data[field["name"]] = f"{uniform(0, 10):.2f}"
+                elif field["type"] == "text":
+                    entry_data[field["name"]] = "Lorem ipsum"
+
+        # Determine last step with missing fields
+        for i, form in enumerate(FORMS):
+            for field in form["fields"]:
+                if field["name"] not in entry_data:
+                    form_index = i
+                    break
+            else:
+                continue
+            break
+        else:
+            form_index = len(FORMS) - 1
+
+        entry_data['last_step'] = form_index
+
+        session['forms_per_serial'][index] = EntrySlot(
+            closed=False,
+            data=entry_data
+        ).to_dict()
+
+    session.modified = True
+    return redirect(url_for('dashboard'))
+
 
 db.init_app(app)
 
@@ -243,7 +326,6 @@ def home():
 
 def validate_field(field, value):
     """Validate a single field value based on its type and requirements."""
-    # Per-field custom validation
     if "validate" in field and callable(field["validate"]):
         valid, msg = field["validate"](value)
         if not valid:
@@ -270,7 +352,6 @@ def validate_field(field, value):
     elif field["type"] == "file":
         if not value:
             return False, "File is required."
-    # Add more types as needed
     return True, ""
 
 def validate_form(fields, req):
@@ -289,80 +370,123 @@ def validate_form(fields, req):
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
-    """Main page with sequential forms for test entries"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    # Track current form index in session
-    if 'form_index' not in session:
-        session['form_index'] = 0
-        session['form_data'] = {}
-        session['file_name'] = None
 
-    form_index = session['form_index']
-    if form_index >= len(FORMS):
-        # All forms completed
-        # Save the entry and reset session progress
-        entry = TestEntry(
-            user_id=session['user_id'], # type: ignore
-            data=session['form_data'], # type: ignore
-            file_name=session.get('file_name') # type: ignore
-        )
-        db.session.add(entry)
-        db.session.commit()
-        session.pop('form_index')
-        session.pop('form_data')
-        session.pop('file_name', None)
-        return render_template("form_complete.html")
-
+    form_index = int(request.args.get('step', 0))
+    form_index = max(0, min(form_index, len(FORMS) - 1))
     current_form = FORMS[form_index]
-    fields = current_form["fields"]
 
-    errors = {}
-    prefill_values = {}
+    if 'form_data' not in session:
+        session['form_data'] = {}
+
+    if 'forms_per_serial' not in session:
+        session['forms_per_serial'] = [None] * 51  # for CM_serials 3000–3050
 
     if request.method == 'POST':
-        is_valid, errors = validate_form(fields, request)
+        for field in current_form["fields"]:
+            value = request.form.get(field["name"])
+            if value is not None:
+                session['form_data'][field["name"]] = value
+
+        is_valid, errors = validate_form(current_form["fields"], request)
+        cm_serial = session['form_data'].get("CM_serial")
+
+        if cm_serial is not None:
+            cm_serial = int(cm_serial)
+            if not 3000 <= cm_serial <= 3050:
+                return "Invalid CM Serial", 400
+            index = cm_serial - 3000
+
+        if request.form.get("save_exit") == "true":
+            if cm_serial is not None:
+                if 'timestamp' not in session['form_data']:
+                    session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                session['forms_per_serial'][index] = EntrySlot(
+                    closed=False,
+                    data=session['form_data'].copy()
+                ).to_dict()
+                session.modified = True
+            return redirect(url_for('dashboard'))
+
         if is_valid:
-            # Collect data for the current form
-            for field in fields:
+            if cm_serial is not None:
+                if form_index == 0:
+                    if 'timestamp' not in session['form_data']:
+                        session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                    session['forms_per_serial'][index] = EntrySlot(
+                        closed=False,
+                        data=session['form_data'].copy()
+                    ).to_dict()
+                    session.modified = True
+
+                elif session['forms_per_serial'][index]:
+                    entry = EntrySlot.from_dict(session['forms_per_serial'][index])
+                    entry.data = session['form_data'].copy()
+                    session['forms_per_serial'][index] = entry.to_dict()
+                    session.modified = True
+
+            if form_index + 1 < len(FORMS):
+                return redirect(url_for('form', step=form_index + 1))
+
+            user = db.session.get(User, session['user_id'])
+            entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now())
+
+            for field in current_form["fields"]:
                 if field["type"] == "file":
                     file = request.files.get(field["name"])
                     if file and file.filename:
-                        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-                        filename = f"{timestamp}_{secure_filename(file.filename)}"
-                        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                        session['file_name'] = filename
-                elif field["type"] == "boolean":
-                    session['form_data'][field["name"]] = request.form.get(field["name"]) == "yes"
-                elif field["type"] == "float":
-                    val = request.form.get(field["name"])
-                    session['form_data'][field["name"]] = float(val) if val else None
-                elif field["type"] == "integer":
-                    val = request.form.get(field["name"])
-                    session['form_data'][field["name"]] = int(val) if val else None
-                else:
-                    session['form_data'][field["name"]] = request.form.get(field["name"])
-            # Move to next form
-            session['form_index'] = form_index + 1
-            return redirect(url_for('form'))
-        # if error store previous values to refil form when displayed with errors
-        for field in fields:
-            if field["type"] == "file":
-                continue
-            prefill_values[field["name"]] = request.form.get(field["name"])
-    else:
-        for field in fields:
-            prefill_values[field["name"]] = session['form_data'].get(field["name"], "")
+                        filename = secure_filename(file.filename)
+                        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                        file.save(filepath)
+                        session['form_data'][field["name"]] = filename
+
+
+            db.session.add(entry)
+            db.session.commit()
+
+            if cm_serial is not None:
+                session['forms_per_serial'][index] = None
+                session.modified = True
+
+            session.pop('form_data', None)
+            return redirect(url_for('form_complete'))
+
+
+        return render_template(
+            "form.html",
+            fields=current_form["fields"],
+            prefill_values=session['form_data'],
+            errors=errors,
+            form_label=current_form.get("label"),
+            name="Form"
+        )
+
+
+
+    # Reload saved data if it exists
+    cm_serial = session.get('form_data', {}).get("CM_serial")
+    if cm_serial is not None:
+        cm_serial = int(cm_serial)
+        if 3000 <= cm_serial <= 3050:
+            index = cm_serial - 3000
+            saved = session['forms_per_serial'][index]
+            if saved:
+                entry = EntrySlot.from_dict(saved)
+                session['form_data'] = entry.data.copy()
 
     return render_template(
-        "form.html",
-        fields=fields,
-        form_label=current_form["label"],
-        form_index=form_index,
-        total_forms=len(FORMS),
-        errors=errors,
-        prefill_values=prefill_values
+    "form.html",
+    fields=current_form["fields"],
+    prefill_values=session['form_data'],
+    form_label=current_form.get("label"),
+    errors={},
+    name="Form"
     )
+
+
 
 @app.route('/restart_forms')
 def restart_forms():
@@ -379,7 +503,6 @@ def history():
         return redirect(url_for('login'))
     unique_toggle = request.args.get('unique') == "true"
 
-    # Use all fields from all FORMS for history display
     all_fields = []
     for single_form in FORMS:
         all_fields.extend([f for f in single_form["fields"] if f.get("display_history", True)])
@@ -464,6 +587,68 @@ def help_button():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return send_from_directory("static", "Apollo_CMv3_Production_Testing_04Nov2024.html")
+
+def determine_step_from_data(data):
+    for i, fo in enumerate(FORMS):
+        for field in fo['fields']:
+            if not data.get(field['name']):
+                return i  # First incomplete step
+    return len(FORMS) - 1  # Default to final step
+
+@app.route('/dashboard')
+def dashboard():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    saved_entries = []
+    user_forms = session.get('forms_per_serial', [])
+
+    for index, entry_data in enumerate(user_forms):
+        if entry_data:
+            cm_serial = 3000 + index
+            entry = EntrySlot.from_dict(entry_data)
+            data = entry.data
+            timestamp = data.get('timestamp', 'Unknown')
+            step = data.get('last_step', determine_step_from_data(data))
+            step_label = FORMS[step]["label"]
+            saved_entries.append({
+                'cm_serial': cm_serial,
+                'step': step,
+                'step_label': step_label,
+                'timestamp': timestamp
+            })
+
+    return render_template('dashboard.html', entries=saved_entries)
+
+@app.route('/clear_history')
+def clear_history():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    with app.app_context():
+        db.session.query(TestEntry).delete()
+        db.session.commit()
+
+        upload_dir = app.config['UPLOAD_FOLDER']
+        for filename in os.listdir(upload_dir):
+            file_path = os.path.join(upload_dir, filename)
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass  # Silently ignore errors
+
+    return redirect(request.referrer or url_for('history'))
+
+@app.route('/clear_saves')
+def clear_saves():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    session['forms_per_serial'] = [None] * 51
+    session.pop('form_data', None)
+    session.modified = True
+
+    return redirect(request.referrer or url_for('dashboard'))
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
