@@ -369,6 +369,7 @@ def validate_form(fields, req):
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
+    """used ai to annotate, need to fix later with better ones"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
@@ -394,26 +395,30 @@ def form():
         session['forms_per_serial'] = [None] * 51  # for CM_serials 3000–3050
 
     if request.method == 'POST':
+        # Step 1: update session['form_data'] with current step's inputs
         for field in current_form["fields"]:
             value = request.form.get(field["name"])
             if value is not None:
                 session['form_data'][field["name"]] = value
-                session['form_data']['last_step'] = form_index
 
+        # Step 2: save last_step for later recovery
+        session['form_data']['last_step'] = form_index
+
+        # Step 3: validate the inputs
         is_valid, errors = validate_form(current_form["fields"], request)
         cm_serial = session['form_data'].get("CM_serial")
 
-        if cm_serial is not None:
+        if cm_serial:
             cm_serial = int(cm_serial)
             if not 3000 <= cm_serial <= 3050:
                 return "Invalid CM Serial", 400
             index = cm_serial - 3000
 
+        # Step 4: handle save & exit
         if request.form.get("save_exit") == "true":
             if cm_serial is not None:
                 if 'timestamp' not in session['form_data']:
                     session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
                 session['forms_per_serial'][index] = EntrySlot(
                     closed=False,
                     data=session['form_data'].copy()
@@ -421,30 +426,9 @@ def form():
                 session.modified = True
             return redirect(url_for('dashboard'))
 
+        # Step 5: if valid, continue or submit
         if is_valid:
-            if cm_serial is not None:
-                if form_index == 0:
-                    if 'timestamp' not in session['form_data']:
-                        session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-                    session['forms_per_serial'][index] = EntrySlot(
-                        closed=False,
-                        data=session['form_data'].copy()
-                    ).to_dict()
-                    session.modified = True
-
-                elif session['forms_per_serial'][index]:
-                    entry = EntrySlot.from_dict(session['forms_per_serial'][index])
-                    entry.data = session['form_data'].copy()
-                    session['forms_per_serial'][index] = entry.to_dict()
-                    session.modified = True
-
-            if form_index + 1 < len(FORMS):
-                return redirect(url_for('form', step=form_index + 1))
-
-            user = db.session.get(User, session['user_id'])
-            entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now())
-
+            # Handle file uploads before final submission
             for field in current_form["fields"]:
                 if field["type"] == "file":
                     file = request.files.get(field["name"])
@@ -454,18 +438,35 @@ def form():
                         file.save(filepath)
                         session['form_data'][field["name"]] = filename
 
+            # Save updated form state to session
+            if cm_serial is not None:
+                if 'timestamp' not in session['form_data']:
+                    session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                session['forms_per_serial'][index] = EntrySlot(
+                    closed=False,
+                    data=session['form_data'].copy()
+                ).to_dict()
+                session.modified = True
 
+            # Move to next step if not done
+            if form_index + 1 < len(FORMS):
+                return redirect(url_for('form', step=form_index + 1))
+
+            # Final submission
+            user = db.session.get(User, session['user_id'])
+            entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now())
             db.session.add(entry)
             db.session.commit()
 
+            # Clear form data after submission
             if cm_serial is not None:
                 session['forms_per_serial'][index] = None
                 session.modified = True
-
             session.pop('form_data', None)
+
             return redirect(url_for('form_complete'))
 
-
+        # If invalid, re-render with errors
         return render_template(
             "form.html",
             fields=current_form["fields"],
@@ -474,8 +475,6 @@ def form():
             form_label=current_form.get("label"),
             name="Form"
         )
-
-
 
     # Reload saved data if it exists
     cm_serial = session.get('form_data', {}).get("CM_serial")
@@ -497,7 +496,11 @@ def form():
     name="Form"
     )
 
-
+@app.route('/form_complete')
+def form_complete():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template("form_complete.html")
 
 @app.route('/restart_forms')
 def restart_forms():

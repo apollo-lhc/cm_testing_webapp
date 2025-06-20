@@ -18,7 +18,7 @@
       {% for entry in entries %}
       <tr>
         <td>{{ entry.cm_serial }}</td>
-        <td>Step {{ entry.step_label }}</td>
+        <td>{{ entry.step_label }}</td>
         <td>{{ entry.timestamp }}</td>
         <td>
           <a class="btn btn-sm btn-primary" href="{{ url_for('form', step=entry.step) }}">Resume</a>
