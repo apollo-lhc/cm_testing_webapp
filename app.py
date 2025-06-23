@@ -142,7 +142,6 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
 
-
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
     """route to serve uploaded files"""
