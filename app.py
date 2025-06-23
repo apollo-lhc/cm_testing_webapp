@@ -55,10 +55,11 @@ FORMS = [
         "name": "power_test",
         "label": "Power Test",
         "fields": [
+            {"name": "powertesttext", "label": "Voltages should be around 11.5 - 12.5 V, Currents 0.5 - 2.0 A"},
             { "name": "management_power", "label": "Management Power", "type": "float" },
             { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
             { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
-            { "name": "resistance", "label": "Resistance (Ohms)", "type": "float" },
+            #{ "name": "resistance", "label": "Resistance (Ohms)", "type": "float" },
             { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type": "boolean" }
         ]
     },
@@ -93,7 +94,9 @@ FORMS = [
         "fields": [
             { "name": "fpga_second_step_tip", "label": "Load the second-step FPGA code to test FPGA-FPGA and MCU-FPGA connections", "type": "null", "display_history": False },
             { "name": "ibert_test", "label": "IBERT link Test Passed", "type": "boolean" },
+            { "name": "ibert_test_upload", "label": "Upload IBERT Test Results", "type": "file" },
             { "name": "full_link_test", "label": "Firefly, FPGA-FPGA, C2C, and TCDS Links Passed", "type": "boolean" },
+            { "name": "firefly_test_upload", "label": "Upload Firefly Test Results", "type": "file" },
         ]
     },
 
