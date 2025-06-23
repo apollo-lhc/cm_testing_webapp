@@ -12,12 +12,13 @@ Features:
 import os
 import io
 import csv
+import sys
 from datetime import datetime
 from random import randint, uniform, choice #for random
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
-from models import db, User, TestEntry
+from models import db, User, TestEntry, EntrySlot
 
 
 
@@ -25,26 +26,6 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
-
-class EntrySlot:
-    def __init__(self, closed=False, data=None):
-        self.closed = closed
-        self.data = data or {}
-
-    def to_dict(self):
-        return {
-            'closed': self.closed,
-            'data': self.data
-        }
-
-    @staticmethod
-    def from_dict(d):
-        return EntrySlot(
-            closed=d.get('closed', False),
-            data=d.get('data', {})
-        )
-
-serial_locks = {}
 
 # Define multiple forms, each with its own fields and a unique name
 
@@ -152,124 +133,6 @@ FORMS = [
     },
 ]
 
-@app.route('/add_dummy_entry')
-def add_dummy_entry():
-    """adds dummy entires activate with:
-    http://localhost:5001/add_dummy_entry → adds 1 entry
-    http://localhost:5001/add_dummy_entry?count=10 → adds 10 entries"""
-
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    try:
-        count = int(request.args.get('count', 1))
-    except ValueError:
-        count = 1
-
-    for _ in range(count):
-        test_data = {
-            "CM_serial": randint(3000, 3050),
-            "passed_visual": choice([True, False]),
-            "comments": "Auto-generated entry",
-            "management_power": round(uniform(2.5, 3.3), 2),
-            "power_supply_voltage": round(uniform(3.2, 3.5), 2),
-            "current_draw": round(uniform(200, 400), 1),
-            "resistance": round(uniform(1.0, 10.0), 2),
-            "mcu_programmed": choice([True, False]),
-            "i2c_to_dcdc": choice([True, False]),
-            "dcdc_converter_test": choice([True, False]),
-            "i2c_to_clockchips": choice([True, False]),
-            "i2c_to_fpgas": choice([True, False]),
-            "i2c_to_firefly_bank": choice([True, False]),
-            "i2c_to_eeprom": choice([True, False]),
-            "fpga_oscillator_clock_1": round(uniform(100.0, 150.0), 2),
-            "fpga_oscillator_clock_2": round(uniform(100.0, 150.0), 2),
-            "fpga_flash_memory": choice([True, False]),
-            "ibert_test": choice([True, False]),
-            "full_link_test": choice([True, False]),
-            "third_step_fpga_test": choice([True, False]),
-            "heating_test": choice([True, False])
-        }
-
-        entry = TestEntry(
-            user_id=session['user_id'],
-            data=test_data,
-            timestamp=datetime.utcnow(),
-        )
-        db.session.add(entry)
-    db.session.commit()
-    return redirect(url_for('history'))
-
-@app.route('/add_dummy_saves')
-def add_dummy_saves():
-    # activate with http://localhost:5001/add_dummy_saves?entries=5
-
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    try:
-        num_entries = int(request.args.get('entries', 5))  # default to 5
-    except ValueError:
-        num_entries = 5
-
-    if 'forms_per_serial' not in session:
-        session['forms_per_serial'] = [None] * 51
-
-    used_serials = {
-        3000 + i for i, val in enumerate(session['forms_per_serial']) if val is not None
-    }
-
-    for _ in range(num_entries):
-        cm_serial = randint(3000, 3050)
-        attempts = 0
-        while cm_serial in used_serials and attempts < 20:
-            cm_serial = randint(3000, 3050)
-            attempts += 1
-        if cm_serial in used_serials:
-            continue
-
-        used_serials.add(cm_serial)
-        index = cm_serial - 3000
-
-        entry_data = {
-            "CM_serial": cm_serial,
-            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        }
-
-        for form_iter in FORMS:
-            for field in form_iter["fields"]:
-                if field["type"] == "boolean":
-                    entry_data[field["name"]] = choice(["yes", "no"])
-                elif field["type"] == "integer":
-                    entry_data[field["name"]] = str(randint(0, 1000))
-                elif field["type"] == "float":
-                    entry_data[field["name"]] = f"{uniform(0, 10):.2f}"
-                elif field["type"] == "text":
-                    entry_data[field["name"]] = "Lorem ipsum"
-
-        # Determine last step with missing fields
-        for i, form_iter in enumerate(FORMS):
-            for field in form_iter["fields"]:
-                if field["name"] not in entry_data:
-                    form_index = i
-                    break
-            else:
-                continue
-            break
-        else:
-            form_index = len(FORMS) - 1
-
-        entry_data['last_step'] = form_index
-
-        session['forms_per_serial'][index] = EntrySlot(
-            closed=False,
-            data=entry_data
-        ).to_dict()
-
-    session.modified = True
-    return redirect(url_for('dashboard'))
-
-
 db.init_app(app)
 
 with app.app_context():
@@ -291,7 +154,7 @@ def register():
     """User registration route"""
     if request.method == 'POST':
         if User.query.filter_by(username=request.form['username']).first():
-            return 'User already exists'
+            return 'Error: User already exists'
         new_user = User(username=request.form['username'])  # type: ignore
         new_user.set_password(request.form['password'])
         db.session.add(new_user)
@@ -477,7 +340,7 @@ def form():
                 session.modified = True
             session.pop('form_data', None)
 
-            return redirect(url_for('form_complete'))
+            return render_template('form_complete.html')
 
         # Step 5: re-render form with inline errors
         if serial_error:
@@ -511,6 +374,14 @@ def form():
         form_label=current_form.get("label"),
         name="Form"
     )
+
+# @app.route('/form_complete')
+# def form_complete():
+#     """forward user to form complete page"""
+#     if 'user_id' not in session:
+#         return redirect(url_for('login'))
+
+#     return redirect('form_complete.html')
 
 @app.route('/restart_forms')
 def restart_forms():
@@ -644,10 +515,158 @@ def dashboard():
 
     return render_template('dashboard.html', entries=saved_entries)
 
+## Admin commands for debugging
+
+fishy_users = {}
+
+@app.route('/list_fishy_users')
+def list_fishy_users():
+    """lists current list of "fishy users" for the current session"""
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not fishy_users:
+        return "No such users"
+
+    return fishy_users
+
+@app.route('/add_dummy_entry')
+def add_dummy_entry():
+    """adds dummy entires activate with:
+    http://localhost:5001/add_dummy_entry → adds 1 entry
+    http://localhost:5001/add_dummy_entry?count=10 → adds 10 entries"""
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    try:
+        count = int(request.args.get('count', 1))
+    except ValueError:
+        count = 1
+
+    for _ in range(count):
+        test_data = {
+            "CM_serial": randint(3000, 3050),
+            "passed_visual": choice([True, False]),
+            "comments": "Auto-generated entry",
+            "management_power": round(uniform(2.5, 3.3), 2),
+            "power_supply_voltage": round(uniform(3.2, 3.5), 2),
+            "current_draw": round(uniform(200, 400), 1),
+            "resistance": round(uniform(1.0, 10.0), 2),
+            "mcu_programmed": choice([True, False]),
+            "i2c_to_dcdc": choice([True, False]),
+            "dcdc_converter_test": choice([True, False]),
+            "i2c_to_clockchips": choice([True, False]),
+            "i2c_to_fpgas": choice([True, False]),
+            "i2c_to_firefly_bank": choice([True, False]),
+            "i2c_to_eeprom": choice([True, False]),
+            "fpga_oscillator_clock_1": round(uniform(100.0, 150.0), 2),
+            "fpga_oscillator_clock_2": round(uniform(100.0, 150.0), 2),
+            "fpga_flash_memory": choice([True, False]),
+            "ibert_test": choice([True, False]),
+            "full_link_test": choice([True, False]),
+            "third_step_fpga_test": choice([True, False]),
+            "heating_test": choice([True, False])
+        }
+
+        entry = TestEntry(
+            user_id=session['user_id'],
+            data=test_data,
+            timestamp=datetime.utcnow(),
+            test=True
+        )
+        db.session.add(entry)
+    db.session.commit()
+    return redirect(url_for('history'))
+
+@app.route('/add_dummy_saves')
+def add_dummy_saves():
+    # activate with http://localhost:5001/add_dummy_saves?entries=N for N entries
+    # http://localhost:5001/add_dummy_saves?entries adds one entry
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    try:
+        num_entries = int(request.args.get('entries', 1))
+    except ValueError:
+        num_entries = 5
+
+    if 'forms_per_serial' not in session:
+        session['forms_per_serial'] = [None] * 51
+
+    used_serials = {
+        3000 + i for i, val in enumerate(session['forms_per_serial']) if val is not None
+    }
+
+    for _ in range(num_entries):
+        cm_serial = randint(3000, 3050)
+        attempts = 0
+        while cm_serial in used_serials and attempts < 20:
+            cm_serial = randint(3000, 3050)
+            attempts += 1
+        if cm_serial in used_serials:
+            continue
+
+        used_serials.add(cm_serial)
+        index = cm_serial - 3000
+
+        entry_data = {
+            "CM_serial": cm_serial,
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        }
+
+        for form_iter in FORMS:
+            for field in form_iter["fields"]:
+                if field["type"] == "boolean":
+                    entry_data[field["name"]] = choice(["yes", "no"])
+                elif field["type"] == "integer":
+                    entry_data[field["name"]] = str(randint(0, 1000))
+                elif field["type"] == "float":
+                    entry_data[field["name"]] = f"{uniform(0, 10):.2f}"
+                elif field["type"] == "text":
+                    entry_data[field["name"]] = "Lorem ipsum"
+
+        # Determine last step with missing fields
+        for i, form_iter in enumerate(FORMS):
+            for field in form_iter["fields"]:
+                if field["name"] not in entry_data:
+                    form_index = i
+                    break
+            else:
+                continue
+            break
+        else:
+            form_index = len(FORMS) - 1
+
+        entry_data['last_step'] = form_index
+
+        session['forms_per_serial'][index] = EntrySlot(
+            closed=False,
+            data=entry_data,
+            test=True
+        ).to_dict()
+
+    session.modified = True
+    return redirect(url_for('dashboard'))
+
 @app.route('/clear_history')
 def clear_history():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
 
     with app.app_context():
         db.session.query(TestEntry).delete()
@@ -663,16 +682,90 @@ def clear_history():
 
     return redirect(request.referrer or url_for('history'))
 
+@app.route('/clear_dummy_history')
+def clear_dummy_history():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    with app.app_context():
+        db.session.query(TestEntry).filter_by(test=True).delete()
+        db.session.commit()
+
+
+        upload_dir = app.config['UPLOAD_FOLDER']
+        for filename in os.listdir(upload_dir):
+            file_path = os.path.join(upload_dir, filename)
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass  # Silently ignore errors
+
+    return redirect(request.referrer or url_for('history'))
+
+@app.route('/check_dummy_count')
+def check_dummy_count():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    count = db.session.query(TestEntry).filter_by(test=True).count()
+    return f"Dummy entries: {count}"
+
 @app.route('/clear_saves')
 def clear_saves():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
 
     session['forms_per_serial'] = [None] * 51
     session.pop('form_data', None)
     session.modified = True
 
     return redirect(request.referrer or url_for('dashboard'))
+
+@app.route('/clear_dummy_saves')
+def clear_dummy_saves():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    if 'forms_per_serial' in session:
+        for i, save in enumerate(session['forms_per_serial']):
+            if save and save.get('test'):
+                session['forms_per_serial'][i] = None
+            session.modified = True
+
+    return redirect(request.referrer or url_for('dashboard'))
+
+def get_current_user():
+    """Returns the current logged-in User object, or None if not logged in"""
+    user_id = session.get('user_id')
+    if user_id is None:
+        return None
+    return db.session.get(User, user_id)
+
+def authenticate_admin():
+    """Returns True if current user is admin, False otherwise.
+    Logs non-admin or unauthenticated users to fishy_users."""
+    user = get_current_user()
+    if user is None or user.get_username() != "admin":
+        username = user.get_username() if user else "anonymous"
+        if username in fishy_users:
+            fishy_users[username] += 1
+        else:
+            fishy_users[username] = 1
+        return False
+
+    return True
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
