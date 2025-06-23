@@ -28,13 +28,6 @@ app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-
-class EntrySlot:
-    #entry slot in progress storage and maybe authentication
-    def __init__(self, closed=False, data=None):
-        self.closed = closed
-        self.data = data
-
 # Define multiple forms, each with its own fields and a unique name
 
 #Field: name, label, type, display_history
@@ -140,55 +133,6 @@ FORMS = [
         ]
     },
 ]
-
-@app.route('/add_dummy_entry')
-def add_dummy_entry():
-    """adds dummy entires activate with:
-    http://localhost:5001/add_dummy_entry → adds 1 entry
-    http://localhost:5001/add_dummy_entry?count=10 → adds 10 entries"""
-
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    try:
-        count = int(request.args.get('count', 1))
-    except ValueError:
-        count = 1
-
-    for _ in range(count):
-        test_data = {
-            "CM_serial": randint(3000, 3050),
-            "passed_visual": choice([True, False]),
-            "comments": "Auto-generated entry",
-            "management_power": round(uniform(2.5, 3.3), 2),
-            "power_supply_voltage": round(uniform(3.2, 3.5), 2),
-            "current_draw": round(uniform(200, 400), 1),
-            "resistance": round(uniform(1.0, 10.0), 2),
-            "mcu_programmed": choice([True, False]),
-            "i2c_to_dcdc": choice([True, False]),
-            "dcdc_converter_test": choice([True, False]),
-            "i2c_to_clockchips": choice([True, False]),
-            "i2c_to_fpgas": choice([True, False]),
-            "i2c_to_firefly_bank": choice([True, False]),
-            "i2c_to_eeprom": choice([True, False]),
-            "fpga_oscillator_clock_1": round(uniform(100.0, 150.0), 2),
-            "fpga_oscillator_clock_2": round(uniform(100.0, 150.0), 2),
-            "fpga_flash_memory": choice([True, False]),
-            "ibert_test": choice([True, False]),
-            "full_link_test": choice([True, False]),
-            "third_step_fpga_test": choice([True, False]),
-            "heating_test": choice([True, False])
-        }
-
-        entry = TestEntry(
-            user_id=session['user_id'],
-            data=test_data,
-            timestamp=datetime.utcnow(),
-        )
-        db.session.add(entry)
-    db.session.commit()
-    return redirect(url_for('history'))
-
 
 db.init_app(app)
 
@@ -578,7 +522,8 @@ fishy_users = {}
 
 @app.route('/list_fishy_users')
 def list_fishy_users():
-    """lists current list of "fishy users" for the current session"""
+    """lists current list of "fishy users" for the current session user becomes fishy by
+    attempting to pass a authenticate_admin() check"""
 
     if not authenticate_admin():
         return "Permission Denied"
@@ -719,6 +664,7 @@ def add_dummy_saves():
 
 @app.route('/clear_history')
 def clear_history():
+    '''clears all entries from history to be removed later'''
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
@@ -741,6 +687,7 @@ def clear_history():
 
 @app.route('/clear_dummy_history')
 def clear_dummy_history():
+    """clears only entries with test=True from history"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
@@ -764,6 +711,7 @@ def clear_dummy_history():
 
 @app.route('/check_dummy_count')
 def check_dummy_count():
+    """returns number of dummy entires in history"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
@@ -775,6 +723,7 @@ def check_dummy_count():
 
 @app.route('/clear_saves')
 def clear_saves():
+    """clears all of current users saves to be removed later or made user friendly (non-admin)"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
@@ -789,6 +738,7 @@ def clear_saves():
 
 @app.route('/clear_dummy_saves')
 def clear_dummy_saves():
+    """clears all current users saves with test=True (random generated entries)"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
