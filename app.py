@@ -12,7 +12,6 @@ Features:
 import os
 import io
 import csv
-import sys
 from datetime import datetime
 from random import randint, uniform, choice #for random
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
@@ -233,6 +232,7 @@ def validate_form(fields, req):
 @app.route('/form', methods=['GET', 'POST'])
 def form():
     """had chatgpt add more comments need to fix comments later and explain this"""
+    array_to_serial_offset = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
@@ -240,7 +240,7 @@ def form():
     if form_index is None:
         cm_serial = session.get('form_data', {}).get("CM_serial")
         if cm_serial:
-            index = int(cm_serial) - 3000
+            index = int(cm_serial) - array_to_serial_offset
             saved = session['forms_per_serial'][index]
             if saved:
                 entry = EntrySlot.from_dict(saved)
