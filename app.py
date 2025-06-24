@@ -58,7 +58,6 @@ FORMS = [
             { "name": "management_power", "label": "Management Power", "type": "float" },
             { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
             { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
-            { "name": "resistance", "label": "Resistance (Ohms)", "type": "float" },
             { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type": "boolean" }
         ]
     },
@@ -375,14 +374,6 @@ def form():
         form_label=current_form.get("label"),
         name="Form"
     )
-
-# @app.route('/form_complete')
-# def form_complete():
-#     """forward user to form complete page"""
-#     if 'user_id' not in session:
-#         return redirect(url_for('login'))
-
-#     return redirect('form_complete.html')
 
 @app.route('/restart_forms')
 def restart_forms():
