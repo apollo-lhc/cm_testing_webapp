@@ -55,7 +55,8 @@ FORMS = [
         "name": "power_test",
         "label": "Power Test",
         "fields": [
-            {"name": "powertesttext", "label": "Voltages should be around 11.5 - 12.5 V, Currents 0.5 - 2.0 A"},
+            {"name": "powertesttext", "label": "Voltages should be around 11.5 - 12.5 V, Currents 0.5 - 2.0 A", "type": "null", "display_history": False},
+            blank,
             { "name": "management_power", "label": "Management Power", "type": "float" },
             { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
             { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
@@ -223,7 +224,7 @@ def validate_form(fields, req):
     """Validate all fields in the form. Returns (is_valid, errors_dict)."""
     errors = {}
     for field in fields:
-        if field["type"] == "file":
+        if field['type'] == "file":
             file = req.files.get(field["name"])
             value = file.filename if file and file.filename else None
         else:

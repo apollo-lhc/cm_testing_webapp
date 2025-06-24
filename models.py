@@ -4,6 +4,7 @@ Database models for the test entry application.
 Includes:
 - User: authentication and password management
 - TestEntry: stores test data, file uploads, and user association
+- EntrySlot: need to add writeup when finished with it
 """
 
 from datetime import datetime
