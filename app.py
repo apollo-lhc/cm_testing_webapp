@@ -12,7 +12,6 @@ Features:
 import os
 import io
 import csv
-import uuid
 from datetime import datetime
 from random import randint, uniform, choice #for random
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
@@ -62,7 +61,6 @@ FORMS = [
             { "name": "management_power", "label": "Management Power", "type": "float" },
             { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
             { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
-            #{ "name": "resistance", "label": "Resistance (Ohms)", "type": "float" },
             { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type": "boolean" }
         ]
     },
@@ -524,7 +522,8 @@ def process_file_fields(fields, rq, upload_folder, data):
             file = rq.files.get(field["name"])
             if file and file.filename:
                 #save and update
-                filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
+                timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
+                filename = f"{timestamp}_{secure_filename(file.filename)}"
                 filepath = os.path.join(upload_folder, filename)
                 file.save(filepath)
                 updated_data[field["name"]] = filename
@@ -601,7 +600,6 @@ def add_dummy_entry():
 
     db.session.commit()
     return redirect(url_for('history'))
-
 
 @app.route('/add_dummy_saves')
 def add_dummy_saves():
