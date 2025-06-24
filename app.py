@@ -237,7 +237,7 @@ def validate_form(fields, req):
 @app.route('/form', methods=['GET', 'POST'])
 def form():
     """had chatgpt add more comments need to fix comments later and explain this"""
-    array_to_serial_offset = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
+    SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
@@ -245,7 +245,7 @@ def form():
     if form_index is None:
         cm_serial = session.get('form_data', {}).get("CM_serial")
         if cm_serial:
-            index = int(cm_serial) - array_to_serial_offset
+            index = int(cm_serial) - SERIAL_OFFSET
             saved = session['forms_per_serial'][index]
             if saved:
                 entry = EntrySlot.from_dict(saved)
@@ -279,7 +279,7 @@ def form():
         if cm_serial and cm_serial.isdigit():
             cm_serial = int(cm_serial)
             if 3000 <= cm_serial <= 3050:
-                index = cm_serial - 3000
+                index = cm_serial - SERIAL_OFFSET
             else:
                 serial_error = "Must be between 3000 and 3050"
         else:
@@ -365,7 +365,7 @@ def form():
     if cm_serial and cm_serial.isdigit():
         cm_serial = int(cm_serial)
         if 3000 <= cm_serial <= 3050:
-            index = cm_serial - 3000
+            index = cm_serial - SERIAL_OFFSET
             saved = session['forms_per_serial'][index]
             if saved:
                 entry = EntrySlot.from_dict(saved)
@@ -500,12 +500,13 @@ def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
+    SERIAL_OFFSET = 3000
     saved_entries = []
     user_forms = session.get('forms_per_serial', [])
 
     for index, entry_data in enumerate(user_forms):
         if entry_data:
-            cm_serial = 3000 + index
+            cm_serial = SERIAL_OFFSET + index
             entry = EntrySlot.from_dict(entry_data)
             data = entry.data
             timestamp = data.get('timestamp', 'Unknown')
@@ -597,6 +598,8 @@ def add_dummy_saves():
     # activate with http://localhost:5001/add_dummy_saves?entries=N for N entries
     # http://localhost:5001/add_dummy_saves?entries adds one entry
 
+    SERIAL_OFFSET = 3000
+
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
@@ -612,7 +615,7 @@ def add_dummy_saves():
         session['forms_per_serial'] = [None] * 51
 
     used_serials = {
-        3000 + i for i, val in enumerate(session['forms_per_serial']) if val is not None
+        SERIAL_OFFSET + i for i, val in enumerate(session['forms_per_serial']) if val is not None
     }
 
     for _ in range(num_entries):
@@ -625,7 +628,7 @@ def add_dummy_saves():
             continue
 
         used_serials.add(cm_serial)
-        index = cm_serial - 3000
+        index = cm_serial - SERIAL_OFFSET
 
         entry_data = {
             "CM_serial": cm_serial,
