@@ -28,6 +28,13 @@
           {% elif field.type == 'text' %}
             <textarea class="form-control mb-3" name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea>
           {% elif field.type == 'file' %}
+            {% if prefill_values.get(field.name) %}
+              <p class="mb-1">Previously uploaded:
+                <a href="{{ url_for('uploaded_file', filename=prefill_values[field.name]) }}" target="_blank">
+                  {{ prefill_values[field.name] }}
+                </a>
+              </p>
+            {% endif %}
             <input class="form-control mb-3" type="file" name="{{ field.name }}">
           {% endif %}
         {% endif %}

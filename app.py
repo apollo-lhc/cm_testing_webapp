@@ -12,6 +12,7 @@ Features:
 import os
 import io
 import csv
+import uuid
 from datetime import datetime
 from random import randint, uniform, choice #for random
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
@@ -20,22 +21,23 @@ from werkzeug.utils import secure_filename
 from models import db, User, TestEntry, EntrySlot
 
 
-
-
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# Define multiple forms, each with its own fields and a unique name
 
-#Field: name, label, type, display_history
 
-# need to use blank.copy() after an instance of blank if no other field comes next to it
 blank = { "name": "blank", "label": "", "type": None, "display_history": False }
 
 FORMS = [
+
+    # Define multiple forms, each with its own fields and a unique name
+
+    #Field: name, label, type, display_history
+
+    # need to use blank.copy() after an instance of blank if no other field comes next to it
+
     {
         "name": "hardware_test",
         "label": "Hardware Test",
@@ -190,7 +192,7 @@ def home():
         return redirect(url_for('login'))
     return render_template('index.html')
 
-def validate_field(field, value):
+def validate_field(field, value, data=None):
     """Validate a single field value based on its type and requirements."""
     if "validate" in field and callable(field["validate"]):
         valid, msg = field["validate"](value)
@@ -216,20 +218,21 @@ def validate_field(field, value):
         if value not in ("yes", "no"):
             return False, "Please select yes or no."
     elif field["type"] == "file":
-        if not value:
+        existing = data.get(field["name"]) if data else None
+        if not value and not existing:
             return False, "File is required."
     return True, ""
 
-def validate_form(fields, req):
+def validate_form(fields, req, data=None):
     """Validate all fields in the form. Returns (is_valid, errors_dict)."""
     errors = {}
     for field in fields:
-        if field['type'] == "file":
+        if field["type"] == "file":
             file = req.files.get(field["name"])
             value = file.filename if file and file.filename else None
         else:
             value = req.form.get(field["name"])
-        valid, msg = validate_field(field, value)
+        valid, msg = validate_field(field, value, data)
         if not valid:
             errors[field["name"]] = msg
     return (len(errors) == 0), errors
@@ -262,11 +265,19 @@ def form():
         session['forms_per_serial'] = [None] * 51
 
     if request.method == 'POST':
+        # Lock CM_serial after first step
+        if "CM_serial" in session['form_data'] and form_index > 0:
+            request.form = request.form.copy()
+            request.form["CM_serial"] = session["form_data"]["CM_serial"]
+
         # Step 1: update form_data with current inputs
         for field in current_form["fields"]:
             value = request.form.get(field["name"])
             if value is not None:
                 session['form_data'][field["name"]] = value
+
+        session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
+
 
         # Step 2: mark current step
         session['form_data']['last_step'] = form_index
@@ -309,19 +320,9 @@ def form():
             return redirect(url_for('dashboard'))
 
         # Step 4: full validation for Next
-        is_valid, errors = validate_form(current_form["fields"], request)
+        is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
 
         if is_valid:
-            # Handle file uploads
-            for field in current_form["fields"]:
-                if field["type"] == "file":
-                    file = request.files.get(field["name"])
-                    if file and file.filename:
-                        filename = secure_filename(file.filename)
-                        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                        file.save(filepath)
-                        session['form_data'][field["name"]] = filename
-
             if index is not None:
                 if 'timestamp' not in session['form_data']:
                     session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -367,9 +368,10 @@ def form():
         if 3000 <= cm_serial <= 3050:
             index = cm_serial - SERIAL_OFFSET
             saved = session['forms_per_serial'][index]
-            if saved:
+            if saved and not session['form_data']:
                 entry = EntrySlot.from_dict(saved)
                 session['form_data'] = entry.data.copy()
+
 
     return render_template(
         "form.html",
@@ -379,14 +381,6 @@ def form():
         form_label=current_form.get("label"),
         name="Form"
     )
-
-# @app.route('/form_complete')
-# def form_complete():
-#     """forward user to form complete page"""
-#     if 'user_id' not in session:
-#         return redirect(url_for('login'))
-
-#     return redirect('form_complete.html')
 
 @app.route('/restart_forms')
 def restart_forms():
@@ -521,6 +515,26 @@ def dashboard():
 
     return render_template('dashboard.html', entries=saved_entries)
 
+def process_file_fields(fields, rq, upload_folder, data):
+    """Save uploaded files and update the current data dict with filenames.
+    appends uuid to each filename to prevent file overwrites"""
+    updated_data = data.copy()
+    for field in fields:
+        if field["type"] == "file":
+            file = rq.files.get(field["name"])
+            if file and file.filename:
+                #save and update
+                filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
+                filepath = os.path.join(upload_folder, filename)
+                file.save(filepath)
+                updated_data[field["name"]] = filename
+            else:
+                # keep old filename
+                if field["name"] in data:
+                    updated_data[field["name"]] = data[field["name"]]
+
+    return updated_data
+
 ## Admin commands for debugging
 
 fishy_users = {}
@@ -543,10 +557,7 @@ def list_fishy_users():
 
 @app.route('/add_dummy_entry')
 def add_dummy_entry():
-    """adds dummy entires activate with:
-    http://localhost:5001/add_dummy_entry → adds 1 entry
-    http://localhost:5001/add_dummy_entry?count=10 → adds 10 entries"""
-
+    """Adds dummy entries with randomized values for all non-file fields in FORMS."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
@@ -559,29 +570,26 @@ def add_dummy_entry():
         count = 1
 
     for _ in range(count):
-        test_data = {
-            "CM_serial": randint(3000, 3050),
-            "passed_visual": choice([True, False]),
-            "comments": "Auto-generated entry",
-            "management_power": round(uniform(2.5, 3.3), 2),
-            "power_supply_voltage": round(uniform(3.2, 3.5), 2),
-            "current_draw": round(uniform(200, 400), 1),
-            "resistance": round(uniform(1.0, 10.0), 2),
-            "mcu_programmed": choice([True, False]),
-            "i2c_to_dcdc": choice([True, False]),
-            "dcdc_converter_test": choice([True, False]),
-            "i2c_to_clockchips": choice([True, False]),
-            "i2c_to_fpgas": choice([True, False]),
-            "i2c_to_firefly_bank": choice([True, False]),
-            "i2c_to_eeprom": choice([True, False]),
-            "fpga_oscillator_clock_1": round(uniform(100.0, 150.0), 2),
-            "fpga_oscillator_clock_2": round(uniform(100.0, 150.0), 2),
-            "fpga_flash_memory": choice([True, False]),
-            "ibert_test": choice([True, False]),
-            "full_link_test": choice([True, False]),
-            "third_step_fpga_test": choice([True, False]),
-            "heating_test": choice([True, False])
-        }
+        test_data = {}
+
+        for form_iter in FORMS:
+            for field in form_iter["fields"]:
+                name = field.get("name")
+                ftype = field.get("type")
+
+                if not name or ftype is None:
+                    continue
+
+                if ftype == "boolean":
+                    test_data[name] = choice(["yes", "no"])
+                elif ftype == "integer":
+                    test_data[name] = str(randint(3000, 3050)) if name == "CM_serial" else str(randint(0, 9999))
+                elif ftype == "float":
+                    test_data[name] = f"{uniform(0.0, 10.0):.2f}"
+                elif ftype == "text":
+                    test_data[name] = "Auto-generated entry"
+                elif ftype == "file":
+                    test_data[name] = ""  # Leave blank for file fields
 
         entry = TestEntry(
             user_id=session['user_id'],
@@ -590,8 +598,10 @@ def add_dummy_entry():
             test=True
         )
         db.session.add(entry)
+
     db.session.commit()
     return redirect(url_for('history'))
+
 
 @app.route('/add_dummy_saves')
 def add_dummy_saves():
