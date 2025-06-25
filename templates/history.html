@@ -44,9 +44,6 @@
     </div>
   </div>
 
-
-
-
   <div class="card p-3 shadow-sm">
     <div class="table-responsive">
       <table id="data-table" class="table table-bordered table-striped">
@@ -57,7 +54,6 @@
             {% for field in fields %}
               <th>{{ field.label }}</th>
             {% endfor %}
-            <th>File</th>
           </tr>
         </thead>
         <tbody>
@@ -66,9 +62,19 @@
             <td>{{ e.timestamp }}</td>
             <td>{{ e.user.username }}</td>
             {% for field in fields %}
-              <td>{{ e.data.get(field.name, '') }}</td>
+              <td>
+                {% if field.type == 'file' %}
+                  {% set filename = e.data.get(field.name) %}
+                  {% if filename %}
+                    <a href="{{ url_for('uploaded_file', filename=filename) }}" target="_blank">{{ filename }}</a>
+                  {% else %}
+                    -
+                  {% endif %}
+                {% else %}
+                  {{ e.data.get(field.name, '') }}
+                {% endif %}
+              </td>
             {% endfor %}
-            <td>{{ e.file_name }}</td>
           </tr>
           {% endfor %}
         </tbody>
