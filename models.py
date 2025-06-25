@@ -28,6 +28,10 @@ class User(db.Model):
         """Check the user's password against the stored hash."""
         return check_password_hash(self.password_hash, password)
 
+    def get_username(self):
+        """returns username for logging purposes"""
+        return self.username
+
 class TestEntry(db.Model):
     """Model for storing test entry data and file uploads."""
 
@@ -37,3 +41,26 @@ class TestEntry(db.Model):
     data = db.Column(JSON)
     file_name = db.Column(db.String(120))
     user = db.relationship('User', backref=db.backref('entries', lazy=True))
+    test = db.Column(db.Boolean, default=False)
+
+class EntrySlot:
+    """Model for keeping track and saving in use forms per serial number"""
+    def __init__(self, closed=False, data=None, test=False):
+        self.closed = closed
+        self.data = data or {}
+        self.test = test
+
+    def to_dict(self):
+        return {
+            'closed': self.closed,
+            'data': self.data,
+            'test': self.test
+        }
+
+    @staticmethod
+    def from_dict(d):
+        return EntrySlot(
+            closed=d.get('closed', False),
+            data=d.get('data', {}),
+            test=d.get('test', False)
+        )
