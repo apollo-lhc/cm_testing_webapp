@@ -19,13 +19,15 @@ from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from models import db, User, TestEntry, EntrySlot
 
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 
+# Define multiple forms, each with its own fields and a unique name
+
+#Field: name, label, type, display_history
 
 blank = { "name": "blank", "label": "", "type": None, "display_history": False }
 
@@ -254,6 +256,7 @@ def form():
                     entry = EntrySlot.from_dict(saved)
                     form_index = entry.data.get('last_step', 0)
 
+
     form_index = int(form_index or 0)
     form_index = max(0, min(form_index, len(FORMS) - 1))
     current_form = FORMS[form_index]
@@ -265,6 +268,7 @@ def form():
         session['forms_per_serial'] = [None] * 51
 
     if request.method == 'POST':
+
         errors = {}
         if "CM_serial" in session['form_data'] and form_index > 0:
             request.form = request.form.copy()
@@ -308,6 +312,7 @@ def form():
                 )
 
             if index is not None: # number assigned to store in users saved tests
+
                 if 'timestamp' not in session['form_data']:
                     session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 session['forms_per_serial'][index] = EntrySlot(
@@ -367,6 +372,7 @@ def form():
             user = db.session.get(User, session['user_id'])
             entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now(),
                               failure=True, fail_reason=reason)
+
             db.session.add(entry)
             db.session.commit()
 
@@ -376,8 +382,6 @@ def form():
             session.pop('form_data', None)
 
             return render_template('form_complete.html')
-
-
 
         # Step 4: full validation for Next
         if request.form.get("fail_test_start") != "true":
@@ -429,10 +433,10 @@ def form():
         if 3000 <= cm_serial <= 3050:
             index = cm_serial - SERIAL_OFFSET
             saved = session['forms_per_serial'][index]
+
             if saved and not session['form_data']:
                 entry = EntrySlot.from_dict(saved)
                 session['form_data'] = entry.data.copy()
-
 
     return render_template(
         "form.html",
@@ -619,7 +623,11 @@ def list_fishy_users():
 
 @app.route('/add_dummy_entry')
 def add_dummy_entry():
-    """Adds dummy entries with randomized values for all non-file fields in FORMS."""
+    """Adds dummy entries with randomized values for all non-file fields in FORMS.
+        activate with:
+        http://localhost:5001/add_dummy_entry → adds 1 entry
+        http://localhost:5001/add_dummy_entry?count=10 → adds 10 entries"""
+
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
