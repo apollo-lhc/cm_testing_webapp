@@ -524,12 +524,12 @@ def export_csv():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File'])
+    writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File', "Test Aborted", "Reason Aborted"])
 
     for e in entries:
         row = [e.timestamp, e.user.username]
         row += [e.data.get(f["name"]) for f in all_fields]
-        row += [e.file_name]
+        row += [e.file_name, "yes" if e.failure else "no", e.fail_reason or ""]
         writer.writerow(row)
 
     output.seek(0)
