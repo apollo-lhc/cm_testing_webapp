@@ -43,7 +43,23 @@
       <div class="text-center mt-4">
         <button type="submit" class="btn btn-primary">Next</button>
         <button type="submit" name="save_exit" value="true" class="btn btn-secondary">Save & Exit</button>
+        <button type="submit" name="fail_test_start" value="true" class="btn btn-danger">Fail Test</button>
 
+      </div>
+      <!--failure hidden fields to be passed to app.py-->
+      <input type="hidden" name="fail_test_start" id="fail_test_start" value="false">
+      <input type="hidden" name="fail_reason" id="fail_reason">
+      <input type="hidden" name="fail_test" id="fail_test" value="false">
+
+      <!--Failure reason prompt and confrimation-->
+      <div id="fail-confirm-section" style="display: none;" class="mb-3">
+        <label for="visible_reason_input">Enter reason for failure:</label>
+        <textarea class="form-control mb-2" id="visible_reason_input" rows="3"></textarea>
+
+        <div class="d-flex gap-3">
+          <button type="button" class="btn btn-danger" onclick="submitFailure()">Confirm Failure</button>
+          <button type="button" class="btn btn-secondary" onclick="cancelFailure()">Cancel</button>
+        </div>
       </div>
     </form>
   </div>
@@ -55,4 +71,36 @@
     <a href="/help" class="btn btn-outline-red mx-1">Help</a>
   </div>
 </div>
+
+<script>
+  // fail_test_start = 'true' by fail test btn if fields are ok then it passses trigger_fail_prompt = True which calls text box appear
+  // should prob lock serial number or store it? while filling out field?
+  const triggerFailPrompt = {{ trigger_fail_prompt | default(false) | tojson }};
+  if (triggerFailPrompt) {
+    showFailPrompt();
+  }
+
+  function showFailPrompt() {
+    document.getElementById('fail-confirm-section').style.display = 'block';
+  }
+
+  function cancelFailure() {
+    // hide failure box and return to form
+    document.getElementById('fail-confirm-section').style.display = 'none';
+    document.getElementById('visable_reason_input').value = '';
+  }
+
+  function submitFailure() {
+    const reason = document.getElementById('visible_reason_input').value.trim();
+    if (!reason) {
+      alert("You must enter a reason to fail the test.");
+      return;
+    }
+    document.getElementById('fail_reason').value = reason;
+    document.getElementById('fail_test').value = 'true';
+
+    document.querySelector('form').submit();
+  }
+</script>
+
 {% endblock %}

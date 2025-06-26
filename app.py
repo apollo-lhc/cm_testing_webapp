@@ -237,20 +237,22 @@ def validate_form(fields, req, data=None):
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
-    """had chatgpt add more comments need to fix comments later and explain this"""
-    SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
+    """form submission save and failure function"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
+
+    SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
 
     form_index = request.args.get('step')
     if form_index is None:
         cm_serial = session.get('form_data', {}).get("CM_serial")
-        if cm_serial:
+        if cm_serial and cm_serial.isdigit():
             index = int(cm_serial) - SERIAL_OFFSET
-            saved = session['forms_per_serial'][index]
-            if saved:
-                entry = EntrySlot.from_dict(saved)
-                form_index = entry.data.get('last_step', 0)
+            if 0 <= index < len(session['forms_per_serial']):
+                saved = session['forms_per_serial'][index]
+                if saved:
+                    entry = EntrySlot.from_dict(saved)
+                    form_index = entry.data.get('last_step', 0)
 
     form_index = int(form_index or 0)
     form_index = max(0, min(form_index, len(FORMS) - 1))
@@ -263,7 +265,7 @@ def form():
         session['forms_per_serial'] = [None] * 51
 
     if request.method == 'POST':
-        # Lock CM_serial after first step
+        errors = {}
         if "CM_serial" in session['form_data'] and form_index > 0:
             request.form = request.form.copy()
             request.form["CM_serial"] = session["form_data"]["CM_serial"]
@@ -275,7 +277,6 @@ def form():
                 session['form_data'][field["name"]] = value
 
         session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
-
 
         # Step 2: mark current step
         session['form_data']['last_step'] = form_index
@@ -306,7 +307,7 @@ def form():
                     name="Form"
                 )
 
-            if index is not None:
+            if index is not None: # number assigned to store in users saved tests
                 if 'timestamp' not in session['form_data']:
                     session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 session['forms_per_serial'][index] = EntrySlot(
@@ -317,10 +318,42 @@ def form():
 
             return redirect(url_for('dashboard'))
 
-        # Step 4: full validation for Next
-        is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
+        # 1st Check for Error Valid Serial Number
+        if request.form.get("fail_test_start") == "true":
+            if serial_error:
+                return render_template(
+                    "form.html",
+                    fields=current_form["fields"],
+                    prefill_values=session['form_data'],
+                    errors={"CM_serial": serial_error},
+                    form_label=current_form.get("label"),
+                    name="Form",
+                )
+            return render_template(
+                "form.html",
+                fields=current_form["fields"],
+                prefill_values=session['form_data'],
+                errors={},
+                form_label=current_form.get("label"),
+                name="Form",
+                trigger_fail_prompt=True  # passed to js to call text box appear
+            )
 
-        if is_valid:
+        # Handle Fail Test Final
+        if request.form.get("fail_test") == "true":
+            if serial_error:
+                return render_template(
+                    "form.html",
+                    fields=current_form["fields"],
+                    prefill_values=session['form_data'],
+                    errors={"CM_serial": serial_error},
+                    form_label=current_form.get("label"),
+                    name="Form",
+                    trigger_fail_prompt=True
+                )
+
+            reason = request.form.get("fail_reason", "").strip()
+
             if index is not None:
                 if 'timestamp' not in session['form_data']:
                     session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -330,12 +363,10 @@ def form():
                 ).to_dict()
                 session.modified = True
 
-            if form_index + 1 < len(FORMS):
-                return redirect(url_for('form', step=form_index + 1))
-
-            # Final submission
+            # Final submission for Error
             user = db.session.get(User, session['user_id'])
-            entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now())
+            entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now(),
+                              failure=True, fail_reason=reason)
             db.session.add(entry)
             db.session.commit()
 
@@ -345,6 +376,38 @@ def form():
             session.pop('form_data', None)
 
             return render_template('form_complete.html')
+
+
+
+        # Step 4: full validation for Next
+        if request.form.get("fail_test_start") != "true":
+            is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
+
+            if is_valid:
+                if index is not None:
+                    if 'timestamp' not in session['form_data']:
+                        session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    session['forms_per_serial'][index] = EntrySlot(
+                        closed=False,
+                        data=session['form_data'].copy()
+                    ).to_dict()
+                    session.modified = True
+
+                if form_index + 1 < len(FORMS):
+                    return redirect(url_for('form', step=form_index + 1))
+
+                # Final submission
+                user = db.session.get(User, session['user_id'])
+                entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now())
+                db.session.add(entry)
+                db.session.commit()
+
+                if index is not None:
+                    session['forms_per_serial'][index] = None
+                    session.modified = True
+                session.pop('form_data', None)
+
+                return render_template('form_complete.html')
 
         # Step 5: re-render form with inline errors
         if serial_error:

@@ -54,6 +54,8 @@
             {% for field in fields %}
               <th>{{ field.label }}</th>
             {% endfor %}
+            <th>Test Aborted</th>
+            <th>Reason Aborted</th>
           </tr>
         </thead>
         <tbody>
@@ -75,6 +77,8 @@
                 {% endif %}
               </td>
             {% endfor %}
+            <td>{{ "yes" if e.failure else "no" }}</td>
+            <td>{{ e.fail_reason }}</td>
           </tr>
           {% endfor %}
         </tbody>
