@@ -19,23 +19,26 @@ from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from models import db, User, TestEntry, EntrySlot
 
-
-
-
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
+
 # Define multiple forms, each with its own fields and a unique name
 
 #Field: name, label, type, display_history
 
-# need to use blank.copy() after an instance of blank if no other field comes next to it
 blank = { "name": "blank", "label": "", "type": None, "display_history": False }
 
 FORMS = [
+
+    # Define multiple forms, each with its own fields and a unique name
+
+    #Field: name, label, type, display_history
+
+    # need to use blank.copy() after an instance of blank if no other field comes next to it
+
     {
         "name": "hardware_test",
         "label": "Hardware Test",
@@ -55,6 +58,8 @@ FORMS = [
         "name": "power_test",
         "label": "Power Test",
         "fields": [
+            {"name": "powertesttext", "label": "Voltages should be around 11.5 - 12.5 V, Currents 0.5 - 2.0 A", "type": "null", "display_history": False},
+            blank,
             { "name": "management_power", "label": "Management Power", "type": "float" },
             { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
             { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
@@ -92,7 +97,9 @@ FORMS = [
         "fields": [
             { "name": "fpga_second_step_tip", "label": "Load the second-step FPGA code to test FPGA-FPGA and MCU-FPGA connections", "type": "null", "display_history": False },
             { "name": "ibert_test", "label": "IBERT link Test Passed", "type": "boolean" },
+            { "name": "ibert_test_upload", "label": "Upload IBERT Test Results", "type": "file" },
             { "name": "full_link_test", "label": "Firefly, FPGA-FPGA, C2C, and TCDS Links Passed", "type": "boolean" },
+            { "name": "firefly_test_upload", "label": "Upload Firefly Test Results", "type": "file" },
         ]
     },
 
@@ -185,7 +192,7 @@ def home():
         return redirect(url_for('login'))
     return render_template('index.html')
 
-def validate_field(field, value):
+def validate_field(field, value, data=None):
     """Validate a single field value based on its type and requirements."""
     if "validate" in field and callable(field["validate"]):
         valid, msg = field["validate"](value)
@@ -211,11 +218,12 @@ def validate_field(field, value):
         if value not in ("yes", "no"):
             return False, "Please select yes or no."
     elif field["type"] == "file":
-        if not value:
+        existing = data.get(field["name"]) if data else None
+        if not value and not existing:
             return False, "File is required."
     return True, ""
 
-def validate_form(fields, req):
+def validate_form(fields, req, data=None):
     """Validate all fields in the form. Returns (is_valid, errors_dict)."""
     errors = {}
     for field in fields:
@@ -224,27 +232,30 @@ def validate_form(fields, req):
             value = file.filename if file and file.filename else None
         else:
             value = req.form.get(field["name"])
-        valid, msg = validate_field(field, value)
+        valid, msg = validate_field(field, value, data)
         if not valid:
             errors[field["name"]] = msg
     return (len(errors) == 0), errors
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
-    """form data entry"""
-    SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
+    """form submission save and failure function"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
+
+    SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
 
     form_index = request.args.get('step')
     if form_index is None:
         cm_serial = session.get('form_data', {}).get("CM_serial")
-        if cm_serial:
+        if cm_serial and cm_serial.isdigit():
             index = int(cm_serial) - SERIAL_OFFSET
-            saved = session['forms_per_serial'][index]
-            if saved:
-                entry = EntrySlot.from_dict(saved)
-                form_index = entry.data.get('last_step', 0)
+            if 0 <= index < len(session['forms_per_serial']):
+                saved = session['forms_per_serial'][index]
+                if saved:
+                    entry = EntrySlot.from_dict(saved)
+                    form_index = entry.data.get('last_step', 0)
+
 
     form_index = int(form_index or 0)
     form_index = max(0, min(form_index, len(FORMS) - 1))
@@ -257,11 +268,19 @@ def form():
         session['forms_per_serial'] = [None] * 51
 
     if request.method == 'POST':
+
+        errors = {}
+        if "CM_serial" in session['form_data'] and form_index > 0:
+            request.form = request.form.copy()
+            request.form["CM_serial"] = session["form_data"]["CM_serial"]
+
         # Step 1: update form_data with current inputs
         for field in current_form["fields"]:
             value = request.form.get(field["name"])
             if value is not None:
                 session['form_data'][field["name"]] = value
+
+        session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
 
         # Step 2: mark current step
         session['form_data']['last_step'] = form_index
@@ -292,7 +311,8 @@ def form():
                     name="Form"
                 )
 
-            if index is not None:
+            if index is not None: # number assigned to store in users saved tests
+
                 if 'timestamp' not in session['form_data']:
                     session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 session['forms_per_serial'][index] = EntrySlot(
@@ -303,19 +323,41 @@ def form():
 
             return redirect(url_for('dashboard'))
 
-        # Step 4: full validation for Next
-        is_valid, errors = validate_form(current_form["fields"], request)
+        # 1st Check for Error Valid Serial Number
+        if request.form.get("fail_test_start") == "true":
+            if serial_error:
+                return render_template(
+                    "form.html",
+                    fields=current_form["fields"],
+                    prefill_values=session['form_data'],
+                    errors={"CM_serial": serial_error},
+                    form_label=current_form.get("label"),
+                    name="Form",
+                )
+            return render_template(
+                "form.html",
+                fields=current_form["fields"],
+                prefill_values=session['form_data'],
+                errors={},
+                form_label=current_form.get("label"),
+                name="Form",
+                trigger_fail_prompt=True  # passed to js to call text box appear
+            )
 
-        if is_valid:
-            # Handle file uploads
-            for field in current_form["fields"]:
-                if field["type"] == "file":
-                    file = request.files.get(field["name"])
-                    if file and file.filename:
-                        filename = secure_filename(file.filename)
-                        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                        file.save(filepath)
-                        session['form_data'][field["name"]] = filename
+        # Handle Fail Test Final
+        if request.form.get("fail_test") == "true":
+            if serial_error:
+                return render_template(
+                    "form.html",
+                    fields=current_form["fields"],
+                    prefill_values=session['form_data'],
+                    errors={"CM_serial": serial_error},
+                    form_label=current_form.get("label"),
+                    name="Form",
+                    trigger_fail_prompt=True
+                )
+
+            reason = request.form.get("fail_reason", "").strip()
 
             if index is not None:
                 if 'timestamp' not in session['form_data']:
@@ -326,12 +368,11 @@ def form():
                 ).to_dict()
                 session.modified = True
 
-            if form_index + 1 < len(FORMS):
-                return redirect(url_for('form', step=form_index + 1))
-
-            # Final submission
+            # Final submission for Error
             user = db.session.get(User, session['user_id'])
-            entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now())
+            entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now(),
+                              failure=True, fail_reason=reason)
+
             db.session.add(entry)
             db.session.commit()
 
@@ -341,6 +382,36 @@ def form():
             session.pop('form_data', None)
 
             return render_template('form_complete.html')
+
+        # Step 4: full validation for Next
+        if request.form.get("fail_test_start") != "true":
+            is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
+
+            if is_valid:
+                if index is not None:
+                    if 'timestamp' not in session['form_data']:
+                        session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    session['forms_per_serial'][index] = EntrySlot(
+                        closed=False,
+                        data=session['form_data'].copy()
+                    ).to_dict()
+                    session.modified = True
+
+                if form_index + 1 < len(FORMS):
+                    return redirect(url_for('form', step=form_index + 1))
+
+                # Final submission
+                user = db.session.get(User, session['user_id'])
+                entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now())
+                db.session.add(entry)
+                db.session.commit()
+
+                if index is not None:
+                    session['forms_per_serial'][index] = None
+                    session.modified = True
+                session.pop('form_data', None)
+
+                return render_template('form_complete.html')
 
         # Step 5: re-render form with inline errors
         if serial_error:
@@ -362,7 +433,8 @@ def form():
         if 3000 <= cm_serial <= 3050:
             index = cm_serial - SERIAL_OFFSET
             saved = session['forms_per_serial'][index]
-            if saved:
+
+            if saved and not session['form_data']:
                 entry = EntrySlot.from_dict(saved)
                 session['form_data'] = entry.data.copy()
 
@@ -456,12 +528,12 @@ def export_csv():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File'])
+    writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File', "Test Aborted", "Reason Aborted"])
 
     for e in entries:
         row = [e.timestamp, e.user.username]
         row += [e.data.get(f["name"]) for f in all_fields]
-        row += [e.file_name]
+        row += [e.file_name, "yes" if e.failure else "no", e.fail_reason or ""]
         writer.writerow(row)
 
     output.seek(0)
@@ -508,6 +580,27 @@ def dashboard():
 
     return render_template('dashboard.html', entries=saved_entries)
 
+def process_file_fields(fields, rq, upload_folder, data):
+    """Save uploaded files and update the current data dict with filenames.
+    appends uuid to each filename to prevent file overwrites"""
+    updated_data = data.copy()
+    for field in fields:
+        if field["type"] == "file":
+            file = rq.files.get(field["name"])
+            if file and file.filename:
+                #save and update
+                timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
+                filename = f"{timestamp}_{secure_filename(file.filename)}"
+                filepath = os.path.join(upload_folder, filename)
+                file.save(filepath)
+                updated_data[field["name"]] = filename
+            else:
+                # keep old filename
+                if field["name"] in data:
+                    updated_data[field["name"]] = data[field["name"]]
+
+    return updated_data
+
 ## Admin commands for debugging
 
 fishy_users = {}
@@ -530,9 +623,10 @@ def list_fishy_users():
 
 @app.route('/add_dummy_entry')
 def add_dummy_entry():
-    """adds dummy entires activate with:
-    http://localhost:5001/add_dummy_entry → adds 1 entry
-    http://localhost:5001/add_dummy_entry?count=10 → adds 10 entries"""
+    """Adds dummy entries with randomized values for all non-file fields in FORMS.
+        activate with:
+        http://localhost:5001/add_dummy_entry → adds 1 entry
+        http://localhost:5001/add_dummy_entry?count=10 → adds 10 entries"""
 
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -546,29 +640,26 @@ def add_dummy_entry():
         count = 1
 
     for _ in range(count):
-        test_data = {
-            "CM_serial": randint(3000, 3050),
-            "passed_visual": choice([True, False]),
-            "comments": "Auto-generated entry",
-            "management_power": round(uniform(2.5, 3.3), 2),
-            "power_supply_voltage": round(uniform(3.2, 3.5), 2),
-            "current_draw": round(uniform(200, 400), 1),
-            "resistance": round(uniform(1.0, 10.0), 2),
-            "mcu_programmed": choice([True, False]),
-            "i2c_to_dcdc": choice([True, False]),
-            "dcdc_converter_test": choice([True, False]),
-            "i2c_to_clockchips": choice([True, False]),
-            "i2c_to_fpgas": choice([True, False]),
-            "i2c_to_firefly_bank": choice([True, False]),
-            "i2c_to_eeprom": choice([True, False]),
-            "fpga_oscillator_clock_1": round(uniform(100.0, 150.0), 2),
-            "fpga_oscillator_clock_2": round(uniform(100.0, 150.0), 2),
-            "fpga_flash_memory": choice([True, False]),
-            "ibert_test": choice([True, False]),
-            "full_link_test": choice([True, False]),
-            "third_step_fpga_test": choice([True, False]),
-            "heating_test": choice([True, False])
-        }
+        test_data = {}
+
+        for form_iter in FORMS:
+            for field in form_iter["fields"]:
+                name = field.get("name")
+                ftype = field.get("type")
+
+                if not name or ftype is None:
+                    continue
+
+                if ftype == "boolean":
+                    test_data[name] = choice(["yes", "no"])
+                elif ftype == "integer":
+                    test_data[name] = str(randint(3000, 3050)) if name == "CM_serial" else str(randint(0, 9999))
+                elif ftype == "float":
+                    test_data[name] = f"{uniform(0.0, 10.0):.2f}"
+                elif ftype == "text":
+                    test_data[name] = "Auto-generated entry"
+                elif ftype == "file":
+                    test_data[name] = ""  # Leave blank for file fields
 
         entry = TestEntry(
             user_id=session['user_id'],
@@ -577,6 +668,7 @@ def add_dummy_entry():
             test=True
         )
         db.session.add(entry)
+
     db.session.commit()
     return redirect(url_for('history'))
 
