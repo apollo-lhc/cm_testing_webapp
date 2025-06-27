@@ -18,6 +18,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, s
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from models import db, User, TestEntry, EntrySlot
+from form_config import FORMS
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'testsecret'
@@ -31,133 +32,135 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 
 blank = { "name": "blank", "label": "", "type": None, "display_history": False }
 
-FORMS = [
-
-    # Define multiple forms, each with its own fields and a unique name
-
-    #Field: name, label, type, display_history
-
-    # need to use blank.copy() after an instance of blank if no other field comes next to it
-
-    {
-        "name": "hardware_test",
-        "label": "Hardware Test",
-        "fields": [
-            {
-                "name": "CM_serial",
-                "label": "CM Serial number",
-                "type": "integer",
-                # Custom validation: must be in range 3000-3050
-                "validate": lambda v: (3000 <= int(v) <= 3050, "Must be between 3000 and 3050") if v and v.isdigit() else (False, "Must be an integer between 3000 and 3050")
-            },
-            { "name": "passed_visual", "label": "Passed Visual Inspection", "type": "boolean" },
-            { "name": "comments", "label": "Comments", "type": "text" },
-            { "name": "test_help", "label": "Testing help", "type": "boolean", "help_text": "this is the help text i am typing so so soso"
-             "so sos oso so sos oso soso sosososoosososososososososo mcuh this is the help text i am typing so so soso so sos oso so sos oso soso"
-             "sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososo"
-            "sosososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoososososososososo"
-            "so mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis"
-            "is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help"
-            "text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am ty"
-            "ping so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso"
-            "so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so so"
-            " oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoos"
-            "ososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcu"
-            "this is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text"
-            "i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so sos"
-            "o so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos os"
-            "o soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososos"
-            "osososososo mcuh:(", "help_link": "https://loganprosser.com" },
 
 
-        ]
-    },
-    {
-        "name": "power_test",
-        "label": "Power Test",
-        "fields": [
-            {"name": "powertesttext", "label": "Voltages should be around 11.5 - 12.5 V, Currents 0.5 - 2.0 A", "type": "null", "display_history": False},
-            blank,
-            { "name": "management_power", "label": "Management Power", "type": "float" },
-            { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
-            { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
-            { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type": "boolean" },
-            { "name": "test_help2", "label": "Testing help", "type": "boolean", "help_text": "this is the help text2", "help_link": "https://prossernet.com" },
-        ]
-    },
-    {
-        "name": "i2c_tests",
-        "label": "I2C Tests",
-        #should add links to help page for each of these tests w/ explanation and link to github where tests can be found
-        "fields": [
-            { "name": "i2c_to_dcdc", "label": "I2C to DC-DC Converter Passed", "type": "boolean"},
-            { "name": "dcdc_converter_test", "label": "All DC-DC Converters Passed", "type": "boolean"},
-            { "name": "i2c_to_clockchips", "label": "Clock Chips I2C Test Passed", "type": "boolean" },
-            { "name": "i2c_to_fpgas", "label": "I2C to FPGA's Passed", "type": "boolean"}, #may need to adjust if dont have fpga's on board
-            { "name": "i2c_to_firefly_bank1", "label": "I2C to FireFly Bank 1 Passed", "type": "boolean"},
-            { "name": "i2c_to_firefly_bank2", "label": "I2C to FireFly Bank 2 Passed", "type": "boolean"}, #"havent given much thought yet" -prod test doc
-            { "name": "i2c_to_eeprom", "label": "I2C to EEPROM Passed", "type": "boolean"},
-        ]
-    },
-    {
-        "name": "second_step_mcu_test",
-        "label": "Second-Step MCU Test",
-        "fields": [
-            { "name": "second_step_instruction", "label": "Set FireFly transmit switches to the 3.3v position and load second step code, (clock output sent through front panel connector)", "type": "null", "display_history": False },
-            { "name": "fpga_oscillator_clock_1", "label": "FPGA Oscillator Clock Frequency 1 (MHz)", "type": "float" },
-            { "name": "fpga_oscillator_clock_2", "label": "FPGA Oscillator Clock Frequency 2 (MHz)", "type": "float" },
-            { "name": "fpga_flash_memory", "label": "FPGA Flash Memory Test", "type": "boolean"},
-        ]
-    },
+# FORMS = [
 
-    {
-        "name": "link_test",
-        "label": "Link Integrity Testing",
-        "fields": [
-            { "name": "fpga_second_step_tip", "label": "Load the second-step FPGA code to test FPGA-FPGA and MCU-FPGA connections", "type": "null", "display_history": False },
-            { "name": "ibert_test", "label": "IBERT link Test Passed", "type": "boolean" },
-            { "name": "ibert_test_upload", "label": "Upload IBERT Test Results", "type": "file" },
-            { "name": "full_link_test", "label": "Firefly, FPGA-FPGA, C2C, and TCDS Links Passed", "type": "boolean" },
-            { "name": "firefly_test_upload", "label": "Upload Firefly Test Results", "type": "file" },
-        ]
-    },
+#     # Define multiple forms, each with its own fields and a unique name
 
-    {
-        "name": "manual_link_testing",
-        "label": "Manual Link Testing",
-        "fields": [
-            { "name": "manual_test_tip_1", "label": "Remove the board from the test stand. Remove the FireFly devices and loopback cables. Install the proper FireFly configuraton for the end use.", "type": "null", "display_history": False},
-            blank,
-            { "name": "manual_test_tip_2", "label": "Set the FireFly transmit voltage switches to 3.8v for 25Gx12 transmitters. Install the FireFly heatsink. Route FireFly cables to the front panel. Install loopback connectors", "type": "null", "display_history": False },
-            blank,
-            { "name": "manual_test_tip_3", "label": "Connect the CM to the golden SM. Install the SM front panel board. Attach a front panel, and connect the handle switch. Install covers. Install the board in an ATCA shelf and apply power. ", "type": "null", "display_history": False },
-            blank,
-            { "name": "manual_test_tip_4", "label": "Load MCU code and configure clock chips for normal operation, then load the thrid step FPGA code", "type": "null", "display_history": False },
-            blank,
-            { "name": "third_step_fpga_test", "label": "Thrid Step FPGA Test Passed", "type": "boolean" },
-        ]
-    },
+#     #Field: name, label, type, display_history
 
-    {
-        "name": "heating_tests",
-        "label": "Heating Testing",
-        "fields": [
-            { "name": "heating_test", "label": "Heater Tests Passed With Sufficent Cooling", "type": "boolean" },
-            { "name": "heating_tip", "label": "Remove the CM/SM from the ATCA shelf. Remove the FireFly loopback connectors. Separate the CM from the SM. Pack the CM for shipping", "type": "null", "display_history": False },
-            blank,
-            blank.copy(),
-        ]
-    },
+#     # need to use blank.copy() after an instance of blank if no other field comes next to it
 
-    #will probably need to change when look into specific tests more prob need to add to each automatic testing session
-    {
-        "name": "report_upload",
-        "label": "Upload Test Report",
-        "fields": [
-            { "name": "test_report", "label": "Upload PDF", "type": "file" },
-        ]
-    },
-]
+#     {
+#         "name": "hardware_test",
+#         "label": "Hardware Test",
+#         "fields": [
+#             {
+#                 "name": "CM_serial",
+#                 "label": "CM Serial number",
+#                 "type": "integer",
+#                 # Custom validation: must be in range 3000-3050
+#                 "validate": lambda v: (3000 <= int(v) <= 3050, "Must be between 3000 and 3050") if v and v.isdigit() else (False, "Must be an integer between 3000 and 3050")
+#             },
+#             { "name": "passed_visual", "label": "Passed Visual Inspection", "type": "boolean" },
+#             { "name": "comments", "label": "Comments", "type": "text" },
+#             { "name": "test_help", "label": "Testing help", "type": "boolean", "help_text": "this is the help text i am typing so so soso"
+#              "so sos oso so sos oso soso sosososoosososososososososo mcuh this is the help text i am typing so so soso so sos oso so sos oso soso"
+#              "sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososo"
+#             "sosososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoososososososososo"
+#             "so mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis"
+#             "is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help"
+#             "text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am ty"
+#             "ping so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso"
+#             "so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so so"
+#             " oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoos"
+#             "ososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcu"
+#             "this is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text"
+#             "i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so sos"
+#             "o so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos os"
+#             "o soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososos"
+#             "osososososo mcuh:(", "help_link": "https://loganprosser.com" },
+
+
+#         ]
+#     },
+#     {
+#         "name": "power_test",
+#         "label": "Power Test",
+#         "fields": [
+#             {"name": "powertesttext", "label": "Voltages should be around 11.5 - 12.5 V, Currents 0.5 - 2.0 A", "type": "null", "display_history": False},
+#             blank,
+#             { "name": "management_power", "label": "Management Power", "type": "float" },
+#             { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
+#             { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
+#             { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type": "boolean" },
+#             { "name": "test_help2", "label": "Testing help", "type": "boolean", "help_text": "this is the help text2", "help_link": "https://prossernet.com" },
+#         ]
+#     },
+#     {
+#         "name": "i2c_tests",
+#         "label": "I2C Tests",
+#         #should add links to help page for each of these tests w/ explanation and link to github where tests can be found
+#         "fields": [
+#             { "name": "i2c_to_dcdc", "label": "I2C to DC-DC Converter Passed", "type": "boolean"},
+#             { "name": "dcdc_converter_test", "label": "All DC-DC Converters Passed", "type": "boolean"},
+#             { "name": "i2c_to_clockchips", "label": "Clock Chips I2C Test Passed", "type": "boolean" },
+#             { "name": "i2c_to_fpgas", "label": "I2C to FPGA's Passed", "type": "boolean"}, #may need to adjust if dont have fpga's on board
+#             { "name": "i2c_to_firefly_bank1", "label": "I2C to FireFly Bank 1 Passed", "type": "boolean"},
+#             { "name": "i2c_to_firefly_bank2", "label": "I2C to FireFly Bank 2 Passed", "type": "boolean"}, #"havent given much thought yet" -prod test doc
+#             { "name": "i2c_to_eeprom", "label": "I2C to EEPROM Passed", "type": "boolean"},
+#         ]
+#     },
+#     {
+#         "name": "second_step_mcu_test",
+#         "label": "Second-Step MCU Test",
+#         "fields": [
+#             { "name": "second_step_instruction", "label": "Set FireFly transmit switches to the 3.3v position and load second step code, (clock output sent through front panel connector)", "type": "null", "display_history": False },
+#             { "name": "fpga_oscillator_clock_1", "label": "FPGA Oscillator Clock Frequency 1 (MHz)", "type": "float" },
+#             { "name": "fpga_oscillator_clock_2", "label": "FPGA Oscillator Clock Frequency 2 (MHz)", "type": "float" },
+#             { "name": "fpga_flash_memory", "label": "FPGA Flash Memory Test", "type": "boolean"},
+#         ]
+#     },
+
+#     {
+#         "name": "link_test",
+#         "label": "Link Integrity Testing",
+#         "fields": [
+#             { "name": "fpga_second_step_tip", "label": "Load the second-step FPGA code to test FPGA-FPGA and MCU-FPGA connections", "type": "null", "display_history": False },
+#             { "name": "ibert_test", "label": "IBERT link Test Passed", "type": "boolean" },
+#             { "name": "ibert_test_upload", "label": "Upload IBERT Test Results", "type": "file" },
+#             { "name": "full_link_test", "label": "Firefly, FPGA-FPGA, C2C, and TCDS Links Passed", "type": "boolean" },
+#             { "name": "firefly_test_upload", "label": "Upload Firefly Test Results", "type": "file" },
+#         ]
+#     },
+
+#     {
+#         "name": "manual_link_testing",
+#         "label": "Manual Link Testing",
+#         "fields": [
+#             { "name": "manual_test_tip_1", "label": "Remove the board from the test stand. Remove the FireFly devices and loopback cables. Install the proper FireFly configuraton for the end use.", "type": "null", "display_history": False},
+#             blank,
+#             { "name": "manual_test_tip_2", "label": "Set the FireFly transmit voltage switches to 3.8v for 25Gx12 transmitters. Install the FireFly heatsink. Route FireFly cables to the front panel. Install loopback connectors", "type": "null", "display_history": False },
+#             blank,
+#             { "name": "manual_test_tip_3", "label": "Connect the CM to the golden SM. Install the SM front panel board. Attach a front panel, and connect the handle switch. Install covers. Install the board in an ATCA shelf and apply power. ", "type": "null", "display_history": False },
+#             blank,
+#             { "name": "manual_test_tip_4", "label": "Load MCU code and configure clock chips for normal operation, then load the thrid step FPGA code", "type": "null", "display_history": False },
+#             blank,
+#             { "name": "third_step_fpga_test", "label": "Thrid Step FPGA Test Passed", "type": "boolean" },
+#         ]
+#     },
+
+#     {
+#         "name": "heating_tests",
+#         "label": "Heating Testing",
+#         "fields": [
+#             { "name": "heating_test", "label": "Heater Tests Passed With Sufficent Cooling", "type": "boolean" },
+#             { "name": "heating_tip", "label": "Remove the CM/SM from the ATCA shelf. Remove the FireFly loopback connectors. Separate the CM from the SM. Pack the CM for shipping", "type": "null", "display_history": False },
+#             blank,
+#             blank.copy(),
+#         ]
+#     },
+
+#     #will probably need to change when look into specific tests more prob need to add to each automatic testing session
+#     {
+#         "name": "report_upload",
+#         "label": "Upload Test Report",
+#         "fields": [
+#             { "name": "test_report", "label": "Upload PDF", "type": "file" },
+#         ]
+#     },
+# ]
 
 db.init_app(app)
 
