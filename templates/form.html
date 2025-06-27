@@ -7,7 +7,7 @@
   <div class="d-flex justify-content-center">
     <form method="POST" enctype="multipart/form-data" class="w-100 text-start" style="max-width: 600px;">
       {% for field in fields %}
-        {% if field.type is none %}
+        {% if field.type_field is none %}
           <div style="height: 2em;"></div>
         {% else %}
           <label>{{ field.label }}:</label><br>
@@ -16,18 +16,18 @@
             <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>
           {% endif %}
 
-          {% if field.type == 'boolean' %}
+          {% if field.type_field == 'boolean' %}
             <div class="d-flex gap-3 mb-3">
               <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
               <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
             </div>
-          {% elif field.type == 'float' %}
+          {% elif field.type_field == 'float' %}
             <input class="form-control mb-3" type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
-          {% elif field.type == 'integer' %}
+          {% elif field.type_field == 'integer' %}
             <input class="form-control mb-3" type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
-          {% elif field.type == 'text' %}
+          {% elif field.type_field == 'text' %}
             <textarea class="form-control mb-3" name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea>
-          {% elif field.type == 'file' %}
+          {% elif field.type_field == 'file' %}
             {% if prefill_values.get(field.name) %}
               <p class="mb-1">Previously uploaded:
                 <a href="{{ url_for('uploaded_file', filename=prefill_values[field.name]) }}" target="_blank">
