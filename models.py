@@ -4,6 +4,7 @@ Database models for the test entry application.
 Includes:
 - User: authentication and password management
 - TestEntry: stores test data, file uploads, and user association
+- EntrySlot: need to add writeup when finished with it
 """
 
 from datetime import datetime
@@ -42,6 +43,8 @@ class TestEntry(db.Model):
     file_name = db.Column(db.String(120))
     user = db.relationship('User', backref=db.backref('entries', lazy=True))
     test = db.Column(db.Boolean, default=False)
+    failure = db.Column(db.Boolean, default=False)
+    fail_reason = db.Column(db.String, default=None)
 
 class EntrySlot:
     """Model for keeping track and saving in use forms per serial number"""
@@ -64,3 +67,54 @@ class EntrySlot:
             data=d.get('data', {}),
             test=d.get('test', False)
         )
+
+class FormField:
+    def __init__(self, name=None, label=None, type_field=None, validate=None, display_history=True, help_text=None, help_link=None):
+        self.name = name
+        self.label = label
+        self.type_field = type_field
+        self.validate = validate
+        self.display_history = display_history
+        self.help_text = help_text
+        self.help_link = help_link
+
+    def __repr__(self):
+        return f"FormField(name={self.name}, label={self.label}, type_field={self.type_field})"
+
+    @classmethod
+    def blank(cls):
+        return cls(name="blank", label="", type_field=None, display_history=False)
+
+    @classmethod
+    def null(cls, name, label):
+        return cls(name=name, label=label, type_field="null", display_history=False)
+
+    @classmethod
+    def text(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None):
+        return cls(name=name, label=label, type_field="text", validate=validate,
+                   display_history=display_history, help_text=help_text,
+                   help_link=help_link)
+
+    @classmethod
+    def integer(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None):
+        return cls(name=name, label=label, type_field="integer", validate=validate,
+                   display_history=display_history, help_text=help_text,
+                   help_link=help_link)
+
+    @classmethod
+    def float(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None):
+        return cls(name=name, label=label, type_field="float", validate=validate,
+                   display_history=display_history, help_text=help_text,
+                   help_link=help_link)
+
+    @classmethod
+    def boolean(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None):
+        return cls(name=name, label=label, type_field="boolean", validate=validate,
+                   display_history=display_history, help_text=help_text,
+                   help_link=help_link)
+
+    @classmethod
+    def file(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None):
+        return cls(name=name, label=label, type_field="file", validate=validate,
+                   display_history=display_history, help_text=help_text,
+                   help_link=help_link)

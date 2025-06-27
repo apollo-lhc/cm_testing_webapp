@@ -40,12 +40,10 @@
       <a class="btn btn-outline-red btn me-2" href="/">Home</a>
       <a class="btn btn-outline-red btn me-2" href="/export_csv{% if show_unique %}?unique=true{% endif %}">Download CSV</a>
       <a class="btn btn-outline-red btn me-2" href="/form">Back to Form</a>
+      <a class="btn btn-outline-red btn me-2" href="/logout">Logout</a>
       <a class="btn btn-outline-red btn" href="/help">Help</a>
     </div>
   </div>
-
-
-
 
   <div class="card p-3 shadow-sm">
     <div class="table-responsive">
@@ -57,7 +55,8 @@
             {% for field in fields %}
               <th>{{ field.label }}</th>
             {% endfor %}
-            <th>File</th>
+            <th>Test Aborted</th>
+            <th>Reason Aborted</th>
           </tr>
         </thead>
         <tbody>
@@ -66,9 +65,21 @@
             <td>{{ e.timestamp }}</td>
             <td>{{ e.user.username }}</td>
             {% for field in fields %}
-              <td>{{ e.data.get(field.name, '') }}</td>
+              <td>
+                {% if field.type_field == 'file' %}
+                  {% set filename = e.data.get(field.name) %}
+                  {% if filename %}
+                    <a href="{{ url_for('uploaded_file', filename=filename) }}" target="_blank">{{ filename }}</a>
+                  {% else %}
+                    -
+                  {% endif %}
+                {% else %}
+                  {{ e.data.get(field.name, '') }}
+                {% endif %}
+              </td>
             {% endfor %}
-            <td>{{ e.file_name }}</td>
+            <td>{{ "yes" if e.failure else "no" }}</td>
+            <td>{{ e.fail_reason }}</td>
           </tr>
           {% endfor %}
         </tbody>
