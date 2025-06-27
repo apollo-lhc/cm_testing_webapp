@@ -68,63 +68,63 @@ class EntrySlot:
             test=d.get('test', False)
         )
 
-class FormField:
-    """"Class to define form objects"""
-    def __init__(self, name=None, label=None, type=None, validate=None, display_history=True, help_text=None, help_link=None):
-        self.name = name
-        self.label = label
-        self.type = type
-        self.validate = validate
-        self.display_history = display_history
-        self.help_text = help_text
-        self.help_link = help_link
+# class FormField:
+#     """"Class to define form objects"""
+#     def __init__(self, name=None, label=None, field_type=None, validate=None, display_history=True, help_text=None, help_link=None):
+#         self.name = name
+#         self.label = label
+#         self.type = field_type
+#         self.validate = validate
+#         self.display_history = display_history
+#         self.help_text = help_text
+#         self.help_link = help_link
 
-    @classmethod
-    def blank(cls):
-        return cls(name="blank", label="", type=None, display_history=False)
+#     @classmethod
+#     def blank(cls):
+#         return cls(name="blank", label="", field_type=None, display_history=False)
 
-    @classmethod
-    def text(cls, name, label):
-        return cls(name=name, label=label, type="text", display_history=False)
+#     @classmethod
+#     def text(cls, name, label):
+#         return cls(name=name, label=label, field_type="text", display_history=False)
 
 
-class FormField:
-    def __init__(self, name=None, label=None, type=None, validate=None, display_history=True, help_text=None, help_link=None):
-        self.name = name
-        self.label = label
-        self.type = type
-        self.validate = validate
-        self.display_history = display_history
-        self.help_text = help_text
-        self.help_link = help_link
+# class FormField:
+#     def __init__(self, name=None, label=None, type=None, validate=None, display_history=True, help_text=None, help_link=None):
+#         self.name = name
+#         self.label = label
+#         self.type = type
+#         self.validate = validate
+#         self.display_history = display_history
+#         self.help_text = help_text
+#         self.help_link = help_link
 
-    def __repr__(self):
-        return f"FormField(name={self.name}, label={self.label}, type={self.type})"
+#     def __repr__(self):
+#         return f"FormField(name={self.name}, label={self.label}, type={self.type})"
 
-    @classmethod
-    def blank(cls):
-        return cls(name="blank", label="", type=None, display_history=False)
+#     @classmethod
+#     def blank(cls):
+#         return cls(name="blank", label="", type=None, display_history=False)
 
-    @classmethod
-    def null(cls, label):
-        return cls(name=None, label=label, type="null", display_history=False)
+#     @classmethod
+#     def null(cls, label):
+#         return cls(name=None, label=label, type="null", display_history=False)
 
-    @classmethod
-    def text(cls, name, label):
-        return cls(name=name, label=label, type="text")
+#     @classmethod
+#     def text(cls, name, label):
+#         return cls(name=name, label=label, type="text")
 
-    @classmethod
-    def integer(cls, name, label, validate=None):
-        return cls(name=name, label=label, type="integer", validate=validate)
+#     @classmethod
+#     def integer(cls, name, label, validate=None):
+#         return cls(name=name, label=label, type="integer", validate=validate)
 
-    @classmethod
-    def float(cls, name, label):
-        return cls(name=name, label=label, type="float")
+#     @classmethod
+#     def float(cls, name, label):
+#         return cls(name=name, label=label, type="float")
 
-    @classmethod
-    def boolean(cls, name, label):
-        return cls(name=name, label=label, type="boolean")
+#     @classmethod
+#     def boolean(cls, name, label):
+#         return cls(name=name, label=label, type="boolean")
 
-    @classmethod
-    def file(cls, name, label):
-        return cls(name=name, label=label, type="file")
+#     @classmethod
+#     def file(cls, name, label):
+#         return cls(name=name, label=label, type="file")
