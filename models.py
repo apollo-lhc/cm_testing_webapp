@@ -69,52 +69,52 @@ class EntrySlot:
         )
 
 class FormField:
-    def __init__(self, name=None, label=None, type=None, validate=None, display_history=True, help_text=None, help_link=None):
+    def __init__(self, name=None, label=None, type_field=None, validate=None, display_history=True, help_text=None, help_link=None):
         self.name = name
         self.label = label
-        self.type = type
+        self.type_field = type_field
         self.validate = validate
         self.display_history = display_history
         self.help_text = help_text
         self.help_link = help_link
 
     def __repr__(self):
-        return f"FormField(name={self.name}, label={self.label}, type={self.type})"
+        return f"FormField(name={self.name}, label={self.label}, type_field={self.type_field})"
 
     @classmethod
     def blank(cls):
-        return cls(name="blank", label="", type=None, display_history=False)
+        return cls(name="blank", label="", type_field=None, display_history=False)
 
     @classmethod
     def null(cls, name, label):
-        return cls(name=name, label=label, type="null", display_history=False)
+        return cls(name=name, label=label, type_field="null", display_history=False)
 
     @classmethod
     def text(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None):
-        return cls(name=name, label=label, type="text", validate=validate,
+        return cls(name=name, label=label, type_field="text", validate=validate,
                    display_history=display_history, help_text=help_text,
                    help_link=help_link)
 
     @classmethod
     def integer(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None):
-        return cls(name=name, label=label, type="integer", validate=validate,
+        return cls(name=name, label=label, type_field="integer", validate=validate,
                    display_history=display_history, help_text=help_text,
                    help_link=help_link)
 
     @classmethod
     def float(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None):
-        return cls(name=name, label=label, type="float", validate=validate,
+        return cls(name=name, label=label, type_field="float", validate=validate,
                    display_history=display_history, help_text=help_text,
                    help_link=help_link)
 
     @classmethod
     def boolean(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None):
-        return cls(name=name, label=label, type="boolean", validate=validate,
+        return cls(name=name, label=label, type_field="boolean", validate=validate,
                    display_history=display_history, help_text=help_text,
                    help_link=help_link)
 
     @classmethod
     def file(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None):
-        return cls(name=name, label=label, type="file", validate=validate,
+        return cls(name=name, label=label, type_field="file", validate=validate,
                    display_history=display_history, help_text=help_text,
                    help_link=help_link)

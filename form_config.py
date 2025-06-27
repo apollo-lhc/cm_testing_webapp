@@ -10,7 +10,7 @@ def field_to_dict(field: FormField):
     return {
         "name": field.name,
         "label": field.label,
-        "type": field.type,
+        "type_field": field.type_field,
         "validate": field.validate,
         "display_history": field.display_history,
         "help_text": field.help_text,
@@ -32,7 +32,7 @@ FORMS_NON_DICT = [
                 "test_help",
                 "Testing help",
                 help_text="this is the help text i am typing so so soso" * 30 + " mcuh:(",
-                help_link="https://loganprosser.com"
+                help_link="https://google.com"
             ),
         ]
     },
