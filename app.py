@@ -52,6 +52,24 @@ FORMS = [
             },
             { "name": "passed_visual", "label": "Passed Visual Inspection", "type": "boolean" },
             { "name": "comments", "label": "Comments", "type": "text" },
+            { "name": "test_help", "label": "Testing help", "type": "boolean", "help_text": "this is the help text i am typing so so soso"
+             "so sos oso so sos oso soso sosososoosososososososososo mcuh this is the help text i am typing so so soso so sos oso so sos oso soso"
+             "sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososo"
+            "sosososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoososososososososo"
+            "so mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis"
+            "is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help"
+            "text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am ty"
+            "ping so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso"
+            "so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so so"
+            " oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoos"
+            "ososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcu"
+            "this is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text"
+            "i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so sos"
+            "o so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos os"
+            "o soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososos"
+            "osososososo mcuh:(", "help_link": "https://loganprosser.com" },
+
+
         ]
     },
     {
@@ -63,7 +81,8 @@ FORMS = [
             { "name": "management_power", "label": "Management Power", "type": "float" },
             { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type": "float" },
             { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type": "float" },
-            { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type": "boolean" }
+            { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type": "boolean" },
+            { "name": "test_help2", "label": "Testing help", "type": "boolean", "help_text": "this is the help text2", "help_link": "https://prossernet.com" },
         ]
     },
     {
@@ -542,7 +561,32 @@ def export_csv():
 
 @app.route('/help')
 def help_button():
-    """Bring up static help page."""
+    """Render help page grouped by form section, showing only fields with help_text or help_link."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    grouped_help_fields = {}
+
+    for form_iter in FORMS:
+        section = form_iter.get("label", "Unnamed Section")
+        for field in form_iter.get("fields", []):
+            help_text = field.get("help_text")
+            help_link = field.get("help_link")
+            if help_text or help_link:
+                if section not in grouped_help_fields:
+                    grouped_help_fields[section] = []
+                grouped_help_fields[section].append({
+                    "field_name": field.get("name", ""),
+                    "field_label": field.get("label", ""),
+                    "help_text": help_text,
+                    "help_link": help_link
+                })
+
+    return render_template("help.html", grouped_help_fields=grouped_help_fields)
+
+@app.route('/prod_test_doc')
+def prod_test_doc():
+    """Bring up Apollo Production Testing Document."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return send_from_directory("static", "Apollo_CMv3_Production_Testing_04Nov2024.html")
