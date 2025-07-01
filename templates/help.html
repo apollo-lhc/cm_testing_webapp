@@ -272,7 +272,7 @@
                 </div>
                 {% if field.help_link %}
                   <a href="{{ field.help_link }}" class="btn btn-sm btn-small-link" target="_blank" rel="noopener noreferrer">
-                    {{ field.help_label or field.label or "Open Link" }}
+                    {{ field.help_label or field.label or "-" }}
                   </a>
                 {% else %}
                   <p class="text-muted small fst-italic mt-2">No link provided</p>

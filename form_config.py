@@ -33,20 +33,25 @@ FORMS_NON_DICT = [
             FormField.integer("CM_serial", "CM Serial number", validate=validate_serial),
             FormField.boolean("passed_visual", "Passed Visual Inspection"),
             FormField.text("comments", "Comments"),
-            FormField.help_instance("hello", help_text="test!!!!"),
         ]
     },
     {
         "name": "power_test",
-        "label": "Power Test",
+        "label": "Power Up Test",
         "fields": [
             FormField.null("powertesttext", "Voltages should be around 11.5 - 12.5 V, Currents 0.5 - 2.0 A"),
             FormField.blank(),
-            FormField.float("management_power", "Management Power"),
+            FormField.float("management_power", "Management Power", help_text="""Unpack a board. Set FireFly transmit switches to 3.8V position. Install one 4-channel FireFly
+                transceiver on each FPGA, and connect a fiber cable between them. Install copper FireFly
+                loopback cables to other FireFly sites. Connect the board to the test system. Position fans for
+                cooling. Connect a meter to measure 3.3V management power. Ramp the 12V power and note
+                the voltage level when the 3.3V becomes good. Note the current as the voltage is ramped up to
+                12V. Stop the test if certain voltage or current criteria are not met.
+                Program the MCU with first-step code and run the program.""",
+                help_label="Power Up Test Instructions"),
             FormField.float("power_supply_voltage", "Power Supply Voltage (V) when 3.3 V becomes good"),
             FormField.float("current_draw", "Current Draw (mA) at 3.3 V"),
             FormField.boolean("mcu_programmed", "MCU Programmed Successfully"),
-            FormField.boolean("test_help2", "Testing help", help_text="this is the help text2", help_link="https://prossernet.com"),
         ]
     },
     {
@@ -131,8 +136,19 @@ FORMS_NON_DICT = [
         "fields": [
             FormField.null("second_step_instruction", "Set FireFly transmit switches to the 3.3v position and load second step code, (clock output sent through front panel connector)"),
             FormField.float("fpga_oscillator_clock_1", "FPGA Oscillator Clock Frequency 1 (MHz)"),
+            FormField.help_instance("clock_freq_help", help_text="""
+                                    Load second-step MCU code, which automatically turns on power and monitors conditions.
+                                    Configure the clock chips for refclk testing. Load first-step FPGA code, which tests refclk inputs
+                                    and I2C. Verify that oscillator clock is 200 MHz on each FPGA (sent out through front panel
+                                    connector).""",
+                                    help_label="FPGA Clock Frequency Checks"),
             FormField.float("fpga_oscillator_clock_2", "FPGA Oscillator Clock Frequency 2 (MHz)"),
-            FormField.boolean("fpga_flash_memory", "FPGA Flash Memory Test"),
+            FormField.boolean("fpga_flash_memory", "FPGA Flash Memory Test",
+                            help_text="""Test optics I2C registers related to 3.3V/3.8V options. Test non-sysmon I2C to each FPGA. Verify
+                                        that all refclks have the expected frequency (read over I2C). Switch clock chips between different
+                                        inputs. Test FPGA flash memory.""",
+                                        help_link="find link",
+                                        help_label="Flash Memory Test - find link"),
         ]
     },
     {
