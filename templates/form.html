@@ -7,36 +7,38 @@
   <div class="d-flex justify-content-center">
     <form method="POST" enctype="multipart/form-data" class="w-100 text-start" style="max-width: 600px;">
       {% for field in fields %}
-        {% if field.type_field is none %}
-          <div style="height: 2em;"></div>
-        {% else %}
-          <label>{{ field.label }}:</label><br>
+        {% if field.display_form %}
+          {% if field.type_field is none %}
+              <div style="height: 2em;"></div>
+            {% else %}
+              <label>{{ field.label }}:</label><br>
 
-          {% if errors and errors.get(field.name) %}
-            <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>
-          {% endif %}
+              {% if errors and errors.get(field.name) %}
+                <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>
+              {% endif %}
 
-          {% if field.type_field == 'boolean' %}
-            <div class="d-flex gap-3 mb-3">
-              <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
-              <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
-            </div>
-          {% elif field.type_field == 'float' %}
-            <input class="form-control mb-3" type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
-          {% elif field.type_field == 'integer' %}
-            <input class="form-control mb-3" type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
-          {% elif field.type_field == 'text' %}
-            <textarea class="form-control mb-3" name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea>
-          {% elif field.type_field == 'file' %}
-            {% if prefill_values.get(field.name) %}
-              <p class="mb-1">Previously uploaded:
-                <a href="{{ url_for('uploaded_file', filename=prefill_values[field.name]) }}" target="_blank">
-                  {{ prefill_values[field.name] }}
-                </a>
-              </p>
+              {% if field.type_field == 'boolean' %}
+                <div class="d-flex gap-3 mb-3">
+                  <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
+                  <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
+                </div>
+              {% elif field.type_field == 'float' %}
+                <input class="form-control mb-3" type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
+              {% elif field.type_field == 'integer' %}
+                <input class="form-control mb-3" type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
+              {% elif field.type_field == 'text' %}
+                <textarea class="form-control mb-3" name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea>
+              {% elif field.type_field == 'file' %}
+                {% if prefill_values.get(field.name) %}
+                  <p class="mb-1">Previously uploaded:
+                    <a href="{{ url_for('uploaded_file', filename=prefill_values[field.name]) }}" target="_blank">
+                      {{ prefill_values[field.name] }}
+                    </a>
+                  </p>
+                {% endif %}
+                <input class="form-control mb-3" type="file" name="{{ field.name }}">
+              {% endif %}
             {% endif %}
-            <input class="form-control mb-3" type="file" name="{{ field.name }}">
-          {% endif %}
         {% endif %}
       {% endfor %}
 
@@ -69,6 +71,10 @@
     <a href="/history" class="btn btn-outline-red mx-1">View All Submissions</a>
     <a href="/logout" class="btn btn-outline-red mx-1">Logout</a>
     <a href="/help" class="btn btn-outline-red mx-1">Help</a>
+  </div>
+
+  <div class="text-center mt-5 pb-5">
+    <div style="height: 100px;"></div>  <!-- Spacer div at the end -->
   </div>
 </div>
 

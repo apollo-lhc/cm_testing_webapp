@@ -19,8 +19,7 @@ def field_to_dict(field: FormField):
         "type_field": field.type_field,
         "validate": field.validate,
         "display_history": field.display_history,
-        "help_text": field.help_text,
-        "help_link": field.help_link,
+        "display_form": field.display_form
     }
 
 
@@ -34,12 +33,7 @@ FORMS_NON_DICT = [
             FormField.integer("CM_serial", "CM Serial number", validate=validate_serial),
             FormField.boolean("passed_visual", "Passed Visual Inspection"),
             FormField.text("comments", "Comments"),
-            FormField.boolean(
-                "test_help",
-                "Testing help",
-                help_text="this is the help text i am typing so so soso" * 30 + " mcuh:(",
-                help_link="https://google.com"
-            ),
+            FormField.help_instance("hello", help_text="test!!!!"),
         ]
     },
     {
@@ -59,13 +53,76 @@ FORMS_NON_DICT = [
         "name": "i2c_tests",
         "label": "I2C Tests",
         "fields": [
-            FormField.boolean("i2c_to_dcdc", "I2C to DC-DC Converter Passed"),
-            FormField.boolean("dcdc_converter_test", "All DC-DC Converters Passed"),
-            FormField.boolean("i2c_to_clockchips", "Clock Chips I2C Test Passed"),
-            FormField.boolean("i2c_to_fpgas", "I2C to FPGA's Passed"),
+            FormField.boolean("i2c_to_dcdc", "I2C to DC-DC Converter Passed",
+                              help_text="""
+                                Test I2C to each DC-DC converter (schematic 4.02)
+                                Decide what to look for. We want to be able to verify that both reading and writing work
+                                as we uniquely access all 7 converters. Detect if I2C switching fails and we talk to the
+                                same converter multiple times. Verify that the I2C_RESET_PWR signal to the I2C mux
+                                works. Report errors as encountered. Report success after communicating with all seven
+                                DC-DC converters.
+                                """,
+                              help_link="https://github.com/apollo-lhc/cm_mcu/blob/master/projects/prod_test/CommandLineTask.c#L40",
+                              help_label="I2C to DC-DC Converter Test"),
+            FormField.boolean("dcdc_converter_test", "All DC-DC Converters Passed",
+                              help_text="""
+                              Configure, enable, and check each DC-DC converter.
+                              Configure and enable converters one at a time,
+                              following the power-on sequence of schematic 1.04. Figure out how to uniquely test the paired 0.85 volt
+                              converters. They are used in pairs, but we don’t know if one is good and one is bad. Check voltages and
+                                currents by reading internal DC-DC converter registers and the MCU ADC. Report errors as encountered,
+                                and success after enabling all seven DC-DC converters.""",
+                                help_link="https://github.com/apollo-lhc/cm_mcu/blob/master/projects/prod_test/CommandLineTask.c#L41",
+                                help_label="DCDC Converter Tests"),
+            FormField.float("dcdc_voltage", "DC-DC Measured Voltage"), #there might be 7 of these
+            FormField.float("dcdc_current", "DC-DC Measured Current"), #same as above
+            FormField.boolean("i2c_clockchips", "Clock Chips I2C Test Passed",
+                              help_text="""Test I2C to clock chips and I2C registers (schematic 4.03)
+                                    We want to be able to verify that both reading and writing work as we uniquely access
+                                    all 5 clock chips. Detect if I2C switching fails and we talk to the same chip multiple times.
+                                    Verify that we can uniquely access both register chips. Maybe toggle the “RESET” signals
+                                    that go to the clock chips and verify that something with the clock chips changed? Verify
+                                    that the I2C_RESET_CLOCKS signal to the I2C mux works. Report errors as encountered.
+                                    Report success after communicating with all five clock chips and both register chips.""",
+                                            help_link="https://github.com/apollo-lhc/cm_mcu/blob/master/projects/prod_test/CommandLineTask.c#L42",
+                                            help_label="I2C Clock Tests"),
+            FormField.boolean("i2c_to_fpgas", "I2C to FPGA's Passed", #change to one per fpga probably
+                              help_text="""Test I2C to FPGAs (schematic 4.04)
+                                            (NOTE: This test requires a board that has FPGAs installed. Development of code may
+                                            need to be deferred. Also, only the SYSMON ports can be tested before code is loaded
+                                            into the FPGAs.)
+                                            We want to be able to verify that both reading and writing work as we uniquely access
+                                            each FPGA. Detect if I2C switching fails and we talk to the same FPGA multiple times.
+                                            Verify that the I2C_RESET_FPGAS signal to the I2C mux works. Report errors as
+                                            encountered. Report success after communicating with both FPGAs.
+                                            """,
+                                            help_link="https://github.com/apollo-lhc/cm_mcu/blob/master/projects/prod_test/CommandLineTask.c#L45",
+                                            help_label="I2C to FPGA Test"),
+            FormField.help_instance(name="i2c_to_fireflies",
+                           help_text="""Test I2C to each FireFly bank (schematic 4.05 and 4.06)
+                            (NOTE: Complete coverage for this test requires that at least 4 FireFlys are installed in
+                            each bank, with two on each I2C MUX. We may choose to do what we can with a single
+                            FireFly on each bank.)
+                            We want to be able to verify that both reading and writing work as we uniquely access
+                            different FireFly devices. Detect if I2C switching fails and we talk to the same FireFly
+                            multiple times. Verify that the I2C_RESET_F1_OPTICS and I2C_RESET_F2_OPTICS signals
+                            to the I2C muxes work. Verify that we can uniquely access both register chips. Maybe
+                            use the PRESENT signals and the RESET signal to the FireFlys? Report errors as
+                            encountered. Report success after communicating with both FPGAs.""",
+                           help_link="https://github.com/apollo-lhc/cm_mcu/blob/master/projects/prod_test/CommandLineTask.c#L43",
+                           help_label="I2C Firefly Test"),
             FormField.boolean("i2c_to_firefly_bank1", "I2C to FireFly Bank 1 Passed"),
             FormField.boolean("i2c_to_firefly_bank2", "I2C to FireFly Bank 2 Passed"),
-            FormField.boolean("i2c_to_eeprom", "I2C to EEPROM Passed"),
+            FormField.boolean("i2c_to_eeprom", "I2C to EEPROM Passed",
+                              help_text="""Test I2C to EEPROM (schematic 4.01)
+                                (NOTE: We may want to program the configuration block with the board serial number
+                                in this step, or that may happen elsewhere.)
+                                We want to verify that we can program and read the EEPROM that is used to hold the
+                                board serial number and the synthesizer configuration files. Also, that the write-protect
+                                signal works.""",
+                                help_link="https://github.com/apollo-lhc/cm_mcu/blob/master/projects/prod_test/CommandLineTask.c#L44",
+                                help_label="I2C to EEPROM Test"
+                                ),
         ]
     },
     {
@@ -79,7 +136,7 @@ FORMS_NON_DICT = [
         ]
     },
     {
-        "name": "link_test",
+        "name": "link_test", #alec's IBERT tests
         "label": "Link Integrity Testing",
         "fields": [
             FormField.null("fpga_second_step_tip", "Load the second-step FPGA code to test FPGA-FPGA and MCU-FPGA connections"),
@@ -105,7 +162,7 @@ FORMS_NON_DICT = [
         ]
     },
     {
-        "name": "heating_tests",
+        "name": "heating_tests", #
         "label": "Heating Testing",
         "fields": [
             FormField.boolean("heating_test", "Heater Tests Passed With Sufficent Cooling"),
@@ -115,7 +172,7 @@ FORMS_NON_DICT = [
         ]
     },
     {
-        "name": "report_upload",
+        "name": "report_upload", #think is old just for show website
         "label": "Upload Test Report",
         "fields": [
             FormField.file("test_report", "Upload PDF"),

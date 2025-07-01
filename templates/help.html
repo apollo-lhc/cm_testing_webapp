@@ -1,55 +1,63 @@
 {% extends "base.html" %}
-{% block title %}Form Sequence Complete{% endblock %}
-{% block page_title %}Submission Complete{% endblock %}
+{% block title %}Help | Apollo CM Testing{% endblock %}
+{% block page_title %}Help & Test Explanations{% endblock %}
 
 {% block content %}
-<div class="text-center mt-5">
-  <div class="mb-3 d-flex justify-content-between align-items-center">
-    <div>
-      <a class="btn btn-outline-red btn" href="/prod_test_doc">Apollo Production Testing Document</a>
-    </div>
-    <div>
-      <a class="btn btn-outline-red btn me-2" href="/">Home</a>
-      <a class="btn btn-outline-red btn me-2" href="/form">Back to Form</a>
-      <a class="btn btn-outline-red btn me-2" href="/history">View Test Entries</a>
-      <a class="btn btn-outline-red btn me-2" href="/logout">Logout</a>
+<div class="text-center mb-4">
+  <div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
+    <a class="btn btn-outline-red mb-2" href="/prod_test_doc">Production Testing Doc</a>
+    <div class="d-flex flex-wrap justify-content-end gap-2">
+      <a class="btn btn-outline-red" href="/">Home</a>
+      <a class="btn btn-outline-red" href="/form">Back to Form</a>
+      <a class="btn btn-outline-red" href="/history">View Test Entries</a>
+      <a class="btn btn-outline-red" href="/logout">Logout</a>
     </div>
   </div>
-    <h2 class="mb-3 fw-semibold">Help Page</h2>
-    <p class="mb-4">Explanation of Tests</p>
 
-    <!--Block to display all fields with help text or help links-->
-    {% if grouped_help_fields %}
-    {% for section, fields in grouped_help_fields.items() %}
-      <h4 class="mt-5">{{ section }}</h4>
-      <table class="table table-bordered table-sm table-hover">
-        <thead class="table-light">
-          <tr>
-            <th>Test</th>
-            <th>Description</th>
-            <th>Link</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for field in fields %}
-            <tr>
-              <td>{{ field.field_label }}</td>
-              <td>{{ field.help_text or "-" }}</td>
-              <td>
-                {% if field.help_link %}
-                  <a href="{{ field.help_link }}" target="_blank" rel="noopener noreferrer">
-                    {{ field.field_label or "-" }}</a>
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% endfor %}
-  {% else %}
-    <p>No help entries found.</p>
-  {% endif %}
+  <h2 class="fw-bold mb-2">Help Page</h2>
+  <p class="text-muted mb-5">Descriptions and documentation for all test steps</p>
 </div>
+
+{% if grouped_help_fields %}
+  {% for section, fields in grouped_help_fields.items() %}
+    <div class="card mb-5 shadow-sm">
+      <div class="card-header bg-light text-dark border-bottom border-danger">
+        <h4 class="mb-0">{{ section }}</h4>
+      </div>
+      <div class="card-body px-4">
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 25%;">Test</th>
+                <th style="width: 55%;">Description</th>
+                <th style="width: 20%;">Documentation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for field in fields %}
+              <tr>
+                <td><strong>{{ field.help_label or field.label or "-" }}</strong></td>
+                <td class="text-start">{{ field.help_text or "—" }}</td>
+                <td>
+                  {% if field.help_link %}
+                    <a href="{{ field.help_link }}" target="_blank" rel="noopener noreferrer">
+                      View Doc
+                    </a>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="alert alert-warning text-center">No help entries found.</div>
+{% endif %}
+<div class="mb-5"></div>
 {% endblock %}

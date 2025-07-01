@@ -18,7 +18,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, s
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from models import db, User, TestEntry, EntrySlot
-from form_config import FORMS
+from form_config import FORMS, FORMS_NON_DICT
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'testsecret'
@@ -564,28 +564,27 @@ def export_csv():
 
 @app.route('/help')
 def help_button():
-    """Render help page grouped by form section, showing only fields with help_text or help_link."""
+    """Render help page grouped by form section, showing only fields with help_text, help_link, or help_label."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
     grouped_help_fields = {}
 
-    for form_iter in FORMS:
-        section = form_iter.get("label", "Unnamed Section")
-        for field in form_iter.get("fields", []):
-            help_text = field.get("help_text")
-            help_link = field.get("help_link")
-            if help_text or help_link:
+    for form in FORMS_NON_DICT:
+        section = form.get("label", "Unnamed Section")
+        for field in form.get("fields", []):
+            if any([
+                getattr(field, "help_text", None),
+                getattr(field, "help_link", None),
+                getattr(field, "help_label", None)
+            ]):
+                getattr(field, "label", None)
                 if section not in grouped_help_fields:
                     grouped_help_fields[section] = []
-                grouped_help_fields[section].append({
-                    "field_name": field.get("name", ""),
-                    "field_label": field.get("label", ""),
-                    "help_text": help_text,
-                    "help_link": help_link
-                })
+                grouped_help_fields[section].append(field)
 
     return render_template("help.html", grouped_help_fields=grouped_help_fields)
+
 
 @app.route('/prod_test_doc')
 def prod_test_doc():
