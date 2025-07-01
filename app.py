@@ -570,9 +570,9 @@ def help_button():
 
     grouped_help_fields = {}
 
-    for form in FORMS_NON_DICT:
-        section = form.get("label", "Unnamed Section")
-        for field in form.get("fields", []):
+    for form_iter in FORMS_NON_DICT:
+        section = form_iter.get("label", "Unnamed Section")
+        for field in form_iter.get("fields", []):
             if any([
                 getattr(field, "help_text", None),
                 getattr(field, "help_link", None),
