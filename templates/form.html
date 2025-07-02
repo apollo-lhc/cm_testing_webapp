@@ -9,36 +9,50 @@
       {% for field in fields %}
         {% if field.display_form %}
           {% if field.type_field is none %}
-              <div style="height: 2em;"></div>
-            {% else %}
-              <label>{{ field.label }}:</label><br>
+            <div style="height: 2em;"></div>
+          {% else %}
+            <label>{{ field.label }}:</label><br>
 
-              {% if errors and errors.get(field.name) %}
-                <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>
-              {% endif %}
-
-              {% if field.type_field == 'boolean' %}
-                <div class="d-flex gap-3 mb-3">
-                  <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
-                  <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
-                </div>
-              {% elif field.type_field == 'float' %}
-                <input class="form-control mb-3" type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
-              {% elif field.type_field == 'integer' %}
-                <input class="form-control mb-3" type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
-              {% elif field.type_field == 'text' %}
-                <textarea class="form-control mb-3" name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea>
-              {% elif field.type_field == 'file' %}
-                {% if prefill_values.get(field.name) %}
-                  <p class="mb-1">Previously uploaded:
-                    <a href="{{ url_for('uploaded_file', filename=prefill_values[field.name]) }}" target="_blank">
-                      {{ prefill_values[field.name] }}
-                    </a>
-                  </p>
-                {% endif %}
-                <input class="form-control mb-3" type="file" name="{{ field.name }}">
-              {% endif %}
+            {% if errors and errors.get(field.name) %}
+              <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>
             {% endif %}
+
+            {% if field.type_field == 'boolean' %}
+              <div class="d-flex gap-3 mb-3">
+                <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
+                <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
+              </div>
+
+            {% elif field.type_field == 'float' %}
+              <input class="form-control mb-3" type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
+
+            {% elif field.type_field == 'integer' %}
+              <input class="form-control mb-3" type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
+
+            {% elif field.type_field == 'text' %}
+              <div class="mb-3 position-relative">
+                <textarea class="form-control text-field-with-counter"
+                          name="{{ field.name }}"
+                          maxlength="7500"
+                          oninput="updateCharCount(this)"
+                          rows="5"
+                          data-field-name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea>
+                <div class="char-counter text-end small text-muted" style="position: absolute; bottom: 0.25rem; right: 0.5rem;">
+                  <span id="{{ field.name }}-counter">0</span> / 7500
+                </div>
+              </div>
+
+            {% elif field.type_field == 'file' %}
+              {% if prefill_values.get(field.name) %}
+                <p class="mb-1">Previously uploaded:
+                  <a href="{{ url_for('uploaded_file', filename=prefill_values[field.name]) }}" target="_blank">
+                    {{ prefill_values[field.name] }}
+                  </a>
+                </p>
+              {% endif %}
+              <input class="form-control mb-3" type="file" name="{{ field.name }}">
+            {% endif %}
+          {% endif %}
         {% endif %}
       {% endfor %}
 
@@ -46,17 +60,28 @@
         <button type="submit" class="btn btn-primary">Next</button>
         <button type="submit" name="save_exit" value="true" class="btn btn-secondary">Save & Exit</button>
         <button type="submit" name="fail_test_start" value="true" class="btn btn-danger">Fail Test</button>
-
       </div>
-      <!--failure hidden fields to be passed to app.py-->
+
+      <!-- failure hidden fields -->
       <input type="hidden" name="fail_test_start" id="fail_test_start" value="false">
       <input type="hidden" name="fail_reason" id="fail_reason">
       <input type="hidden" name="fail_test" id="fail_test" value="false">
 
-      <!--Failure reason prompt and confrimation-->
+      <!-- failure reason prompt -->
       <div id="fail-confirm-section" style="display: none;" class="mb-3">
         <label for="visible_reason_input">Enter reason for failure:</label>
-        <textarea class="form-control mb-2" id="visible_reason_input" rows="3"></textarea>
+        <div class="mb-3 position-relative">
+          <textarea class="form-control text-field-with-counter"
+                    id="visible_reason_input"
+                    rows="5"
+                    maxlength="7500"
+                    oninput="updateCharCount(this)"
+                    data-field-name="fail_reason_live"></textarea>
+          <div class="char-counter text-end small text-muted"
+              style="position: absolute; bottom: 0.25rem; right: 0.5rem; pointer-events: none;">
+            <span id="fail_reason_live-counter">0</span> / 7500
+          </div>
+        </div>
 
         <div class="d-flex gap-3">
           <button type="button" class="btn btn-danger" onclick="submitFailure()">Confirm Failure</button>
@@ -74,13 +99,12 @@
   </div>
 
   <div class="text-center mt-5 pb-5">
-    <div style="height: 100px;"></div>  <!-- Spacer div at the end -->
+    <div style="height: 100px;"></div>
   </div>
 </div>
 
+<!-- JavaScript for failure flow + character counter -->
 <script>
-  // fail_test_start = 'true' by fail test btn if fields are ok then it passses trigger_fail_prompt = True which calls text box appear
-  // should prob lock serial number or store it? while filling out field?
   const triggerFailPrompt = {{ trigger_fail_prompt | default(false) | tojson }};
   if (triggerFailPrompt) {
     showFailPrompt();
@@ -91,9 +115,9 @@
   }
 
   function cancelFailure() {
-    // hide failure box and return to form
     document.getElementById('fail-confirm-section').style.display = 'none';
-    document.getElementById('visable_reason_input').value = '';
+    document.getElementById('visible_reason_input').value = '';
+    updateCharCount(document.getElementById('visible_reason_input'));
   }
 
   function submitFailure() {
@@ -104,9 +128,25 @@
     }
     document.getElementById('fail_reason').value = reason;
     document.getElementById('fail_test').value = 'true';
-
     document.querySelector('form').submit();
   }
-</script>
 
+  function updateCharCount(textarea) {
+    const fieldName = textarea.dataset.fieldName;
+    const counter = document.getElementById(fieldName + "-counter");
+    if (counter) {
+      counter.textContent = textarea.value.length;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".text-field-with-counter").forEach((ta) => {
+      updateCharCount(ta);
+    });
+    const failReasonField = document.getElementById("visible_reason_input");
+    if (failReasonField) {
+      updateCharCount(failReasonField);
+    }
+  });
+</script>
 {% endblock %}
