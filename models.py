@@ -101,7 +101,7 @@ class FormField:
         return cls(name="blank", label="", type_field=None, display_history=False)
 
     @classmethod
-    def null(cls, name, label, help_text=None, help_link=None, help_label=None):
+    def null(cls, *, name, label, help_text=None, help_link=None, help_label=None):
         return cls(
             name=name,
             label=label,
@@ -113,7 +113,7 @@ class FormField:
         )
 
     @classmethod
-    def help_instance(cls, name, help_text=None, help_link=None, help_label=None):
+    def help_instance(cls, *, name, help_text=None, help_link=None, help_label=None):
         return cls(
             name=name,
             display_form=False,
@@ -124,7 +124,7 @@ class FormField:
         )
 
     @classmethod
-    def text(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
+    def text(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
         return cls(
             name=name,
             label=label,
@@ -137,7 +137,7 @@ class FormField:
         )
 
     @classmethod
-    def integer(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
+    def integer(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
         return cls(
             name=name,
             label=label,
@@ -150,7 +150,7 @@ class FormField:
         )
 
     @classmethod
-    def float(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
+    def float(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
         return cls(
             name=name,
             label=label,
@@ -163,7 +163,7 @@ class FormField:
         )
 
     @classmethod
-    def boolean(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
+    def boolean(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
         return cls(
             name=name,
             label=label,
@@ -176,7 +176,7 @@ class FormField:
         )
 
     @classmethod
-    def file(cls, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
+    def file(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
         return cls(
             name=name,
             label=label,
