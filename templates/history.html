@@ -38,7 +38,8 @@
     </div>
     <div>
       <a class="btn btn-outline-red btn me-2" href="/">Home</a>
-      <a class="btn btn-outline-red btn me-2" href="/export_csv{% if show_unique %}?unique=true{% endif %}">Download CSV</a>
+      <!--<a class="btn btn-outline-red btn me-2" href="/export_csv{% if show_unique %}?unique=true{% endif %}">Download CSV</a>-->
+      <a class="btn btn-outline-red btn me-2" href="#" onclick="downloadFilteredCSV()">Download CSV</a>
       <a class="btn btn-outline-red btn me-2" href="/form">Back to Form</a>
       <a class="btn btn-outline-red btn me-2" href="/logout">Logout</a>
       <a class="btn btn-outline-red btn" href="/help">Help</a>
@@ -119,5 +120,45 @@
     initOrUpdateTable();
     $(window).on('resize', initOrUpdateTable);
   });
+
+   function downloadFilteredCSV() {
+    const table = $('#data-table').DataTable();
+    const visibleData = table.rows({ search: 'applied' }).data();
+
+    if (!visibleData || visibleData.length === 0) {
+      alert('No visible data to export.');
+      return;
+    }
+
+    let csv = [];
+    const headerCells = $('#data-table thead tr th');
+    const headers = Array.from(headerCells).map(th => th.innerText.trim());
+    csv.push(headers.join(','));
+
+    visibleData.each(function(row) {
+      let rowData = [];
+      for (let i = 0; i < row.length; i++) {
+        // Escape commas and quotes in the data
+        let cell = String(row[i]).replace(/"/g, '""');
+        if (cell.includes(',') || cell.includes('"')) {
+          cell = `"${cell}"`;
+        }
+        rowData.push(cell);
+      }
+      csv.push(rowData.join(','));
+    });
+
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "test_results.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 </script>
 {% endblock %}
