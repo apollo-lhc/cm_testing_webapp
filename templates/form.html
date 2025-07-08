@@ -2,6 +2,35 @@
 {% block title %}Data Entry{% endblock %}
 
 {% block content %}
+
+<style>
+  input[type="radio"]:checked {
+    accent-color: #0d6efd; /* Bootstrap 5 primary blue */
+  }
+
+  input[type="checkbox"]:checked {
+    accent-color: #0d6efd;
+  }
+
+  select:focus,
+  input:focus,
+  textarea:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+  }
+
+    .clickable-label {
+    color: #0d6efd; /* Bootstrap primary blue */
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .clickable-label:hover {
+    text-decoration: underline;
+  }
+</style>
+
+
 <div class="container text-center">
   <h2 class="my-4">{{ form_label or name }}</h2>
   <div class="d-flex justify-content-center">
@@ -11,7 +40,29 @@
           {% if field.type_field is none %}
             <div style="height: 2em;"></div>
           {% else %}
-            <label>{{ field.label }}:</label><br>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              {% if field.help_target is defined and field.help_target %}
+                <label class="mb-0">
+                  <a href="{{ url_for('help_button') }}?focus={{ field.help_target }}"
+                    target="_blank"
+                    class="clickable-label">
+                    {{ field.label }}
+                    <i class="bi bi-question-circle ms-1" title="View help for this field"></i>
+                  </a>
+                </label>
+              {% elif field.help_label is defined and field.help_label %}
+                <label class="mb-0">
+                  <a href="{{ url_for('help_button') }}?focus={{ field.name }}"
+                    target="_blank"
+                    class="clickable-label">
+                    {{ field.label }}
+                    <i class="bi bi-question-circle ms-1" title="View help for this field"></i>
+                  </a>
+                </label>
+              {% else %}
+                <label class="mb-0">{{ field.label }}</label>
+              {% endif %}
+            </div>
 
             {% if errors and errors.get(field.name) %}
               <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>

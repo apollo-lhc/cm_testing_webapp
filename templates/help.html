@@ -238,6 +238,38 @@
         document.body.classList.remove("no-scroll");
       }
     });
+
+     // Auto-expand for ?focus=field_name
+    const urlParams = new URLSearchParams(window.location.search);
+    const focusField = urlParams.get("focus");
+
+    if (focusField) {
+      const targetCard = document.querySelector(`.help-card[data-field-name="${focusField}"]`);
+      if (targetCard) {
+        const textContainer = targetCard.querySelector(".card-text-container");
+
+        // Collapse others
+        document.querySelectorAll(".help-card").forEach(c => {
+          c.classList.remove("expanded");
+          c.querySelector(".card-text-container").classList.remove("expanded");
+          if (!c.querySelector(".card-text-fade")) {
+            const fade = document.createElement("div");
+            fade.className = "card-text-fade";
+            c.querySelector(".card-text-container").appendChild(fade);
+          }
+        });
+
+        // Expand and scroll to target
+        targetCard.classList.add("expanded");
+        textContainer.classList.add("expanded");
+        textContainer.querySelector(".card-text-fade")?.remove();
+        document.body.classList.add("no-scroll");
+
+        setTimeout(() => {
+          targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 100);
+      }
+    }
   });
 </script>
 
@@ -262,7 +294,7 @@
       <div class="row g-4 help-grid">
         {% for field in fields %}
         <div class="col-md-6 col-lg-4">
-          <div class="card help-card shadow-sm">
+          <div class="card help-card shadow-sm" data-field-name="{{ field.name }}">
             <div class="card-body d-flex flex-column justify-content-between">
               <div>
                 <h5 class="card-title mb-2">{{ field.help_label or field.label or "Untitled Test" }}</h5>

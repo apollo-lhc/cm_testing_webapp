@@ -67,6 +67,7 @@ class EntrySlot:
             data=d.get('data', {}),
             test=d.get('test', False)
         )
+
 class FormField:
     def __init__(
         self,
@@ -79,7 +80,8 @@ class FormField:
         display_form=True,
         help_text=None,
         help_link=None,
-        help_label=None
+        help_label=None,
+        help_target=None,
     ):
         self.name = name
         self.label = label
@@ -92,6 +94,7 @@ class FormField:
         self.help_text = help_text
         self.help_link = help_link
         self.help_label = help_label
+        self.help_target = help_target
 
     def __repr__(self):
         return f"FormField(name={self.name}, label={self.label}, type_field={self.type_field})"
@@ -101,7 +104,7 @@ class FormField:
         return cls(name="blank", label="", type_field=None, display_history=False)
 
     @classmethod
-    def null(cls, *, name, label, help_text=None, help_link=None, help_label=None):
+    def null(cls, *, name, label, help_text=None, help_link=None, help_label=None, help_target=None):
         return cls(
             name=name,
             label=label,
@@ -109,7 +112,8 @@ class FormField:
             display_history=False,
             help_text=help_text,
             help_link=help_link,
-            help_label=help_label
+            help_label=help_label,
+            help_target=help_target
         )
 
     @classmethod
@@ -120,11 +124,11 @@ class FormField:
             display_history=False,
             help_text=help_text,
             help_link=help_link,
-            help_label=help_label
+            help_label=help_label,
         )
 
     @classmethod
-    def text(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
+    def text(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None, help_target=None):
         return cls(
             name=name,
             label=label,
@@ -133,11 +137,12 @@ class FormField:
             display_history=display_history,
             help_text=help_text,
             help_link=help_link,
-            help_label=help_label
+            help_label=help_label,
+            help_target=help_target
         )
 
     @classmethod
-    def integer(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
+    def integer(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None, help_target=None):
         return cls(
             name=name,
             label=label,
@@ -146,11 +151,12 @@ class FormField:
             display_history=display_history,
             help_text=help_text,
             help_link=help_link,
-            help_label=help_label
+            help_label=help_label,
+            help_target=help_target
         )
 
     @classmethod
-    def float(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
+    def float(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None, help_target=None):
         return cls(
             name=name,
             label=label,
@@ -159,11 +165,12 @@ class FormField:
             display_history=display_history,
             help_text=help_text,
             help_link=help_link,
-            help_label=help_label
+            help_label=help_label,
+            help_target=help_target
         )
 
     @classmethod
-    def boolean(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
+    def boolean(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None, help_target=None):
         return cls(
             name=name,
             label=label,
@@ -172,11 +179,12 @@ class FormField:
             display_history=display_history,
             help_text=help_text,
             help_link=help_link,
-            help_label=help_label
+            help_label=help_label,
+            help_target=help_target
         )
 
     @classmethod
-    def file(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None):
+    def file(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None, help_target=None):
         return cls(
             name=name,
             label=label,
@@ -185,5 +193,6 @@ class FormField:
             display_history=display_history,
             help_text=help_text,
             help_link=help_link,
-            help_label=help_label
+            help_label=help_label,
+            help_target=help_target
         )

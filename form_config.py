@@ -10,8 +10,6 @@ def validate_serial(v):
         return valid, "Must be between 3000 and 3050" if valid else "Must be between 3000 and 3050"
     return False, "Must be an integer between 3000 and 3050"
 
-
-
 def field_to_dict(field: FormField):
     return {
         "name": field.name,
@@ -19,8 +17,12 @@ def field_to_dict(field: FormField):
         "type_field": field.type_field,
         "validate": field.validate,
         "display_history": field.display_history,
-        "display_form": field.display_form
+        "display_form": field.display_form,
+        "help_label": getattr(field, "help_label", None),
+        "help_target": getattr(field, "help_target", None),
+        "help_text": getattr(field, "help_text", None),
     }
+
 
 
 # Define FORMS_NON_DICT using the updated FormField class
@@ -39,11 +41,12 @@ FORMS_NON_DICT = [
         "name": "power_test",
         "label": "Power Up Test",
         "fields": [
+            FormField.blank(),
             FormField.null(name="powertesttext", label="Voltages should be around 11.5 - 12.5 V, Currents 0.5 - 2.0 A"),
             FormField.blank(),
             FormField.float(
                 name="management_power",
-                label="Management Power",
+                label="3.3V Management Power Measurement",
                 help_text="""Unpack a board. Set FireFly transmit switches to 3.8V position. Install one 4-channel FireFly
                     transceiver on each FPGA, and connect a fiber cable between them. Install copper FireFly
                     loopback cables to other FireFly sites. Connect the board to the test system. Position fans for
@@ -63,13 +66,13 @@ FORMS_NON_DICT = [
         "label": "Second-Step MCU Test",
         "fields": [
             FormField.null(name="second_step_instruction", label="Set FireFly transmit switches to the 3.3v position and load second step code, (clock output sent through front panel connector)"),
-            FormField.float(name="fpga_oscillator_clock_1", label="FPGA Oscillator Clock Frequency 1 (MHz)"),
+            FormField.float(name="fpga_oscillator_clock_1", label="FPGA Oscillator Clock Frequency 1 (MHz)", help_target="clock_freq_help"),
             FormField.help_instance(name="clock_freq_help", help_text="""
                                     Load second-step MCU code, which automatically turns on power and monitors conditions.
                                     Configure the clock chips for refclk testing. Load first-step FPGA code, which tests refclk inputs
                                     and I2C. Verify that oscillator clock is 200 MHz on each FPGA (sent out through front panel
                                     connector).""", help_label="FPGA Clock Frequency Checks"),
-            FormField.float(name="fpga_oscillator_clock_2", label="FPGA Oscillator Clock Frequency 2 (MHz)"),
+            FormField.float(name="fpga_oscillator_clock_2", label="FPGA Oscillator Clock Frequency 2 (MHz)", help_target="clock_freq_help"),
             FormField.boolean(
                 name="fpga_flash_memory",
                 label="FPGA Flash Memory Test",
@@ -196,8 +199,8 @@ FORMS_NON_DICT = [
                 help_link="https://github.com/apollo-lhc/cm_mcu/blob/master/projects/prod_test/CommandLineTask.c#L43",
                 help_label="I2C Firefly Test"
             ),
-            FormField.boolean(name="i2c_to_firefly_bank1", label="I2C to FireFly Bank 1 Passed"),
-            FormField.boolean(name="i2c_to_firefly_bank2", label="I2C to FireFly Bank 2 Passed"),
+            FormField.boolean(name="i2c_to_firefly_bank1", label="I2C to FireFly Bank 1 Passed", help_target="i2c_to_fireflies"),
+            FormField.boolean(name="i2c_to_firefly_bank2", label="I2C to FireFly Bank 2 Passed", help_target="i2c_to_fireflies"),
             FormField.boolean(
                 name="i2c_to_eeprom",
                 label="I2C to EEPROM Passed",
