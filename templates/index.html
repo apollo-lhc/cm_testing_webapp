@@ -1,13 +1,9 @@
-
-<!-- new help page -->
-
-
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block page_title %}Apollo CM Testing Home{% endblock %}
 {% block content %}
 <style>
-  /* Solid red top banner */
+  /* Top banner */
   header.bg-primary {
     background: #B31B1B !important;
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
@@ -34,24 +30,22 @@
     letter-spacing: 0.5px;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
-  /* Gradient page background */
+
+  /* Page background */
   main {
     background: linear-gradient(to bottom, #ffffff, #f6f6f6);
     padding-top: 2rem;
     padding-bottom: 3rem;
     min-height: 80vh;
   }
-  /* Section styling */
-  .homepage-wrapper {
-    margin-top: 1rem;
-  }
+
+  /* Button section */
   .homepage-title {
     font-weight: 600;
     font-size: 2.25rem;
     margin-bottom: 2.25rem;
     color: #222;
   }
-  /* Button style */
   .custom-btn {
     transition: transform 0.25s ease, background-color 0.25s ease, color 0.25s ease;
     border-radius: 0.8rem;
@@ -66,15 +60,13 @@
     color: white !important;
     border-color: #B31B1B !important;
   }
-  /* Responsive button grid */
   .button-grid {
-    max-width: 450px;
-    margin: 0 auto;
     display: grid;
     gap: 1.5rem;
   }
-    /* Fully fix header container white box */
-    header.bg-primary .container {
+
+  /* Reset base containers */
+  header.bg-primary .container {
     background: transparent !important;
     box-shadow: none !important;
     padding: 0 !important;
@@ -84,26 +76,51 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    }
-
-    /* Override base.html white containers and cards */
-    main .container,
-    main .container .card,
-    main .container.bg-light {
+  }
+  main .container,
+  main .container .card,
+  main .container.bg-light {
     background: transparent !important;
     box-shadow: none !important;
     border: none !important;
     color: inherit !important;
-    }
+  }
+
+  /* Margin illustrations */
+  .margin-illustrations img {
+    opacity: 0.95;
+  }
+
+  .spaced-stack > img + img {
+    margin-top: 3.5rem; /* increased spacing here*/
+  }
 </style>
-<div class="text-center homepage-wrapper">
-  <h2 class="homepage-title">Welcome to Apollo Board Testing</h2>
-  <div class="button-grid">
-    <a href="{{ url_for('restart_forms') }}" class="btn btn-outline-red btn-lg custom-btn">Start New Test Entry</a>
-    <a href="{{ url_for('history') }}" class="btn btn-outline-red btn-lg custom-btn">View Test History</a>
-    <a href="/dashboard" class="btn btn-outline-red btn-lg custom-btn">Saved Tests</a>
-    <a href="/help" class="btn btn-outline-red btn-lg custom-btn">Help</a>
-    <a href="/logout" class="btn btn-outline-red btn-lg custom-btn">Logout</a>
+
+<!-- Main content row with margin images and button grid -->
+<div class="container mt-5">
+  <div class="row align-items-center margin-illustrations">
+    <!-- Left: Astronaut -->
+    <div class="col-md-2 text-center">
+      <img src="{{ url_for('static', filename='images/astronaut.png') }}" alt="Astronaut" class="img-fluid" style="max-height: 240px;"> <!--here for height-->
+    </div>
+
+    <!-- Center: Title + Buttons -->
+    <div class="col-md-8 text-center">
+      <h2 class="homepage-title">Welcome to Apollo Board Testing</h2>
+      <div class="button-grid">
+        <a href="{{ url_for('restart_forms') }}" class="btn btn-outline-red btn-lg custom-btn">Start New Test Entry</a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline-red btn-lg custom-btn">View Test History</a>
+        <a href="/dashboard" class="btn btn-outline-red btn-lg custom-btn">Saved Tests</a>
+        <a href="/help" class="btn btn-outline-red btn-lg custom-btn">Help</a>
+        <a href="/logout" class="btn btn-outline-red btn-lg custom-btn">Logout</a>
+      </div>
+    </div>
+
+    <!-- Right: Rocket and Accelerator -->
+    <div class="col-md-2 d-flex flex-column align-items-center spaced-stack">
+      <img src="{{ url_for('static', filename='images/rocket.png') }}" alt="Rocket" class="img-fluid" style="max-height: 180px;"><!--here for height-->
+      <img src="{{ url_for('static', filename='images/accelerator.png') }}" alt="Accelerator" class="img-fluid" style="max-height: 180px;"><!--here for height-->
+    </div>
   </div>
 </div>
 {% endblock %}
