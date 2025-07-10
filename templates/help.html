@@ -5,8 +5,7 @@
 {% block content %}
 <style>
   body {
-    /*background: linear-gradient(to bottom right,rgb(255, 255, 255),rgb(253, 131, 131));*/
-    background: radial-gradient(circle at center, rgb(250, 176, 176),rgb(253, 131, 131));
+    background: radial-gradient(circle at center, rgb(250, 176, 176), rgb(253, 131, 131));
     background-attachment: fixed;
     background-size: cover;
   }
@@ -17,21 +16,16 @@
   }
 
   .help-card {
-    /*background: linear-gradient(to bottom right, #ffffff,rgb(143, 141, 141)) !important;*/
-    /*background: linear-gradient(to bottom right, #ffffff,rgb(199, 46, 46)) !important;*/
-    /* background-color: rgba(255, 255, 255, 0.85) !important; /* semi-transparent white */*/
     color: #000000 !important;
-    /*ackground-color: transparent !important;*/
     background-color: rgba(255, 255, 255, 0.5) !important;
-    /*opacity: .5;*/
     border: 2px solid #ccc !important;
-    border-color:rgb(99, 99, 99) !important;
+    border-color: rgb(99, 99, 99) !important;
     transition: all 0.35s ease;
     overflow: hidden;
     position: relative;
     z-index: 1;
     transform-origin: center center;
-    backdrop-filter: blur(14px)
+    backdrop-filter: blur(14px);
   }
 
   .help-card.expanded {
@@ -84,16 +78,16 @@
   }
 
   .card-text-container {
-      font-size: 0.9rem;
-      color: #000000 !important;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 4;
-      -webkit-box-orient: vertical;
-      text-overflow: ellipsis;
-      max-height: 6.5em; /* This is roughly 4 lines */
-      position: relative;
-    }
+    font-size: 0.9rem;
+    color: #000000 !important;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
+    max-height: 6.5em;
+    position: relative;
+  }
 
   .card-text-container.expanded {
     display: block;
@@ -111,11 +105,9 @@
     -webkit-line-clamp: 4;
     -webkit-box-orient: vertical;
   }
-  /* Expanded view disables line clamp to show all lines */
+
   .card-text-container.expanded .card-text {
     display: block;
-    -webkit-line-clamp: unset;
-    -webkit-box-orient: initial;
     white-space: normal;
     overflow: visible;
   }
@@ -126,8 +118,6 @@
     left: 0;
     height: 2.5em;
     width: 100%;
-
-    /*background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255, 255, 255, 0.2));*/
     background-color: transparent !important;
     pointer-events: none;
   }
@@ -177,105 +167,14 @@
   }
 
   .section-heading-custom {
-  font-size: 1.8rem;         /* Large, but not too large */
-  font-weight: 450;          /* Bold */
-  color: #000000;            /* Black text */
-  border-bottom: 2px solid #000000;  /* Black underline */
-  text-transform: none;      /* No all caps */
-  font-family: inherit;      /* Use the default site font */
-}
-
+    font-size: 1.8rem;
+    font-weight: 450;
+    color: #000000;
+    border-bottom: 2px solid #000000;
+    text-transform: none;
+    font-family: inherit;
+  }
 </style>
-
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const cards = document.querySelectorAll(".help-card");
-
-    cards.forEach(card => {
-      const textContainer = card.querySelector(".card-text-container");
-
-      card.addEventListener("click", function (e) {
-        if (window.getSelection().toString()) return;
-        e.stopPropagation();
-
-        const isNowExpanded = !card.classList.contains("expanded");
-
-        // Collapse all cards
-        cards.forEach(c => {
-          c.classList.remove("expanded");
-          c.querySelector(".card-text-container").classList.remove("expanded");
-
-          if (!c.querySelector(".card-text-fade")) {
-            const fade = document.createElement("div");
-            fade.className = "card-text-fade";
-            c.querySelector(".card-text-container").appendChild(fade);
-          }
-        });
-
-0hY3@hmYC@R!$c00L
-
-        if (isNowExpanded) {
-          card.classList.add("expanded");
-          textContainer.classList.add("expanded");
-          textContainer.querySelector(".card-text-fade")?.remove();
-          document.body.classList.add("no-scroll");
-        } else {
-          document.body.classList.remove("no-scroll");
-        }
-      });
-    });
-
-    V3lcroH@t3sApp13
-
-    // Double-click anywhere collapses
-    document.addEventListener("dblclick", function () {
-      const expanded = document.querySelector(".help-card.expanded");
-      if (expanded) {
-        expanded.classList.remove("expanded");
-        const container = expanded.querySelector(".card-text-container");
-        container.classList.remove("expanded");
-
-        const fade = document.createElement("div");
-        fade.className = "card-text-fade";
-        container.appendChild(fade);
-
-        document.body.classList.remove("no-scroll");
-      }
-    });
-
-     // Auto-expand for ?focus=field_name
-    const urlParams = new URLSearchParams(window.location.search);
-    const focusField = urlParams.get("focus");
-
-    if (focusField) {
-      const targetCard = document.querySelector(`.help-card[data-field-name="${focusField}"]`);
-      if (targetCard) {
-        const textContainer = targetCard.querySelector(".card-text-container");
-
-        // Collapse others
-        document.querySelectorAll(".help-card").forEach(c => {
-          c.classList.remove("expanded");
-          c.querySelector(".card-text-container").classList.remove("expanded");
-          if (!c.querySelector(".card-text-fade")) {
-            const fade = document.createElement("div");
-            fade.className = "card-text-fade";
-            c.querySelector(".card-text-container").appendChild(fade);
-          }
-        });
-
-        // Expand and scroll to target
-        targetCard.classList.add("expanded");
-        textContainer.classList.add("expanded");
-        textContainer.querySelector(".card-text-fade")?.remove();
-        document.body.classList.add("no-scroll");
-
-        setTimeout(() => {
-          targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 100);
-      }
-    }
-  });
-</script>
 
 <div class="text-center mb-4">
   <div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
@@ -287,7 +186,6 @@
       <a class="btn btn-outline-red" href="/logout">Logout</a>
     </div>
   </div>
-
   <p class="text-muted mb-5">Click a box to expand or close. Double-click anywhere else to close.</p>
 </div>
 
@@ -298,7 +196,7 @@
       <div class="row g-4 help-grid">
         {% for field in fields %}
         <div class="col-md-6 col-lg-4">
-          <div class="card help-card shadow-sm" data-field-name="{{ field.name }}">
+          <div class="card help-card shadow-sm" data-field-name="{{ field.name }}" id="{{ field.name }}">
             <div class="card-body d-flex flex-column justify-content-between">
               <div>
                 <h5 class="card-title mb-2">{{ field.help_label or field.label or "Untitled Test" }}</h5>
@@ -324,8 +222,93 @@
 {% else %}
   <div class="alert alert-warning text-center">No help entries found.</div>
 {% endif %}
-  <div class="text-center mt-5 pb-5">
-    <div style="height: 100px;"></div>  <!-- Spacer div at the end -->
-  </div>
-<div class="mb-5"></div>
+
+<div class="text-center mt-5 pb-5">
+  <div style="height: 100px;"></div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const cards = document.querySelectorAll(".help-card");
+
+    cards.forEach(card => {
+      const textContainer = card.querySelector(".card-text-container");
+
+      card.addEventListener("click", function (e) {
+        if (window.getSelection().toString()) return;
+        e.stopPropagation();
+
+        const isNowExpanded = !card.classList.contains("expanded");
+
+        // Collapse all cards
+        cards.forEach(c => {
+          c.classList.remove("expanded");
+          c.querySelector(".card-text-container").classList.remove("expanded");
+          if (!c.querySelector(".card-text-fade")) {
+            const fade = document.createElement("div");
+            fade.className = "card-text-fade";
+            c.querySelector(".card-text-container").appendChild(fade);
+          }
+        });
+
+        if (isNowExpanded) {
+          card.classList.add("expanded");
+          textContainer.classList.add("expanded");
+          textContainer.querySelector(".card-text-fade")?.remove();
+          document.body.classList.add("no-scroll");
+        } else {
+          document.body.classList.remove("no-scroll");
+        }
+      });
+    });
+
+    // Double-click anywhere to collapse
+    document.addEventListener("dblclick", function () {
+      const expanded = document.querySelector(".help-card.expanded");
+      if (expanded) {
+        expanded.classList.remove("expanded");
+        const container = expanded.querySelector(".card-text-container");
+        container.classList.remove("expanded");
+
+        const fade = document.createElement("div");
+        fade.className = "card-text-fade";
+        container.appendChild(fade);
+
+        document.body.classList.remove("no-scroll");
+      }
+    });
+
+    // Auto-expand via ?focus=
+    const urlParams = new URLSearchParams(window.location.search);
+    const focusField = urlParams.get("focus");
+
+    if (focusField) {
+      const targetCard = document.querySelector(`.help-card[data-field-name="${focusField}"]`);
+      if (targetCard) {
+        const textContainer = targetCard.querySelector(".card-text-container");
+
+        // Collapse others
+        cards.forEach(c => {
+          c.classList.remove("expanded");
+          c.querySelector(".card-text-container").classList.remove("expanded");
+          if (!c.querySelector(".card-text-fade")) {
+            const fade = document.createElement("div");
+            fade.className = "card-text-fade";
+            c.querySelector(".card-text-container").appendChild(fade);
+          }
+        });
+
+        // Expand & scroll
+        targetCard.classList.add("expanded");
+        textContainer.classList.add("expanded");
+        textContainer.querySelector(".card-text-fade")?.remove();
+        document.body.classList.add("no-scroll");
+
+        setTimeout(() => {
+          targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 250);
+      }
+    }
+  });
+</script>
 {% endblock %}

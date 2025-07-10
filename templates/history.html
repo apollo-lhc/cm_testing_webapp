@@ -1,52 +1,143 @@
+<!-- updated history page -->
+
 {% extends "base.html" %}
-{% block title %}All Data{% endblock %}
-{% block page_title %}All Data{% endblock %}
+{% block title %}Data{% endblock %}
+{% block page_title %}Data{% endblock %}
 
 {% block content %}
 <style>
+  header.bg-primary {
+    background: #B31B1B !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+    border-bottom: 2px solid #8e1414;
+    padding: 2rem 0;
+  }
+
+  header .container {
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 auto;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header h1.h3 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+
+  main {
+    background: linear-gradient(to bottom, #ffffff, #f6f6f6);
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+    min-height: 80vh;
+  }
+
+  .custom-btn {
+    transition: transform 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+    border-radius: 0.8rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    font-weight: 600;
+    font-size: 1.1rem;
+    padding: 0.6rem 1rem;
+  }
+
+  .custom-btn:hover {
+    transform: scale(1.07);
+    background-color: #B31B1B !important;
+    color: white !important;
+    border-color: #B31B1B !important;
+  }
+
+  .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  /* Responsive full-width with side margins */
+  .full-width-container {
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    padding-left: 5vw;
+    padding-right: 5vw;
+  }
+
+  .history-container .card {
+    background: #fff !important;
+    color: #000 !important;
+    border: 2px solid #B31B1B !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    width: 100%;
+  }
+
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  #data-table {
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+
   .history-container .table {
     background: #fff !important;
     color: #000 !important;
     border-color: #dee2e6 !important;
   }
 
-  .history-container .card {
-    background: #fff !important;
-    color: #000 !important;
+  .history-container .table th {
+    background-color: inherit !important;
+    color: inherit !important;
+    border-color: #dee2e6 !important;
+    text-align: center;
+    white-space: normal;
+    word-wrap: break-word;
   }
 
-  .history-container .table th,
   .history-container .table td {
     background-color: inherit !important;
     color: inherit !important;
     border-color: #dee2e6 !important;
+    white-space: nowrap;
   }
+
 
   .history-container .table-striped tbody tr:nth-of-type(odd) {
     background-color: #f8f9fa !important;
   }
 </style>
 
-<div class="container history-container">
-  <div class="mb-3 d-flex justify-content-between align-items-center">
+<div class="full-width-container history-container">
+  <div class="mb-4 d-flex flex-wrap justify-content-between align-items-center">
     <div>
       {% if show_unique %}
-        <a class="btn btn-outline-red btn" href="/history">Show All Entries</a>
+        <a class="btn btn-outline-red custom-btn" href="/history">Show All Entries</a>
       {% else %}
-        <a class="btn btn-outline-red btn" href="/history?unique=true">Show Most Recent Per CM Serial</a>
+        <a class="btn btn-outline-red custom-btn" href="/history?unique=true">Show Most Recent Per CM Serial</a>
       {% endif %}
     </div>
-    <div>
-      <a class="btn btn-outline-red btn me-2" href="/">Home</a>
-      <!--<a class="btn btn-outline-red btn me-2" href="/export_csv{% if show_unique %}?unique=true{% endif %}">Download CSV</a>-->
-      <a class="btn btn-outline-red btn me-2" href="#" onclick="downloadFilteredCSV()">Download CSV</a>
-      <a class="btn btn-outline-red btn me-2" href="/form">Back to Form</a>
-      <a class="btn btn-outline-red btn me-2" href="/logout">Logout</a>
-      <a class="btn btn-outline-red btn" href="/help">Help</a>
+    <div class="button-group">
+      <a class="btn btn-outline-red custom-btn" href="/">Home</a>
+      <a class="btn btn-outline-red custom-btn" href="#" onclick="downloadFilteredCSV()">Download CSV</a>
+      <a class="btn btn-outline-red custom-btn" href="/form">Back to Form</a>
+      <a class="btn btn-outline-red custom-btn" href="/logout">Logout</a>
+      <a class="btn btn-outline-red custom-btn" href="/help">Help</a>
     </div>
   </div>
 
-  <div class="card p-3 shadow-sm">
+  <div class="card p-3">
     <div class="table-responsive">
       <table id="data-table" class="table table-bordered table-striped">
         <thead>
@@ -112,7 +203,9 @@
           deferRender: true,
           pageLength: -1,
           order: [[0, 'desc']],
-          scrollX: true
+          scrollX: true,
+          autoWidth: false,
+          columnDefs: [{ targets: "_all", defaultContent: "-" }]
         });
       }
     }
@@ -121,7 +214,7 @@
     $(window).on('resize', initOrUpdateTable);
   });
 
-   function downloadFilteredCSV() {
+  function downloadFilteredCSV() {
     const table = $('#data-table').DataTable();
     const visibleData = table.rows({ search: 'applied' }).data();
 
@@ -138,7 +231,6 @@
     visibleData.each(function(row) {
       let rowData = [];
       for (let i = 0; i < row.length; i++) {
-        // Escape commas and quotes in the data
         let cell = String(row[i]).replace(/"/g, '""');
         if (cell.includes(',') || cell.includes('"')) {
           cell = `"${cell}"`;
