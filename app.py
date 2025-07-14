@@ -77,37 +77,6 @@ def home():
         return redirect(url_for('login'))
     return render_template('index.html')
 
-# def validate_field(field, value, data=None):
-#     """Validate a single field value based on its type and requirements."""
-#     if "validate" in field and callable(field["validate"]):
-#         valid, msg = field["validate"](value)
-#         if not valid:
-#             print(f"Validation failed for {field['name']}: {msg} (value={value})")
-#             return False, msg
-
-#     if field["type_field"] == "integer":
-#         if value is None or value == "":
-#             return False, "This field is required."
-#         try:
-#             int(value)
-#         except ValueError:
-#             return False, "Must be an integer."
-#     elif field["type_field"] == "float":
-#         if value is None or value == "":
-#             return False, "This field is required."
-#         try:
-#             float(value)
-#         except ValueError:
-#             return False, "Must be a number."
-#     elif field["type_field"] == "boolean":
-#         if value not in ("yes", "no"):
-#             return False, "Please select yes or no."
-#     elif field["type_field"] == "file":
-#         existing = data.get(field["name"]) if data else None
-#         if not value and not existing:
-#             return False, "File is required."
-#     return True, ""
-
 def validate_form(fields, req, data=None):
     """Validate all FormField objects in the form. Returns (is_valid, errors_dict)."""
     errors = {}
@@ -123,7 +92,6 @@ def validate_form(fields, req, data=None):
             errors[field.name] = msg
 
     return (len(errors) == 0), errors
-
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
@@ -292,7 +260,6 @@ def form():
         name="Form"
     )
 
-
 @app.route('/restart_forms')
 def restart_forms():
     """Restart the multi-form entry process."""
@@ -303,16 +270,22 @@ def restart_forms():
 
 @app.route('/history')
 def history():
-    """Show history of all test entries."""
+    """Show history of all test entries (optionally showing only latest per CM_serial)."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
+
     unique_toggle = request.args.get('unique') == "true"
 
+    # Gather all fields across forms that should be displayed in the history table (display_history attribute)
     all_fields = []
-    for single_form in FORMS:
-        all_fields.extend([f for f in single_form["fields"] if f.get("display_history", True)])
+    for form_iter in FORMS_NON_DICT:
+        all_fields.extend([
+            field for field in form_iter["fields"]
+            if getattr(field, "display_history", False)
+        ])
 
     if unique_toggle:
+        # Subquery to find latest timestamp for each CM_serial
         subquery = (
             db.session.query(
                 TestEntry.data["CM_serial"].as_integer().label("cm_serial"),
@@ -322,6 +295,7 @@ def history():
             .subquery()
         )
 
+        # Join main entries table on CM_serial and latest timestamp
         entries = (
             db.session.query(TestEntry)
             .join(subquery, db.and_(
@@ -331,11 +305,16 @@ def history():
             .order_by(TestEntry.timestamp.desc())
             .all()
         )
-
     else:
+        # Show all test entries
         entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
 
-    return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle)
+    return render_template(
+        'history.html',
+        entries=entries,
+        fields=all_fields,
+        show_unique=unique_toggle
+    )
 
 @app.route('/export_csv')
 def export_csv():
@@ -345,10 +324,10 @@ def export_csv():
 
     unique_toggle = request.args.get('unique') == "true"
 
-    # Combine all fields from all forms for CSV export
+    # Combine all FormField objects from FORMS_NON_DICT
     all_fields = []
-    for single_form in FORMS:
-        all_fields.extend(single_form["fields"])
+    for form_iter in FORMS_NON_DICT:
+        all_fields.extend(form_iter["fields"])
 
     if unique_toggle:
         subquery = (
@@ -372,19 +351,30 @@ def export_csv():
     else:
         entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
 
+    # Write CSV headers
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File', "Test Aborted", "Reason Aborted"])
+    writer.writerow(
+        ['Time', 'User'] +
+        [field.label for field in all_fields] +
+        ['File', 'Test Aborted', 'Reason Aborted']
+    )
 
+    # Write CSV rows
     for e in entries:
         row = [e.timestamp, e.user.username]
-        row += [e.data.get(f["name"]) for f in all_fields]
+        row += [e.data.get(field.name) for field in all_fields]
         row += [e.file_name, "yes" if e.failure else "no", e.fail_reason or ""]
         writer.writerow(row)
 
     output.seek(0)
-    return send_file(io.BytesIO(output.read().encode()), mimetype='text/csv',
-                     as_attachment=True, download_name='test_results.csv')
+    return send_file(
+        io.BytesIO(output.read().encode()),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='test_results.csv'
+    )
+
 
 @app.route('/help')
 def help_button():
