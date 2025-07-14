@@ -4,6 +4,7 @@ Database models for the test entry application.
 Includes:
 - User: authentication and password management
 - TestEntry: stores test data, file uploads, and user association
+- EntrySlot: need to add writeup when finished with it
 """
 
 from datetime import datetime
@@ -42,6 +43,8 @@ class TestEntry(db.Model):
     file_name = db.Column(db.String(120))
     user = db.relationship('User', backref=db.backref('entries', lazy=True))
     test = db.Column(db.Boolean, default=False)
+    failure = db.Column(db.Boolean, default=False)
+    fail_reason = db.Column(db.String, default=None)
 
 class EntrySlot:
     """Model for keeping track and saving in use forms per serial number"""
