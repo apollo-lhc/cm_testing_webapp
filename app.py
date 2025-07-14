@@ -408,11 +408,11 @@ def prod_test_doc():
     return send_from_directory("static", "Apollo_CMv3_Production_Testing_04Nov2024.html")
 
 def determine_step_from_data(data):
-    for i, fo in enumerate(FORMS):
-        for field in fo['fields']:
-            if not data.get(field['name']):
+    for i, form_obj in enumerate(FORMS_NON_DICT):
+        for field in form_obj['fields']:
+            if not data.get(field.name):
                 return i  # First incomplete step
-    return len(FORMS) - 1  # Default to final step
+    return len(FORMS_NON_DICT) - 1  # Default to final step
 
 @app.route('/dashboard')
 def dashboard():
@@ -430,7 +430,7 @@ def dashboard():
             data = entry.data
             timestamp = data.get('timestamp', 'Unknown')
             step = data.get('last_step', determine_step_from_data(data))
-            step_label = FORMS[step]["label"]
+            step_label = FORMS_NON_DICT[step]["label"]
             saved_entries.append({
                 'cm_serial': cm_serial,
                 'step': step,
