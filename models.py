@@ -196,3 +196,26 @@ class FormField:
             help_label=help_label,
             help_target=help_target
         )
+    def get_value(self, request):
+        if self.type_field == "file":
+            file = request.files.get(self.name)
+            return file.filename if file and file.filename else None
+        return request.form.get(self.name)
+
+    def validate_value(self, value, existing_data=None):
+        if self.validate:
+            return self.validate(value)
+        if self.type_field in ("integer", "float"):
+            if value is None or value == "":
+                return False, "This field is required."
+            try:
+                float(value) if self.type_field == "float" else int(value)
+            except ValueError:
+                return False, f"Must be a {self.type_field}."
+        elif self.type_field == "boolean":
+            if value not in ("yes", "no"):
+                return False, "Please select yes or no."
+        elif self.type_field == "file":
+            if not value and not (existing_data or {}).get(self.name):
+                return False, "File is required."
+        return True, ""

@@ -2,12 +2,8 @@
 {% block title %}Data Entry{% endblock %}
 
 {% block content %}
-
 <style>
-  input[type="radio"]:checked {
-    accent-color: #0d6efd; /* Bootstrap 5 primary blue */
-  }
-
+  input[type="radio"]:checked,
   input[type="checkbox"]:checked {
     accent-color: #0d6efd;
   }
@@ -19,8 +15,8 @@
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
   }
 
-    .clickable-label {
-    color: #0d6efd; /* Bootstrap primary blue */
+  .clickable-label {
+    color: #0d6efd;
     text-decoration: none;
     font-weight: 500;
   }
@@ -30,79 +26,67 @@
   }
 </style>
 
-
 <div class="container text-center">
   <h2 class="my-4">{{ form_label or name }}</h2>
   <div class="d-flex justify-content-center">
     <form method="POST" enctype="multipart/form-data" class="w-100 text-start" style="max-width: 600px;">
-      {% for field in fields %}
-        {% if field.display_form %}
-          {% if field.type_field is none %}
-            <div style="height: 2em;"></div>
-          {% else %}
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              {% if field.help_target is defined and field.help_target %}
-                <label class="mb-0">
-                  <a href="{{ url_for('help_button') }}?focus={{ field.help_target }}"
-                    target="_blank"
-                    class="clickable-label">
-                    {{ field.label }}
-                    <i class="bi bi-question-circle ms-1" title="View help for this field"></i>
-                  </a>
-                </label>
-              {% elif field.help_label is defined and field.help_label %}
-                <label class="mb-0">
-                  <a href="{{ url_for('help_button') }}?focus={{ field.name }}"
-                    target="_blank"
-                    class="clickable-label">
-                    {{ field.label }}
-                    <i class="bi bi-question-circle ms-1" title="View help for this field"></i>
-                  </a>
-                </label>
-              {% else %}
-                <label class="mb-0">{{ field.label }}</label>
-              {% endif %}
+      {% for field in fields if field.display_form %}
+        {% if field.type_field is none %}
+          <div style="height: 2em;"></div>
+        {% else %}
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            {% if field.help_target %}
+              <label class="mb-0">
+                <a href="{{ url_for('help_button') }}?focus={{ field.help_target }}" target="_blank" class="clickable-label">
+                  {{ field.label }}
+                  <i class="bi bi-question-circle ms-1" title="View help for this field"></i>
+                </a>
+              </label>
+            {% elif field.help_label %}
+              <label class="mb-0">
+                <a href="{{ url_for('help_button') }}?focus={{ field.name }}" target="_blank" class="clickable-label">
+                  {{ field.label }}
+                  <i class="bi bi-question-circle ms-1" title="View help for this field"></i>
+                </a>
+              </label>
+            {% else %}
+              <label class="mb-0">{{ field.label }}</label>
+            {% endif %}
+          </div>
+
+          {% if errors.get(field.name) %}
+            <div style="color: #c00; margin-bottom: 4px;">{{ errors[field.name] }}</div>
+          {% endif %}
+
+          {% if field.type_field == 'boolean' %}
+            <div class="d-flex gap-3 mb-3">
+              <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
+              <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
             </div>
 
-            {% if errors and errors.get(field.name) %}
-              <div style="color: #c00; margin-bottom: 4px;">{{ errors.get(field.name) }}</div>
-            {% endif %}
+          {% elif field.type_field == 'float' %}
+            <input class="form-control mb-3" type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
 
-            {% if field.type_field == 'boolean' %}
-              <div class="d-flex gap-3 mb-3">
-                <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
-                <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
+          {% elif field.type_field == 'integer' %}
+            <input class="form-control mb-3" type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
+
+          {% elif field.type_field == 'text' %}
+            <div class="mb-3 position-relative">
+              <textarea class="form-control text-field-with-counter" name="{{ field.name }}" maxlength="7500" oninput="updateCharCount(this)" rows="5" data-field-name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea>
+              <div class="char-counter text-end small text-muted" style="position: absolute; bottom: 0.25rem; right: 0.5rem;">
+                <span id="{{ field.name }}-counter">0</span> / 7500
               </div>
+            </div>
 
-            {% elif field.type_field == 'float' %}
-              <input class="form-control mb-3" type="number" step="any" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
-
-            {% elif field.type_field == 'integer' %}
-              <input class="form-control mb-3" type="number" step="1" name="{{ field.name }}" value="{{ prefill_values.get(field.name, '') }}">
-
-            {% elif field.type_field == 'text' %}
-              <div class="mb-3 position-relative">
-                <textarea class="form-control text-field-with-counter"
-                          name="{{ field.name }}"
-                          maxlength="7500"
-                          oninput="updateCharCount(this)"
-                          rows="5"
-                          data-field-name="{{ field.name }}">{{ prefill_values.get(field.name, '') }}</textarea>
-                <div class="char-counter text-end small text-muted" style="position: absolute; bottom: 0.25rem; right: 0.5rem;">
-                  <span id="{{ field.name }}-counter">0</span> / 7500
-                </div>
-              </div>
-
-            {% elif field.type_field == 'file' %}
-              {% if prefill_values.get(field.name) %}
-                <p class="mb-1">Previously uploaded:
-                  <a href="{{ url_for('uploaded_file', filename=prefill_values[field.name]) }}" target="_blank">
-                    {{ prefill_values[field.name] }}
-                  </a>
-                </p>
-              {% endif %}
-              <input class="form-control mb-3" type="file" name="{{ field.name }}">
+          {% elif field.type_field == 'file' %}
+            {% if prefill_values.get(field.name) %}
+              <p class="mb-1">Previously uploaded:
+                <a href="{{ url_for('uploaded_file', filename=prefill_values[field.name]) }}" target="_blank">
+                  {{ prefill_values[field.name] }}
+                </a>
+              </p>
             {% endif %}
+            <input class="form-control mb-3" type="file" name="{{ field.name }}">
           {% endif %}
         {% endif %}
       {% endfor %}
@@ -113,23 +97,15 @@
         <button type="submit" name="fail_test_start" value="true" class="btn btn-danger">Fail Test</button>
       </div>
 
-      <!-- failure hidden fields -->
       <input type="hidden" name="fail_test_start" id="fail_test_start" value="false">
       <input type="hidden" name="fail_reason" id="fail_reason">
       <input type="hidden" name="fail_test" id="fail_test" value="false">
 
-      <!-- failure reason prompt -->
       <div id="fail-confirm-section" style="display: none;" class="mb-3">
         <label for="visible_reason_input">Enter reason for failure:</label>
         <div class="mb-3 position-relative">
-          <textarea class="form-control text-field-with-counter"
-                    id="visible_reason_input"
-                    rows="5"
-                    maxlength="7500"
-                    oninput="updateCharCount(this)"
-                    data-field-name="fail_reason_live"></textarea>
-          <div class="char-counter text-end small text-muted"
-              style="position: absolute; bottom: 0.25rem; right: 0.5rem; pointer-events: none;">
+          <textarea class="form-control text-field-with-counter" id="visible_reason_input" rows="5" maxlength="7500" oninput="updateCharCount(this)" data-field-name="fail_reason_live"></textarea>
+          <div class="char-counter text-end small text-muted" style="position: absolute; bottom: 0.25rem; right: 0.5rem; pointer-events: none;">
             <span id="fail_reason_live-counter">0</span> / 7500
           </div>
         </div>
@@ -154,7 +130,6 @@
   </div>
 </div>
 
-<!-- JavaScript for failure flow + character counter -->
 <script>
   const triggerFailPrompt = {{ trigger_fail_prompt | default(false) | tojson }};
   if (triggerFailPrompt) {

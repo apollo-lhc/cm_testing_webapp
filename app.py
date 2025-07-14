@@ -13,7 +13,7 @@ import os
 import io
 import csv
 from datetime import datetime
-from random import randint, uniform, choice #for random
+from random import randint, uniform, choice
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
@@ -24,143 +24,6 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
-
-
-# Define multiple forms, each with its own fields and a unique name
-
-#Field: name, label, type, display_history
-
-#blank = { "name": "blank", "label": "", "type_field": None, "display_history": False }
-
-
-
-# FORMS = [
-
-#     # Define multiple forms, each with its own fields and a unique name
-
-#     #Field: name, label, type, display_history
-
-#     # need to use blank.copy() after an instance of blank if no other field comes next to it
-
-#     {
-#         "name": "hardware_test",
-#         "label": "Hardware Test",
-#         "fields": [
-#             {
-#                 "name": "CM_serial",
-#                 "label": "CM Serial number",
-#                 "type_field": "integer",
-#                 # Custom validation: must be in range 3000-3050
-#                 "validate": lambda v: (3000 <= int(v) <= 3050, "Must be between 3000 and 3050") if v and v.isdigit() else (False, "Must be an integer between 3000 and 3050")
-#             },
-#             { "name": "passed_visual", "label": "Passed Visual Inspection", "type_field": "boolean" },
-#             { "name": "comments", "label": "Comments", "type_field": "text" },
-#             { "name": "test_help", "label": "Testing help", "type_field": "boolean", "help_text": "this is the help text i am typing so so soso"
-#              "so sos oso so sos oso soso sosososoosososososososososo mcuh this is the help text i am typing so so soso so sos oso so sos oso soso"
-#              "sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososo"
-#             "sosososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoososososososososo"
-#             "so mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis"
-#             "is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help"
-#             "text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am ty"
-#             "ping so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso"
-#             "so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so so"
-#             " oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoos"
-#             "ososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcu"
-#             "this is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text"
-#             "i am typing so so soso so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so sos"
-#             "o so sos oso so sos oso soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos os"
-#             "o soso sosososoosososososososososo mcuhthis is the help text i am typing so so soso so sos oso so sos oso soso sosososoosososos"
-#             "osososososo mcuh:(", "help_link": "https://loganprosser.com" },
-
-
-#         ]
-#     },
-#     {
-#         "name": "power_test",
-#         "label": "Power Test",
-#         "fields": [
-#             {"name": "powertesttext", "label": "Voltages should be around 11.5 - 12.5 V, Currents 0.5 - 2.0 A", "type_field": "null", "display_history": False},
-#             blank,
-#             { "name": "management_power", "label": "Management Power", "type_field": "float" },
-#             { "name": "power_supply_voltage", "label": "Power Supply Voltage (V) when 3.3 V becomes good", "type_field": "float" },
-#             { "name": "current_draw", "label": "Current Draw (mA) at 3.3 V", "type_field": "float" },
-#             { "name": "mcu_programmed", "label": "MCU Programmed Successfully", "type_field": "boolean" },
-#             { "name": "test_help2", "label": "Testing help", "type_field": "boolean", "help_text": "this is the help text2", "help_link": "https://prossernet.com" },
-#         ]
-#     },
-#     {
-#         "name": "i2c_tests",
-#         "label": "I2C Tests",
-#         #should add links to help page for each of these tests w/ explanation and link to github where tests can be found
-#         "fields": [
-#             { "name": "i2c_to_dcdc", "label": "I2C to DC-DC Converter Passed", "type_field": "boolean"},
-#             { "name": "dcdc_converter_test", "label": "All DC-DC Converters Passed", "type_field": "boolean"},
-#             { "name": "i2c_to_clockchips", "label": "Clock Chips I2C Test Passed", "type_field": "boolean" },
-#             { "name": "i2c_to_fpgas", "label": "I2C to FPGA's Passed", "type_field": "boolean"}, #may need to adjust if dont have fpga's on board
-#             { "name": "i2c_to_firefly_bank1", "label": "I2C to FireFly Bank 1 Passed", "type_field": "boolean"},
-#             { "name": "i2c_to_firefly_bank2", "label": "I2C to FireFly Bank 2 Passed", "type_field": "boolean"}, #"havent given much thought yet" -prod test doc
-#             { "name": "i2c_to_eeprom", "label": "I2C to EEPROM Passed", "type_field": "boolean"},
-#         ]
-#     },
-#     {
-#         "name": "second_step_mcu_test",
-#         "label": "Second-Step MCU Test",
-#         "fields": [
-#             { "name": "second_step_instruction", "label": "Set FireFly transmit switches to the 3.3v position and load second step code, (clock output sent through front panel connector)", "type_field": "null", "display_history": False },
-#             { "name": "fpga_oscillator_clock_1", "label": "FPGA Oscillator Clock Frequency 1 (MHz)", "type_field": "float" },
-#             { "name": "fpga_oscillator_clock_2", "label": "FPGA Oscillator Clock Frequency 2 (MHz)", "type_field": "float" },
-#             { "name": "fpga_flash_memory", "label": "FPGA Flash Memory Test", "type_field": "boolean"},
-#         ]
-#     },
-
-#     {
-#         "name": "link_test",
-#         "label": "Link Integrity Testing",
-#         "fields": [
-#             { "name": "fpga_second_step_tip", "label": "Load the second-step FPGA code to test FPGA-FPGA and MCU-FPGA connections", "type_field": "null", "display_history": False },
-#             { "name": "ibert_test", "label": "IBERT link Test Passed", "type_field": "boolean" },
-#             { "name": "ibert_test_upload", "label": "Upload IBERT Test Results", "type_field": "file" },
-#             { "name": "full_link_test", "label": "Firefly, FPGA-FPGA, C2C, and TCDS Links Passed", "type_field": "boolean" },
-#             { "name": "firefly_test_upload", "label": "Upload Firefly Test Results", "type_field": "file" },
-#         ]
-#     },
-
-#     {
-#         "name": "manual_link_testing",
-#         "label": "Manual Link Testing",
-#         "fields": [
-#             { "name": "manual_test_tip_1", "label": "Remove the board from the test stand. Remove the FireFly devices and loopback cables. Install the proper FireFly configuraton for the end use.", "type_field": "null", "display_history": False},
-#             blank,
-#             { "name": "manual_test_tip_2", "label": "Set the FireFly transmit voltage switches to 3.8v for 25Gx12 transmitters. Install the FireFly heatsink. Route FireFly cables to the front panel. Install loopback connectors", "type_field": "null", "display_history": False },
-#             blank,
-#             { "name": "manual_test_tip_3", "label": "Connect the CM to the golden SM. Install the SM front panel board. Attach a front panel, and connect the handle switch. Install covers. Install the board in an ATCA shelf and apply power. ", "type_field": "null", "display_history": False },
-#             blank,
-#             { "name": "manual_test_tip_4", "label": "Load MCU code and configure clock chips for normal operation, then load the thrid step FPGA code", "type_field": "null", "display_history": False },
-#             blank,
-#             { "name": "third_step_fpga_test", "label": "Thrid Step FPGA Test Passed", "type_field": "boolean" },
-#         ]
-#     },
-
-#     {
-#         "name": "heating_tests",
-#         "label": "Heating Testing",
-#         "fields": [
-#             { "name": "heating_test", "label": "Heater Tests Passed With Sufficent Cooling", "type_field": "boolean" },
-#             { "name": "heating_tip", "label": "Remove the CM/SM from the ATCA shelf. Remove the FireFly loopback connectors. Separate the CM from the SM. Pack the CM for shipping", "type_field": "null", "display_history": False },
-#             blank,
-#             blank.copy(),
-#         ]
-#     },
-
-#     #will probably need to change when look into specific tests more prob need to add to each automatic testing session
-#     {
-#         "name": "report_upload",
-#         "label": "Upload Test Report",
-#         "fields": [
-#             { "name": "test_report", "label": "Upload PDF", "type_field": "file" },
-#         ]
-#     },
-# ]
 
 db.init_app(app)
 
@@ -214,60 +77,67 @@ def home():
         return redirect(url_for('login'))
     return render_template('index.html')
 
-def validate_field(field, value, data=None):
-    """Validate a single field value based on its type and requirements."""
-    if "validate" in field and callable(field["validate"]):
-        valid, msg = field["validate"](value)
-        if not valid:
-            print(f"Validation failed for {field['name']}: {msg} (value={value})")
-            return False, msg
+# def validate_field(field, value, data=None):
+#     """Validate a single field value based on its type and requirements."""
+#     if "validate" in field and callable(field["validate"]):
+#         valid, msg = field["validate"](value)
+#         if not valid:
+#             print(f"Validation failed for {field['name']}: {msg} (value={value})")
+#             return False, msg
 
-    if field["type_field"] == "integer":
-        if value is None or value == "":
-            return False, "This field is required."
-        try:
-            int(value)
-        except ValueError:
-            return False, "Must be an integer."
-    elif field["type_field"] == "float":
-        if value is None or value == "":
-            return False, "This field is required."
-        try:
-            float(value)
-        except ValueError:
-            return False, "Must be a number."
-    elif field["type_field"] == "boolean":
-        if value not in ("yes", "no"):
-            return False, "Please select yes or no."
-    elif field["type_field"] == "file":
-        existing = data.get(field["name"]) if data else None
-        if not value and not existing:
-            return False, "File is required."
-    return True, ""
+#     if field["type_field"] == "integer":
+#         if value is None or value == "":
+#             return False, "This field is required."
+#         try:
+#             int(value)
+#         except ValueError:
+#             return False, "Must be an integer."
+#     elif field["type_field"] == "float":
+#         if value is None or value == "":
+#             return False, "This field is required."
+#         try:
+#             float(value)
+#         except ValueError:
+#             return False, "Must be a number."
+#     elif field["type_field"] == "boolean":
+#         if value not in ("yes", "no"):
+#             return False, "Please select yes or no."
+#     elif field["type_field"] == "file":
+#         existing = data.get(field["name"]) if data else None
+#         if not value and not existing:
+#             return False, "File is required."
+#     return True, ""
 
 def validate_form(fields, req, data=None):
-    """Validate all fields in the form. Returns (is_valid, errors_dict)."""
+    """Validate all FormField objects in the form. Returns (is_valid, errors_dict)."""
     errors = {}
     for field in fields:
-        if field["type_field"] == "file":
-            file = req.files.get(field["name"])
+        if field.type_field == "file":
+            file = req.files.get(field.name)
             value = file.filename if file and file.filename else None
         else:
-            value = req.form.get(field["name"])
-        valid, msg = validate_field(field, value, data)
+            value = req.form.get(field.name)
+
+        valid, msg = field.validate_value(value, data)
         if not valid:
-            errors[field["name"]] = msg
+            errors[field.name] = msg
+
     return (len(errors) == 0), errors
+
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
-    """form submission save and failure function"""
+    """Multi-step form submission route for logging test data.
+    Uses FormField objects with encapsulated logic for value retrieval and validation.
+    Also handles saving, failure prompts, and final submission.
+    """
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
-
+    SERIAL_OFFSET = 3000  # Ensure forms_per_serial[0] maps to CM3000
     form_index = request.args.get('step')
+
+    # Load current step from existing saved form if available
     if form_index is None:
         cm_serial = session.get('form_data', {}).get("CM_serial")
         if cm_serial and cm_serial.isdigit():
@@ -278,10 +148,10 @@ def form():
                     entry = EntrySlot.from_dict(saved)
                     form_index = entry.data.get('last_step', 0)
 
-
     form_index = int(form_index or 0)
-    form_index = max(0, min(form_index, len(FORMS) - 1))
-    current_form = FORMS[form_index]
+    form_index = max(0, min(form_index, len(FORMS_NON_DICT) - 1))
+    current_form = FORMS_NON_DICT[form_index]
+    fields = current_form["fields"]
 
     if 'form_data' not in session:
         session['form_data'] = {}
@@ -289,25 +159,36 @@ def form():
     if 'forms_per_serial' not in session:
         session['forms_per_serial'] = [None] * 51
 
-    if request.method == 'POST':
+    def re_render(errors, trigger_fail_prompt=False):
+        return render_template(
+            "form.html",
+            fields=fields,
+            prefill_values=session['form_data'],
+            errors=errors,
+            form_label=current_form.get("label"),
+            name="Form",
+            trigger_fail_prompt=trigger_fail_prompt
+        )
 
+    if request.method == 'POST':
         errors = {}
+
+        # Preserve serial on later steps
         if "CM_serial" in session['form_data'] and form_index > 0:
             request.form = request.form.copy()
             request.form["CM_serial"] = session["form_data"]["CM_serial"]
 
-        # Step 1: update form_data with current inputs
-        for field in current_form["fields"]:
-            value = request.form.get(field["name"])
-            if value is not None:
-                session['form_data'][field["name"]] = value
+        # Save current inputs into session['form_data']
+        for field in fields:
+            if field.type_field != "file":
+                value = request.form.get(field.name)
+                if value is not None:
+                    session['form_data'][field.name] = value
 
-        session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
-
-        # Step 2: mark current step
+        session['form_data'] = process_file_fields(fields, request, app.config['UPLOAD_FOLDER'], session['form_data'])
         session['form_data']['last_step'] = form_index
 
-        # Step 2.5: determine CM_serial and index
+        # Check CM serial validity and compute index
         cm_serial = session['form_data'].get("CM_serial")
         index = None
         serial_error = None
@@ -321,153 +202,96 @@ def form():
         else:
             serial_error = "Must be an integer between 3000 and 3050"
 
-        # Step 3: handle Save & Exit
+        # Save and exit
         if request.form.get("save_exit") == "true":
             if serial_error:
-                return render_template(
-                    "form.html",
-                    fields=current_form["fields"],
-                    prefill_values=session['form_data'],
-                    errors={"CM_serial": serial_error},
-                    form_label=current_form.get("label"),
-                    name="Form"
-                )
-
-            if index is not None: # number assigned to store in users saved tests
-
-                if 'timestamp' not in session['form_data']:
-                    session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                session['forms_per_serial'][index] = EntrySlot(
-                    closed=False,
-                    data=session['form_data'].copy()
-                ).to_dict()
-                session.modified = True
-
-            return redirect(url_for('dashboard'))
-
-        # 1st Check for Error Valid Serial Number
-        if request.form.get("fail_test_start") == "true":
-            if serial_error:
-                return render_template(
-                    "form.html",
-                    fields=current_form["fields"],
-                    prefill_values=session['form_data'],
-                    errors={"CM_serial": serial_error},
-                    form_label=current_form.get("label"),
-                    name="Form",
-                )
-            return render_template(
-                "form.html",
-                fields=current_form["fields"],
-                prefill_values=session['form_data'],
-                errors={},
-                form_label=current_form.get("label"),
-                name="Form",
-                trigger_fail_prompt=True  # passed to js to call text box appear
-            )
-
-        # Handle Fail Test Final
-        if request.form.get("fail_test") == "true":
-            if serial_error:
-                return render_template(
-                    "form.html",
-                    fields=current_form["fields"],
-                    prefill_values=session['form_data'],
-                    errors={"CM_serial": serial_error},
-                    form_label=current_form.get("label"),
-                    name="Form",
-                    trigger_fail_prompt=True
-                )
-
-            reason = request.form.get("fail_reason", "").strip()
-
+                return re_render({"CM_serial": serial_error})
             if index is not None:
                 if 'timestamp' not in session['form_data']:
                     session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                session['forms_per_serial'][index] = EntrySlot(
-                    closed=False,
-                    data=session['form_data'].copy()
-                ).to_dict()
+                session['forms_per_serial'][index] = EntrySlot(closed=False, data=session['form_data'].copy()).to_dict()
                 session.modified = True
+            return redirect(url_for('dashboard'))
 
-            # Final submission for Error
+        # Trigger failure prompt
+        if request.form.get("fail_test_start") == "true":
+            if serial_error:
+                return re_render({"CM_serial": serial_error})
+            return re_render({}, trigger_fail_prompt=True)
+
+        # Final failure submission
+        if request.form.get("fail_test") == "true":
+            if serial_error:
+                return re_render({"CM_serial": serial_error}, trigger_fail_prompt=True)
+            reason = request.form.get("fail_reason", "").strip()
+            if index is not None:
+                if 'timestamp' not in session['form_data']:
+                    session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                session['forms_per_serial'][index] = EntrySlot(closed=False, data=session['form_data'].copy()).to_dict()
+                session.modified = True
             user = db.session.get(User, session['user_id'])
-            entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now(),
-                              failure=True, fail_reason=reason)
-
+            entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now(), failure=True, fail_reason=reason)
             db.session.add(entry)
             db.session.commit()
-
             if index is not None:
                 session['forms_per_serial'][index] = None
                 session.modified = True
             session.pop('form_data', None)
-
             return render_template('form_complete.html')
 
-        # Step 4: full validation for Next
-        if request.form.get("fail_test_start") != "true":
-            is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
+        # Validate all fields
+        for field in fields:
+            value = field.get_value(request)
+            valid, msg = field.validate_value(value, session.get("form_data"))
+            if not valid:
+                errors[field.name] = msg
 
-            if is_valid:
-                if index is not None:
-                    if 'timestamp' not in session['form_data']:
-                        session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    session['forms_per_serial'][index] = EntrySlot(
-                        closed=False,
-                        data=session['form_data'].copy()
-                    ).to_dict()
-                    session.modified = True
+        if not errors:
+            # Store in user's saved entries
+            if index is not None:
+                if 'timestamp' not in session['form_data']:
+                    session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                session['forms_per_serial'][index] = EntrySlot(closed=False, data=session['form_data'].copy()).to_dict()
+                session.modified = True
 
-                if form_index + 1 < len(FORMS):
-                    return redirect(url_for('form', step=form_index + 1))
+            # Move to next form step or finish
+            if form_index + 1 < len(FORMS_NON_DICT):
+                return redirect(url_for('form', step=form_index + 1))
 
-                # Final submission
-                user = db.session.get(User, session['user_id'])
-                entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now())
-                db.session.add(entry)
-                db.session.commit()
+            user = db.session.get(User, session['user_id'])
+            entry = TestEntry(user=user, data=session['form_data'], timestamp=datetime.now())
+            db.session.add(entry)
+            db.session.commit()
+            if index is not None:
+                session['forms_per_serial'][index] = None
+                session.modified = True
+            session.pop('form_data', None)
+            return render_template('form_complete.html')
 
-                if index is not None:
-                    session['forms_per_serial'][index] = None
-                    session.modified = True
-                session.pop('form_data', None)
-
-                return render_template('form_complete.html')
-
-        # Step 5: re-render form with inline errors
         if serial_error:
             errors["CM_serial"] = serial_error
+        return re_render(errors)
 
-        return render_template(
-            "form.html",
-            fields=current_form["fields"],
-            prefill_values=session['form_data'],
-            errors=errors,
-            form_label=current_form.get("label"),
-            name="Form"
-        )
-
-    # GET request: load saved state if exists
+    # Handle GET: reload any saved data for serial
     cm_serial = session.get('form_data', {}).get("CM_serial")
     if cm_serial and cm_serial.isdigit():
         cm_serial = int(cm_serial)
         if 3000 <= cm_serial <= 3050:
             index = cm_serial - SERIAL_OFFSET
             saved = session['forms_per_serial'][index]
-
             if saved and not session['form_data']:
                 entry = EntrySlot.from_dict(saved)
                 session['form_data'] = entry.data.copy()
 
     return render_template(
         "form.html",
-        fields=current_form["fields"],
+        fields=fields,
         prefill_values=session['form_data'],
         errors={},
         form_label=current_form.get("label"),
         name="Form"
     )
+
 
 @app.route('/restart_forms')
 def restart_forms():
@@ -631,19 +455,19 @@ def process_file_fields(fields, rq, upload_folder, data):
     appends uuid to each filename to prevent file overwrites"""
     updated_data = data.copy()
     for field in fields:
-        if field["type_field"] == "file":
-            file = rq.files.get(field["name"])
+        if field.type_field == "file":
+            file = rq.files.get(field.name)
             if file and file.filename:
                 #save and update
                 timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
                 filename = f"{timestamp}_{secure_filename(file.filename)}"
                 filepath = os.path.join(upload_folder, filename)
                 file.save(filepath)
-                updated_data[field["name"]] = filename
+                updated_data[field.name] = filename
             else:
                 # keep old filename
-                if field["name"] in data:
-                    updated_data[field["name"]] = data[field["name"]]
+                if field.name in data:
+                    updated_data[field.name] = data.get(field.name)
 
     return updated_data
 
