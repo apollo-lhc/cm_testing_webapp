@@ -2,7 +2,6 @@ from models import FormField
 
 # Create a new Python module that uses the FormField class to define FORMS in a cleaner way
 
-#validate_serial = lambda v: (3000 <= int(v) <= 3050, "Must be between 3000 and 3050") if v and v.isdigit() else (False, "Must be an integer between 3000 and 3050")
 
 def validate_serial(v):
     if v and v.isdigit():
