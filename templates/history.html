@@ -139,7 +139,7 @@
         <thead>
           <tr>
             <th>Time</th>
-            <th>User</th>
+            <th>Users</th>
             {% for field in fields %}
               <th>{{ field.label }}</th>
             {% endfor %}
@@ -151,7 +151,7 @@
           {% for e in entries %}
           <tr>
             <td>{{ e.timestamp }}</td>
-            <td>{{ e.user.username }}</td>
+            <td>{{ ", ".join(e.contributors) if e.contributors else "None" }}</td>
             {% for field in fields %}
               <td>
                 {% if field.type_field == 'file' %}

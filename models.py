@@ -37,14 +37,33 @@ class TestEntry(db.Model):
     """Model for storing test entry data and file uploads."""
 
     id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow) # used on submission and failure and save, timestamp shown in history table summary
+    #TODO add current timestamp for in progress forms
+    #user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     data = db.Column(JSON)
     file_name = db.Column(db.String(120))
-    user = db.relationship('User', backref=db.backref('entries', lazy=True))
+    #user = db.relationship('User', backref=db.backref('entries', lazy=True))
     test = db.Column(db.Boolean, default=False)
     failure = db.Column(db.Boolean, default=False)
     fail_reason = db.Column(db.String, default=None)
+
+# -------------- NEW GLOBAL‑SAVE FIELDS --------------
+    is_saved         = db.Column(db.Boolean, default=False)           # True ↔ in‑progress
+    contributors     = db.Column(JSON, default=list)                  # e.g. ["alice","bob"]
+    lock_owner       = db.Column(db.String(80), nullable=True)        # username of current editor
+    lock_acquired_at = db.Column(db.DateTime, nullable=True)
+    # ----------------------------------------------------
+    
+class EntryHistory(db.Model):
+    #need to implement in save and exit logic
+    id = db.Column(db.Integer, primary_key=True)
+    entry_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'), nullable=False)
+    username = db.Column(db.String(80), nullable=False)
+    form_index = db.Column(db.Integer)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    creation_time = db.Column(db.DateTime, nullable=True)
+    changes = db.Column(JSON)  # Optional: record diff or snapshot of fields
+
 
 class EntrySlot:
     """Model for keeping track and saving in use forms per serial number"""
