@@ -12,25 +12,31 @@ Features:
 #TODO fix prompt for login on trying to recieve lock after not being logged in in same session
 # TODO fix datetimes to all match cornell's timezone
 # TODO remove entryslot entirely (entryslot -> testentries)
+# TODO move resume entry and lock and other routes out of admin routes
 
 import os
 import io
 import csv
-from datetime import datetime, timedelta
-from random import randint, uniform, choice #for random
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
 from flask import send_from_directory
-from werkzeug.utils import secure_filename
 from sqlalchemy.orm.attributes import flag_modified #TODO include in the .yml and enviroment if needed later
-from models import db, User, TestEntry, EntrySlot, DeletedEntry
+from models import db, User, TestEntry, EntrySlot
 from form_config import FORMS, FORMS_NON_DICT
+from admin_routes import admin_bp
+from utils import (validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock)
+
 
 app = Flask(__name__)
+
 app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 db.init_app(app)
+
+app.register_blueprint(admin_bp)
+
 
 with app.app_context():
     db.create_all()
@@ -86,51 +92,6 @@ def home():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return render_template('index.html')
-
-def validate_field(field, value, data=None):
-    """Validate a single field value based on its type and requirements."""
-    if field.validate:
-        valid, msg = field.validate(value)
-        if not valid:
-            print(f"Validation failed for {field.name}: {msg} (value={value})")
-            return False, msg
-
-    if field.type_field == "integer":
-        if value is None or value == "":
-            return False, "This field is required."
-        try:
-            int(value)
-        except ValueError:
-            return False, "Must be an integer."
-    elif field.type_field == "float":
-        if value is None or value == "":
-            return False, "This field is required."
-        try:
-            float(value)
-        except ValueError:
-            return False, "Must be a number."
-    elif field.type_field == "boolean":
-        if value not in ("yes", "no"):
-            return False, "Please select yes or no."
-    elif field.type_field == "file":
-        existing = data.get(field.name) if data else None
-        if not value and not existing:
-            return False, "File is required."
-    return True, ""
-
-def validate_form(fields, req, data=None):
-    """Validate all fields in the form. Returns (is_valid, errors_dict)."""
-    errors = {}
-    for field in fields:
-        if field.type_field == "file":
-            file = req.files.get(field.name)
-            value = file.filename if file and file.filename else None
-        else:
-            value = req.form.get(field.name)
-        valid, msg = validate_field(field, value, data)
-        if not valid:
-            errors[field.name] = msg
-    return (len(errors) == 0), errors
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
@@ -602,24 +563,12 @@ def help_button():
 
     return render_template("help.html", grouped_help_fields=grouped_help_fields)
 
-
 @app.route('/prod_test_doc')
 def prod_test_doc():
     """Bring up Apollo Production Testing Document."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return send_from_directory("static", "Apollo_CMv3_Production_Testing_04Nov2024.html")
-
-def determine_step_from_data(data):
-    """Return the index of the first incomplete page.
-       If everything is filled, return len(FORMS_NON_DICT)."""
-    data = data or {}
-    for i, page in enumerate(FORMS_NON_DICT):
-        for field in page["fields"]:
-            fname = getattr(field, "name", None)   # FormField, not dict
-            if fname and fname not in data:
-                return i
-    return len(FORMS_NON_DICT)
 
 @app.route("/dashboard")
 def dashboard():
@@ -652,67 +601,6 @@ def dashboard():
 
     return render_template("dashboard.html", entries=entries, now=datetime.utcnow())
 
-
-LOCK_TIMEOUT = timedelta(minutes=20)   # how long before a stale lock is considered free
-
-# fix if user broken and get rid of other one
-# def current_user():
-#     uid = session.get("user_id")
-#     return db.session.get(User, uid) if uid else None
-
-
-def acquire_lock(entry_id, username):
-    """Try to claim the lock; returns (success_flag, entry)."""
-    now = datetime.utcnow()
-
-    # ---- new WHERE clause (no imports needed) -----------------
-    q = (
-        TestEntry.query
-        .filter(
-            TestEntry.id == entry_id,                     # implicit AND
-            (                                             # explicit OR via |
-                TestEntry.lock_owner.is_(None) |          #   • lock is free
-                (TestEntry.lock_acquired_at + LOCK_TIMEOUT == now)  # • or expired turned off rn TODO fix this or implement it
-            )
-        )
-    )
-    # -----------------------------------------------------------
-
-    updated = q.update(
-        {"lock_owner": username, "lock_acquired_at": now},
-        synchronize_session=False,
-    )
-    db.session.commit()
-    return updated == 1, db.session.get(TestEntry, entry_id)
-
-#TODO put in all submission places
-def release_lock(entry):
-    """Free the lock on a TestEntry row that you already own."""
-    entry.lock_owner = None
-    entry.lock_acquired_at = None
-    db.session.commit()
-
-def process_file_fields(fields, rq, upload_folder, data):
-    """Save uploaded files and update the current data dict with filenames.
-    appends uuid to each filename to prevent file overwrites"""
-    updated_data = data.copy()
-    for field in fields:
-        if field.type_field == "file":
-            file = rq.files.get(field.name)
-            if file and file.filename:
-                #save and update
-                timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
-                filename = f"{timestamp}_{secure_filename(file.filename)}"
-                filepath = os.path.join(upload_folder, filename)
-                file.save(filepath)
-                updated_data[field.name] = filename
-            else:
-                # keep old filename
-                if field.name in data:
-                    updated_data[field.name] = data[field.name]
-
-    return updated_data
-
 @app.route('/resume/<int:entry_id>', methods=['POST'])
 def resume_entry(entry_id):
     if 'user_id' not in session:
@@ -728,351 +616,9 @@ def resume_entry(entry_id):
     step = entry.data.get("last_step", 0)
     return redirect(url_for('form', step=step))
 
-
-## Admin commands for debugging
-
-fishy_users = {}
-
-@app.route('/list_fishy_users')
-def list_fishy_users():
-    """lists current list of "fishy users" for the current session user becomes fishy by
-    attempting to pass a authenticate_admin() check"""
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not fishy_users:
-        return "No such users"
-
-    return fishy_users
-
-@app.route('/add_dummy_entry')
-def add_dummy_entry():
-    """Adds dummy entries with randomized values for all non-file fields in FORMS.
-        activate with:
-        http://localhost:5001/add_dummy_entry → adds 1 entry
-        http://localhost:5001/add_dummy_entry?count=10 → adds 10 entries"""
-
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    try:
-        count = int(request.args.get('count', 1))
-    except ValueError:
-        count = 1
-
-    for _ in range(count):
-        test_data = {}
-
-        for form_iter in FORMS:
-            for field in form_iter["fields"]:
-                name = field.get("name")
-                ftype = field.get("type_field")
-
-                if not name or ftype is None:
-                    continue
-
-                if ftype == "boolean":
-                    test_data[name] = choice(["yes", "no"])
-                elif ftype == "integer":
-                    test_data[name] = str(randint(3000, 3050)) if name == "CM_serial" else str(randint(0, 9999))
-                elif ftype == "float":
-                    test_data[name] = f"{uniform(0.0, 10.0):.2f}"
-                elif ftype == "text":
-                    test_data[name] = "Auto-generated entry"
-                elif ftype == "file":
-                    test_data[name] = ""  # Leave blank for file fields
-
-        entry = TestEntry(
-            user_id=session['user_id'],
-            data=test_data,
-            timestamp=datetime.utcnow(),
-            test=True
-        )
-        db.session.add(entry)
-
-    db.session.commit()
-    return redirect(url_for('history'))
-
-@app.route('/add_dummy_saves')
-def add_dummy_saves():
-    # activate with http://localhost:5001/add_dummy_saves?entries=N for N entries
-    # http://localhost:5001/add_dummy_saves?entries adds one entry
-
-    SERIAL_OFFSET = 3000
-
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    try:
-        num_entries = int(request.args.get('entries', 1))
-    except ValueError:
-        num_entries = 5
-
-    if 'forms_per_serial' not in session:
-        session['forms_per_serial'] = [None] * 51
-
-    used_serials = {
-        SERIAL_OFFSET + i for i, val in enumerate(session['forms_per_serial']) if val is not None
-    }
-
-    for _ in range(num_entries):
-        cm_serial = randint(3000, 3050)
-        attempts = 0
-        while cm_serial in used_serials and attempts < 20:
-            cm_serial = randint(3000, 3050)
-            attempts += 1
-        if cm_serial in used_serials:
-            continue
-
-        used_serials.add(cm_serial)
-        index = cm_serial - SERIAL_OFFSET
-
-        entry_data = {
-            "CM_serial": cm_serial,
-            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        }
-
-        for form_iter in FORMS:
-            for field in form_iter["fields"]:
-                if field["type_field"] == "boolean":
-                    entry_data[field["name"]] = choice(["yes", "no"])
-                elif field["type_field"] == "integer":
-                    entry_data[field["name"]] = str(randint(0, 1000))
-                elif field["type_field"] == "float":
-                    entry_data[field["name"]] = f"{uniform(0, 10):.2f}"
-                elif field["type_field"] == "text":
-                    entry_data[field["name"]] = "Lorem ipsum"
-
-        # Determine last step with missing fields3
-        for i, form_iter in enumerate(FORMS):
-            for field in form_iter["fields"]:
-                if field["name"] not in entry_data:
-                    form_index = i
-                    break
-            else:
-                continue
-            break
-        else:
-            form_index = len(FORMS) - 1
-
-        entry_data['last_step'] = form_index
-
-        session['forms_per_serial'][index] = EntrySlot(
-            closed=False,
-            data=entry_data,
-            test=True
-        ).to_dict()
-
-    session.modified = True
-    return redirect(url_for('dashboard'))
-
-@app.route('/clear_history')
-def clear_history():
-    '''clears all entries from history to be removed later'''
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    with app.app_context():
-        db.session.query(TestEntry).delete()
-        db.session.commit()
-
-        upload_dir = app.config['UPLOAD_FOLDER']
-        for filename in os.listdir(upload_dir):
-            file_path = os.path.join(upload_dir, filename)
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass  # Silently ignore errors
-
-    return redirect(request.referrer or url_for('history'))
-
-@app.route('/clear_dummy_history')
-def clear_dummy_history():
-    """clears only entries with test=True from history"""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    with app.app_context():
-        db.session.query(TestEntry).filter_by(test=True).delete()
-        db.session.commit()
-
-
-        upload_dir = app.config['UPLOAD_FOLDER']
-        for filename in os.listdir(upload_dir):
-            file_path = os.path.join(upload_dir, filename)
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass  # Silently ignore errors
-
-    return redirect(request.referrer or url_for('history'))
-
-@app.route('/check_dummy_count')
-def check_dummy_count():
-    """returns number of dummy entires in history"""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    count = db.session.query(TestEntry).filter_by(test=True).count()
-    return f"Dummy entries: {count}"
-
-@app.route('/clear_saves')
-def clear_saves():
-    """clears all of current users saves to be removed later or made user friendly (non-admin)"""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    session['forms_per_serial'] = [None] * 51
-    session.pop('form_data', None)
-    session.modified = True
-
-    return redirect(request.referrer or url_for('dashboard'))
-
-@app.route('/clear_dummy_saves')
-def clear_dummy_saves():
-    """clears all current users saves with test=True (random generated entries)"""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    if 'forms_per_serial' in session:
-        for i, save in enumerate(session['forms_per_serial']):
-            if save and save.get('test'):
-                session['forms_per_serial'][i] = None
-            session.modified = True
-
-    return redirect(request.referrer or url_for('dashboard'))
-
-# for admin dashboard:
-
-@app.route('/admin/admin_dashboard')
-def admin_dashboard():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    forms = (
-        TestEntry.query
-        .filter(TestEntry.is_finished.is_(False))
-        .order_by(TestEntry.timestamp.desc())
-        .all()
-    )
-
-    return render_template("admin_dashboard.html", forms=forms)
-
-@app.route('/admin/clear_lock/<int:entry_id>', methods=['POST'])
-def clear_lock(entry_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    entry = TestEntry.query.get(entry_id)
-    if entry and entry.lock_owner:
-        entry.lock_owner = None
-        db.session.commit()
-
-    return redirect(url_for('admin_dashboard'))
-
-@app.route('/admin/delete_form/<int:entry_id>', methods=['POST'])
-def delete_form(entry_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    entry = TestEntry.query.get(entry_id)
-    user = current_user()
-    if entry:
-        # Create a DeletedEntry before deleting
-        deleted = DeletedEntry(
-            original_entry_id=entry.id,
-            deleted_by=user.get_username(),
-            deleted_at=datetime.utcnow(),
-            data=entry.data,
-            contributors=entry.contributors,
-            fail_reason=entry.fail_reason,
-            failure=entry.failure,
-            was_locked=entry.lock_owner,
-        )
-        db.session.add(deleted)
-        db.session.delete(entry)
-        db.session.commit()
-
-    return redirect(url_for('admin_dashboard'))
-
-# for admin view of deleted entries:
-
-@app.route('/admin/deleted_entries')
-def deleted_entries():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    entries = DeletedEntry.query.order_by(DeletedEntry.deleted_at.desc()).all()
-    return render_template('deleted_entries.html', entries=entries)
-
-
-
-
 @app.context_processor
 def inject_user():
     return dict(current_user=current_user())
-
-
-
-def current_user():
-    uid = session.get("user_id")
-    if uid is None:
-        return None
-    user = User.query.get(uid)
-    if user is None:
-        # Session is stale – user was deleted or DB reset
-        session.pop("user_id", None)
-    return user
-
-def authenticate_admin():
-    """Returns True if current user is admin, False otherwise.
-    Logs non-admin or unauthenticated users to fishy_users."""
-    user = current_user()
-    if not user.administrator:
-        username = user.get_username()
-        if username in fishy_users:
-            fishy_users[username] += 1
-        else:
-            fishy_users[username] = 1
-        return False
-    return True
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

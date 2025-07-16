@@ -57,7 +57,7 @@
     <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Dashboard</a>
     <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">Home</a>
     {% if current_user.administrator %}
-        <a href="{{ url_for('deleted_entries') }}" class="btn btn-outline-dark mx-1">View Deleted Forms</a>
+        <a href="{{ url_for('admin.deleted_entries') }}" class="btn btn-outline-dark mx-1">View Deleted Forms</a>
     {% endif %}
 
   </div>
