@@ -559,10 +559,10 @@ def dashboard():
 
 LOCK_TIMEOUT = timedelta(minutes=20)   # how long before a stale lock is considered free
 
-
-def current_user():
-    uid = session.get("user_id")
-    return db.session.get(User, uid) if uid else None
+# fix if user broken and get rid of other one
+# def current_user():
+#     uid = session.get("user_id")
+#     return db.session.get(User, uid) if uid else None
 
 
 def acquire_lock(entry_id, username):
@@ -885,7 +885,7 @@ def current_user():
 def authenticate_admin():
     """Returns True if current user is admin, False otherwise.
     Logs non-admin or unauthenticated users to fishy_users."""
-    user = get_current_user()
+    user = current_user()
     if user is None or user.get_username() != "admin":
         username = user.get_username() if user else "anonymous"
         if username in fishy_users:
