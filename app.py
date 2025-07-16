@@ -11,6 +11,7 @@ Features:
 
 #TODO fix prompt for login on trying to recieve lock after not being logged in in same session
 # TODO fix datetimes to all match cornell's timezone
+# TODO remove entryslot entirely (entryslot -> testentries)
 
 import os
 import io
@@ -21,7 +22,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, s
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from sqlalchemy.orm.attributes import flag_modified #TODO include in the .yml and enviroment if needed later
-from models import db, User, TestEntry, EntrySlot
+from models import db, User, TestEntry, EntrySlot, DeletedEntry
 from form_config import FORMS, FORMS_NON_DICT
 
 app = Flask(__name__)
@@ -36,9 +37,11 @@ with app.app_context():
     if not User.query.filter_by(username='admin').first():
         admin = User(username='admin')  # type: ignore
         admin.set_password('password')
+        admin.administrator = True
         db.session.add(admin)
         logan = User(username='logan')  # type: ignore
         logan.set_password('prosser')
+        logan.administrator = True
         db.session.add(logan)
         db.session.commit()
 
@@ -379,6 +382,7 @@ def form():
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
 
+            entry.is_finished = True
             db.session.commit()
 
             if index is not None:
@@ -437,6 +441,7 @@ def form():
                 if user.username not in (entry.contributors or []):
                     entry.contributors = (entry.contributors or []) + [user.username]
                 release_lock(entry)
+                entry.is_finished = True
                 db.session.add(entry)
                 db.session.commit()
 
@@ -962,6 +967,90 @@ def clear_dummy_saves():
 
     return redirect(request.referrer or url_for('dashboard'))
 
+# for admin dashboard:
+
+@app.route('/admin/admin_dashboard')
+def admin_dashboard():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    forms = (
+        TestEntry.query
+        .filter(TestEntry.is_finished.is_(False))
+        .order_by(TestEntry.timestamp.desc())
+        .all()
+    )
+
+    return render_template("admin_dashboard.html", forms=forms)
+
+@app.route('/admin/clear_lock/<int:entry_id>', methods=['POST'])
+def clear_lock(entry_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    entry = TestEntry.query.get(entry_id)
+    if entry and entry.lock_owner:
+        entry.lock_owner = None
+        db.session.commit()
+
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/delete_form/<int:entry_id>', methods=['POST'])
+def delete_form(entry_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    entry = TestEntry.query.get(entry_id)
+    user = current_user()
+    if entry:
+        # Create a DeletedEntry before deleting
+        deleted = DeletedEntry(
+            original_entry_id=entry.id,
+            deleted_by=user.get_username(),
+            deleted_at=datetime.utcnow(),
+            data=entry.data,
+            contributors=entry.contributors,
+            fail_reason=entry.fail_reason,
+            failure=entry.failure,
+            was_locked=entry.lock_owner,
+        )
+        db.session.add(deleted)
+        db.session.delete(entry)
+        db.session.commit()
+
+    return redirect(url_for('admin_dashboard'))
+
+# for admin view of deleted entries:
+
+@app.route('/admin/deleted_entries')
+def deleted_entries():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    entries = DeletedEntry.query.order_by(DeletedEntry.deleted_at.desc()).all()
+    return render_template('deleted_entries.html', entries=entries)
+
+
+
+
+@app.context_processor
+def inject_user():
+    return dict(current_user=current_user())
+
+
+
 def current_user():
     uid = session.get("user_id")
     if uid is None:
@@ -972,19 +1061,17 @@ def current_user():
         session.pop("user_id", None)
     return user
 
-
 def authenticate_admin():
     """Returns True if current user is admin, False otherwise.
     Logs non-admin or unauthenticated users to fishy_users."""
     user = current_user()
-    if user is None or user.get_username() != "admin":
-        username = user.get_username() if user else "anonymous"
+    if not user.administrator:
+        username = user.get_username()
         if username in fishy_users:
             fishy_users[username] += 1
         else:
             fishy_users[username] = 1
         return False
-
     return True
 
 if __name__ == "__main__":

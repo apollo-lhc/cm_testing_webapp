@@ -59,6 +59,11 @@
   {% endif %}
 
   <div class="mt-4">
+    <!--admin only buttons-->
+    {% if current_user.administrator %}
+      <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-red mx-1">Administrator Dashboard</a>
+      <a href="{{ url_for('deleted_entries') }}" class="btn btn-outline-red mx-1">View Deleted Forms</a>
+    {% endif %}
     <a href="{{ url_for('home') }}" class="btn btn-outline-red mx-1">Home</a>
     <a href="{{ url_for('history') }}" class="btn btn-outline-red mx-1">All&nbsp;Submissions</a>
     <a href="{{ url_for('help_button') }}" class="btn btn-outline-red mx-1">Help</a>

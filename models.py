@@ -20,6 +20,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
+    administrator = db.Column(db.Boolean, default=False)
 
     def set_password(self, password):
         """Hash and set the user's password."""
@@ -49,6 +50,7 @@ class TestEntry(db.Model):
 
 # -------------- NEW GLOBAL‑SAVE FIELDS --------------
     is_saved         = db.Column(db.Boolean, default=False)
+    is_finished = db.Column(db.Boolean, default=False)
     contributors     = db.Column(JSON, default=list)                  # e.g. ["alice","bob"]
     lock_owner       = db.Column(db.String(80), nullable=True)
     lock_acquired_at = db.Column(db.DateTime, nullable=True)
@@ -63,6 +65,18 @@ class EntryHistory(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     creation_time = db.Column(db.DateTime, nullable=True)
     changes = db.Column(JSON)  # Optional: record diff or snapshot of fields
+
+class DeletedEntry(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    original_entry_id = db.Column(db.Integer)   # id of the TestEntry that was deleted
+    deleted_by = db.Column(db.String(80))       # username of admin who deleted
+    deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    data = db.Column(JSON)                      # copy of the TestEntry data
+    contributors = db.Column(db.PickleType)     # list of contributors
+    fail_reason = db.Column(db.Text)
+    failure = db.Column(db.Boolean)
+    was_locked = db.Column(db.String(80))       # lock owner, if an
 
 
 class EntrySlot:
