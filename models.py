@@ -48,7 +48,7 @@ class TestEntry(db.Model):
     fail_reason = db.Column(db.String, default=None)
 
 # -------------- NEW GLOBAL‑SAVE FIELDS --------------
-    is_saved         = db.Column(db.Boolean, default=False)     
+    is_saved         = db.Column(db.Boolean, default=False)
     contributors     = db.Column(JSON, default=list)                  # e.g. ["alice","bob"]
     lock_owner       = db.Column(db.String(80), nullable=True)
     lock_acquired_at = db.Column(db.DateTime, nullable=True)
