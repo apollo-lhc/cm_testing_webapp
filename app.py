@@ -10,7 +10,7 @@ Features:
 """
 
 #TODO fix prompt for login on trying to recieve lock after not being logged in in same session
-
+# TODO fix datetimes to all match cornell's timezone
 
 import os
 import io
@@ -86,31 +86,31 @@ def home():
 
 def validate_field(field, value, data=None):
     """Validate a single field value based on its type and requirements."""
-    if "validate" in field and callable(field["validate"]):
-        valid, msg = field["validate"](value)
+    if field.validate:
+        valid, msg = field.validate(value)
         if not valid:
-            print(f"Validation failed for {field['name']}: {msg} (value={value})")
+            print(f"Validation failed for {field.name}: {msg} (value={value})")
             return False, msg
 
-    if field["type_field"] == "integer":
+    if field.type_field == "integer":
         if value is None or value == "":
             return False, "This field is required."
         try:
             int(value)
         except ValueError:
             return False, "Must be an integer."
-    elif field["type_field"] == "float":
+    elif field.type_field == "float":
         if value is None or value == "":
             return False, "This field is required."
         try:
             float(value)
         except ValueError:
             return False, "Must be a number."
-    elif field["type_field"] == "boolean":
+    elif field.type_field == "boolean":
         if value not in ("yes", "no"):
             return False, "Please select yes or no."
-    elif field["type_field"] == "file":
-        existing = data.get(field["name"]) if data else None
+    elif field.type_field == "file":
+        existing = data.get(field.name) if data else None
         if not value and not existing:
             return False, "File is required."
     return True, ""
@@ -119,14 +119,14 @@ def validate_form(fields, req, data=None):
     """Validate all fields in the form. Returns (is_valid, errors_dict)."""
     errors = {}
     for field in fields:
-        if field["type_field"] == "file":
-            file = req.files.get(field["name"])
+        if field.type_field == "file":
+            file = req.files.get(field.name)
             value = file.filename if file and file.filename else None
         else:
-            value = req.form.get(field["name"])
+            value = req.form.get(field.name)
         valid, msg = validate_field(field, value, data)
         if not valid:
-            errors[field["name"]] = msg
+            errors[field.name] = msg
     return (len(errors) == 0), errors
 
 @app.route('/form', methods=['GET', 'POST'])
@@ -150,8 +150,8 @@ def form():
 
 
     form_index = int(form_index or 0)
-    form_index = max(0, min(form_index, len(FORMS) - 1))
-    current_form = FORMS[form_index]
+    form_index = max(0, min(form_index, len(FORMS_NON_DICT) - 1))
+    current_form = FORMS_NON_DICT[form_index]
 
     if 'form_data' not in session:
         session['form_data'] = {}
@@ -160,7 +160,6 @@ def form():
         session['forms_per_serial'] = [None] * 51
 
     if request.method == 'POST':
-
         errors = {}
         if "CM_serial" in session['form_data'] and form_index > 0:
             request.form = request.form.copy()
@@ -168,9 +167,9 @@ def form():
 
         # Step 1: update form_data with current inputs
         for field in current_form["fields"]:
-            value = request.form.get(field["name"])
+            value = request.form.get(field.name)
             if value is not None:
-                session['form_data'][field["name"]] = value
+                session['form_data'][field.name] = value
 
         session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
 
@@ -190,6 +189,30 @@ def form():
                 serial_error = "Must be between 3000 and 3050"
         else:
             serial_error = "Must be an integer between 3000 and 3050"
+
+        if form_index == 0:
+            posted_serial = request.form.get("CM_serial")
+
+            if posted_serial and posted_serial.isdigit():
+                existing_entry = (
+                    TestEntry.query
+                    .filter(TestEntry.data["CM_serial"].as_string() == str(posted_serial),
+                            TestEntry.is_saved.is_(True))
+                    .first()
+                )
+
+                if existing_entry:
+                    session.pop('form_data', None)
+                    return render_template(
+                        "form.html",
+                        fields=current_form["fields"],
+                        prefill_values=session.get('form_data', {}),
+                        errors={"CM_serial": f"A form for CM{posted_serial} is already in progress. You must complete or close it before starting a new one."},
+                        form_label=current_form.get("label"),
+                        name="Form"
+                    )
+
+
 
         # Step 3: handle Save & Exit
         if request.form.get("save_exit") == "true":
@@ -223,6 +246,20 @@ def form():
                     .filter(TestEntry.data["CM_serial"].as_string() == str(cm_serial),
                             TestEntry.is_saved.is_(True))
                     .first())
+
+            # confirm_overwrite = request.form.get("confirm_overwrite") == "true"
+
+            # if entry and not confirm_overwrite:
+            #     return render_template(
+            #         "form.html",
+            #         fields=current_form["fields"],
+            #         prefill_values=session['form_data'],
+            #         errors={"CM_serial": "This serial number already has a saved form."},
+            #         form_label=current_form.get("label"),
+            #         name="Form",
+            #         show_overwrite_prompt=True,
+            #         existing_timestamp=entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            #     )
 
             if not entry:
                 entry = TestEntry(data={}, is_saved=True)
@@ -286,7 +323,6 @@ def form():
         # Handle Fail Test Final
         if request.form.get("fail_test") == "true":
             if serial_error:
-
                 return render_template(
                     "form.html",
                     fields=current_form["fields"],
@@ -298,28 +334,57 @@ def form():
                 )
 
             reason = request.form.get("fail_reason", "").strip()
+            user = current_user()
 
-            if index is not None:
-                if 'timestamp' not in session['form_data']:
-                    session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                session['forms_per_serial'][index] = EntrySlot(
-                    closed=False,
-                    data=session['form_data'].copy()
-                ).to_dict()
-                session.modified = True
+            # Update session data with latest input
+            for field in current_form["fields"]:
+                value = request.form.get(field.name)
+                if value is not None:
+                    session['form_data'][field.name] = value
 
-            # Final submission for Error
-            user = db.session.get(User, session['user_id'])
-            entry = TestEntry(data=session['form_data'], timestamp=datetime.now(),
-                              failure=True, fail_reason=reason)
+            session['form_data'] = process_file_fields(
+                current_form["fields"],
+                request,
+                app.config['UPLOAD_FOLDER'],
+                session['form_data']
+            )
+
+            # Find existing in-progress entry to mark as failed
+            entry = (
+                TestEntry.query
+                .filter(TestEntry.data["CM_serial"].as_string() == str(cm_serial),
+                        TestEntry.is_saved.is_(True))
+                .first()
+            )
+            if entry:
+                entry.data = session['form_data']
+                flag_modified(entry, "data")
+                entry.failure = True
+                entry.fail_reason = reason
+                entry.is_saved = False  # not in progress anymore
+                entry.timestamp = datetime.utcnow()
+
+                if entry.lock_owner:
+                    release_lock(entry)
+            else:
+                # fallback if no saved form found
+                entry = TestEntry(
+                    data=session['form_data'],
+                    timestamp=datetime.utcnow(),
+                    failure=True,
+                    fail_reason=reason)
+
+                db.session.add(entry)
+
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
-            db.session.add(entry)
+
             db.session.commit()
 
             if index is not None:
                 session['forms_per_serial'][index] = None
                 session.modified = True
+
             session.pop('form_data', None)
 
             return render_template('form_complete.html')
@@ -346,6 +411,7 @@ def form():
                 entry = TestEntry(data=session['form_data'], timestamp=datetime.now())
                 if user.username not in (entry.contributors or []):
                     entry.contributors = (entry.contributors or []) + [user.username]
+                release_lock(entry)
                 db.session.add(entry)
                 db.session.commit()
 
@@ -601,19 +667,19 @@ def process_file_fields(fields, rq, upload_folder, data):
     appends uuid to each filename to prevent file overwrites"""
     updated_data = data.copy()
     for field in fields:
-        if field["type_field"] == "file":
-            file = rq.files.get(field["name"])
+        if field.type_field == "file":
+            file = rq.files.get(field.name)
             if file and file.filename:
                 #save and update
                 timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
                 filename = f"{timestamp}_{secure_filename(file.filename)}"
                 filepath = os.path.join(upload_folder, filename)
                 file.save(filepath)
-                updated_data[field["name"]] = filename
+                updated_data[field.name] = filename
             else:
                 # keep old filename
-                if field["name"] in data:
-                    updated_data[field["name"]] = data[field["name"]]
+                if field.name in data:
+                    updated_data[field.name] = data[field.name]
 
     return updated_data
 

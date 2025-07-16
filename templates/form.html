@@ -28,6 +28,28 @@
 
 <div class="container text-center">
   <h2 class="my-4">{{ form_label or name }}</h2>
+
+  <!-- Overwrite Warning -->
+  {% if show_overwrite_prompt %}
+  <div class="alert alert-warning border border-danger rounded p-3 mb-4">
+    <h5 class="alert-heading">Overwrite Existing Entry?</h5>
+    <p>
+      A form for serial <strong>CM{{ prefill_values["CM_serial"] }}</strong> was already saved on
+      <strong>{{ existing_timestamp }}</strong>.
+      <br>Do you want to overwrite it?
+    </p>
+    <form method="POST" action="{{ url_for('form', step=request.args.get('step', 0)) }}">
+      <input type="hidden" name="save_exit" value="true">
+      <input type="hidden" name="confirm_overwrite" value="true">
+      {% for key, value in prefill_values.items() %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {% endfor %}
+      <button type="submit" class="btn btn-danger btn-sm">Yes, Overwrite</button>
+      <a href="{{ url_for('form', step=request.args.get('step', 0)) }}" class="btn btn-secondary btn-sm">Cancel</a>
+    </form>
+  </div>
+  {% endif %}
+
   <div class="d-flex justify-content-center">
     <form method="POST" enctype="multipart/form-data" class="w-100 text-start" style="max-width: 600px;">
       {% for field in fields if field.display_form %}
