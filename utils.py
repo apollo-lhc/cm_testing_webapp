@@ -4,10 +4,9 @@ import os
 from datetime import datetime, timedelta
 from flask import session
 from werkzeug.utils import secure_filename
-from sqlalchemy.orm.attributes import flag_modified
 
 from models import db, User, TestEntry
-from form_config import FORMS, FORMS_NON_DICT
+from form_config import FORMS_NON_DICT
 
 fishy_users = {}
 LOCK_TIMEOUT = timedelta(minutes=20)   # how long before a stale lock is considered free

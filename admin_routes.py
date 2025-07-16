@@ -1,22 +1,15 @@
 import os
 from datetime import datetime
 from random import randint, uniform, choice
+from flask import render_template, request, redirect, url_for, session, current_app, Blueprint
 
-from flask import render_template, request, redirect, url_for, session
-from werkzeug.utils import secure_filename
-from models import db, User, TestEntry, EntrySlot, DeletedEntry
+from models import db, TestEntry, EntrySlot, DeletedEntry
 from form_config import FORMS
 from utils import (
-    validate_field,
-    validate_form,
-    determine_step_from_data,
-    acquire_lock,
-    release_lock,
-    process_file_fields,
     current_user,
     authenticate_admin
 )
-from flask import Blueprint
+
 
 
 admin_bp = Blueprint('admin', __name__)
@@ -177,11 +170,11 @@ def clear_history():
     if not authenticate_admin():
         return "Permission Denied"
 
-    with app.app_context():
+    with current_app.app_context():
         db.session.query(TestEntry).delete()
         db.session.commit()
 
-        upload_dir = app.config['UPLOAD_FOLDER']
+        upload_dir = current_app.config['UPLOAD_FOLDER']
         for filename in os.listdir(upload_dir):
             file_path = os.path.join(upload_dir, filename)
             try:
@@ -200,12 +193,12 @@ def clear_dummy_history():
     if not authenticate_admin():
         return "Permission Denied"
 
-    with app.app_context():
+    with current_app.app_context():
         db.session.query(TestEntry).filter_by(test=True).delete()
         db.session.commit()
 
 
-        upload_dir = app.config['UPLOAD_FOLDER']
+        upload_dir = current_app.config['UPLOAD_FOLDER']
         for filename in os.listdir(upload_dir):
             file_path = os.path.join(upload_dir, filename)
             try:
@@ -334,5 +327,3 @@ def deleted_entries():
 
     entries = DeletedEntry.query.order_by(DeletedEntry.deleted_at.desc()).all()
     return render_template('deleted_entries.html', entries=entries)
-
-
