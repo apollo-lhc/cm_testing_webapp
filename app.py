@@ -390,7 +390,7 @@ def form():
             return render_template('form_complete.html')
 
         # Step 4: full validation for Next
-        if request.form.get("fail_test_start") != "true":
+        if request.form.get("fail_test_start") != "true": #unnecessary if fix it
             is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
 
             if is_valid:
@@ -402,6 +402,31 @@ def form():
                         data=session['form_data'].copy()
                     ).to_dict()
                     session.modified = True
+
+                # To submit or create test entry each time user hits next on a form page to show in progress forms and for serial lock full funcitonality
+                user = current_user()
+
+                entry = (TestEntry.query
+                         .filter(TestEntry.data["CM_serial"].as_string() == str(cm_serial),
+                                 TestEntry.is_saved.is_(True))
+                         .first()
+                )
+
+                if not entry:
+                    entry = TestEntry(data=session['form_data'], is_saved=True)
+                    db.session.add(entry)
+                else:
+                    if entry.lock_owner and entry.lock_owner != user.username:
+                        return "This form is currently being edited by another user."
+                    entry.data = session['form_data']
+                    flag_modified(entry, "data")
+
+                if user.username not in (entry.contributors or []):
+                    entry.contributors = (entry.contributors or []) + [user.username]
+
+                entry.timestamp = datetime.utcnow()
+                entry.is_saved = True
+                db.session.commit()
 
                 if form_index + 1 < len(FORMS):
                     return redirect(url_for('form', step=form_index + 1))
