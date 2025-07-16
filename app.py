@@ -618,7 +618,8 @@ def resume_entry(entry_id):
 
 @app.context_processor
 def inject_user():
-    return dict(current_user=current_user())
+    return {"current_user": current_user()}
+
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
