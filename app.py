@@ -399,15 +399,17 @@ def form():
 
                 # Final submission
                 user = db.session.get(User, session['user_id'])
-                entry = TestEntry(data=session['form_data'], timestamp=datetime.now())
+                entry.data = session['form_data']
+                flag_modified(entry, "data")
                 if user.username not in (entry.contributors or []):
                     entry.contributors = (entry.contributors or []) + [user.username]
                 release_lock(entry)
                 entry.is_finished = True
                 entry.failure = False
                 entry.fail_reason = None
-                entry.fail_stored = True
-                db.session.add(entry)
+                entry.fail_stored = False
+                entry.is_saved = False
+                #db.session.add(entry)
                 db.session.commit()
 
                 if index is not None:
