@@ -19,7 +19,7 @@ import os
 import io
 import csv
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash
 from flask import send_from_directory
 from sqlalchemy.orm.attributes import flag_modified #TODO include in the .yml and enviroment if needed later
 from models import db, User, TestEntry, EntrySlot
@@ -649,32 +649,34 @@ def retest_failed(entry_id):
 
     user = current_user()
     old_entry = TestEntry.query.get(entry_id)
-    if not old_entry:
-        return "Original entry not found", 404
+
+    if not old_entry or not old_entry.fail_stored:
+        flash("This failed test has already been resumed or cleared.", "warning")
+        return redirect(url_for('failed_tests'))
+
+    # Mark the old entry as no longer available for retest
+    old_entry.fail_stored = False
+    db.session.commit()
 
     retest_data = old_entry.data.copy()
-    retest_data["last_step"] = old_entry.data.get("last_step", 1)
+    retest_data["last_step"] = old_entry.data.get("last_step", 0)
 
-    #create new entry to 'resume test' to preserve testing history
     new_entry = TestEntry(
-        contributors=old_entry.contributors,
         data=retest_data,
         timestamp=datetime.utcnow(),
         is_finished=False,
         failure=False,
         is_saved=True,
-        lock_owner=None,
-        lock_acquired_at=None,
     )
     if user.username not in (new_entry.contributors or []):
         new_entry.contributors = (new_entry.contributors or []) + [user.username]
-
 
     db.session.add(new_entry)
     db.session.commit()
 
     session['form_data'] = retest_data.copy()
     return redirect(url_for('form', step=retest_data["last_step"]))
+
 
 @app.route('/clear_failed/<int:entry_id>', methods=['POST'])
 def clear_failed(entry_id):
