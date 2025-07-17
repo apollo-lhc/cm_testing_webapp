@@ -48,6 +48,8 @@ class TestEntry(db.Model):
     failure = db.Column(db.Boolean, default=False)
     fail_reason = db.Column(db.String, default=None)
 
+    fail_stored = db.Column(db.Boolean, default=False)
+
 # -------------- NEW GLOBAL‑SAVE FIELDS --------------
     is_saved         = db.Column(db.Boolean, default=False)
     is_finished = db.Column(db.Boolean, default=False)

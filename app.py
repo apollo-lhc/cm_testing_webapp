@@ -13,6 +13,7 @@ Features:
 # TODO fix datetimes to all match cornell's timezone
 # TODO remove entryslot entirely (entryslot -> testentries)
 # TODO move resume entry and lock and other routes out of admin routes
+# TODO make test resume button to avoid constantly needing to unlock lock
 
 import os
 import io
@@ -154,15 +155,24 @@ def form():
         else:
             serial_error = "Must be an integer between 3000 and 3050"
 
+        # check to see if existing entry (saved or failed or in progress) exists
         if form_index == 0:
             posted_serial = request.form.get("CM_serial")
 
             if posted_serial and posted_serial.isdigit():
                 existing_entry = (
                     TestEntry.query
-                    .filter(TestEntry.data["CM_serial"].as_string() == str(posted_serial),
-                            TestEntry.is_saved.is_(True))
-                    .first()
+                    .filter(
+                        TestEntry.data["CM_serial"].as_string() == str(cm_serial),
+                        db.or_(
+                            TestEntry.is_saved.is_(True),
+                            db.and_(
+                                TestEntry.failure.is_(True),
+                                TestEntry.fail_stored.is_(True),
+                                TestEntry.is_finished.is_(False)
+                            )
+                        )
+                    ).first()
                 )
 
                 if existing_entry:
@@ -171,10 +181,11 @@ def form():
                         "form.html",
                         fields=current_form["fields"],
                         prefill_values=session.get('form_data', {}),
-                        errors={"CM_serial": f"A form for CM{posted_serial} is already in progress. You must complete or close it before starting a new one."},
+                        errors={"CM_serial": f"A form for CM{posted_serial} is already in progress or failed and pending retest."},
                         form_label=current_form.get("label"),
                         name="Form"
                     )
+
 
 
 
@@ -211,20 +222,6 @@ def form():
                             TestEntry.is_saved.is_(True))
                     .first())
 
-            # confirm_overwrite = request.form.get("confirm_overwrite") == "true"
-
-            # if entry and not confirm_overwrite:
-            #     return render_template(
-            #         "form.html",
-            #         fields=current_form["fields"],
-            #         prefill_values=session['form_data'],
-            #         errors={"CM_serial": "This serial number already has a saved form."},
-            #         form_label=current_form.get("label"),
-            #         name="Form",
-            #         show_overwrite_prompt=True,
-            #         existing_timestamp=entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-            #     )
-
             if not entry:
                 entry = TestEntry(data={}, is_saved=True)
 
@@ -234,23 +231,14 @@ def form():
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
             entry.timestamp = datetime.utcnow()
+            entry.failure = False
+            entry.fail_reason = None
+            entry.fail_stored = False
             db.session.add(entry)
             db.session.commit()
             release_lock(entry)
             session.pop('form_data', None)      # clear browser session copy
             return redirect(url_for('dashboard'))
-
-            # if index is not None: # number assigned to store in users saved tests
-
-            #     if 'timestamp' not in session['form_data']:
-            #         session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            #     session['forms_per_serial'][index] = EntrySlot(
-            #         closed=False,
-            #         data=session['form_data'].copy()
-            #     ).to_dict()
-            #     session.modified = True
-
-            # return redirect(url_for('dashboard'))
 
         # 1st Check for Error Valid Serial Number
         if request.form.get("fail_test_start") == "true":
@@ -327,23 +315,29 @@ def form():
                 entry.fail_reason = reason
                 entry.is_saved = False  # not in progress anymore
                 entry.timestamp = datetime.utcnow()
+                entry.is_finished = True
 
                 if entry.lock_owner:
                     release_lock(entry)
+
+
             else:
                 # fallback if no saved form found
                 entry = TestEntry(
                     data=session['form_data'],
                     timestamp=datetime.utcnow(),
                     failure=True,
-                    fail_reason=reason)
+                    fail_reason=reason,
+                    is_saved=False,
+                    is_finished=True)
 
                 db.session.add(entry)
 
+            entry.fail_stored = True
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
 
-            entry.is_finished = True
+            entry.is_finished = False
             db.session.commit()
 
             if index is not None:
@@ -403,6 +397,9 @@ def form():
                     entry.contributors = (entry.contributors or []) + [user.username]
                 release_lock(entry)
                 entry.is_finished = True
+                entry.failure = False
+                entry.fail_reason = None
+                entry.fail_stored = True
                 db.session.add(entry)
                 db.session.commit()
 
@@ -615,6 +612,86 @@ def resume_entry(entry_id):
     session['form_data'] = entry.data.copy()
     step = entry.data.get("last_step", 0)
     return redirect(url_for('form', step=step))
+
+@app.route('/failed_tests')
+def failed_tests():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    # Subquery: get latest timestamp per failed CM_serial
+    subquery = (
+        db.session.query(
+            TestEntry.data["CM_serial"].as_integer().label("cm_serial"),
+            db.func.max(TestEntry.timestamp).label("latest")
+        )
+        .filter(TestEntry.failure.is_(True), TestEntry.fail_stored.is_(True))
+        .group_by(TestEntry.data["CM_serial"].as_integer())
+        .subquery()
+    )
+
+    # Main query: get full entries that match the latest timestamp per serial
+    entries = (
+        db.session.query(TestEntry)
+        .join(subquery, db.and_(
+            TestEntry.data["CM_serial"].as_integer() == subquery.c.cm_serial,
+            TestEntry.timestamp == subquery.c.latest
+        ))
+        .order_by(TestEntry.timestamp.desc())
+        .all()
+    )
+
+    return render_template('failed_tests.html', entries=entries, now=datetime.utcnow())
+
+@app.route('/retest_failed/<int:entry_id>', methods=['POST'])
+def retest_failed(entry_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    user = current_user()
+    old_entry = TestEntry.query.get(entry_id)
+    if not old_entry:
+        return "Original entry not found", 404
+
+    retest_data = old_entry.data.copy()
+    retest_data["last_step"] = old_entry.data.get("last_step", 1)
+
+    #create new entry to 'resume test' to preserve testing history
+    new_entry = TestEntry(
+        contributors=old_entry.contributors,
+        data=retest_data,
+        timestamp=datetime.utcnow(),
+        is_finished=False,
+        failure=False,
+        is_saved=True,
+        lock_owner=None,
+        lock_acquired_at=None,
+    )
+    if user.username not in (new_entry.contributors or []):
+                new_entry.contributors = (new_entry.contributors or []) + [user.username]
+
+
+    db.session.add(new_entry)
+    db.session.commit()
+
+    session['form_data'] = retest_data.copy()
+    return redirect(url_for('form', step=retest_data["last_step"]))
+
+@app.route('/clear_failed/<int:entry_id>', methods=['POST'])
+def clear_failed(entry_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    entry = TestEntry.query.get(entry_id)
+    if entry and entry.failure and entry.fail_stored:
+        entry.fail_stored = False
+        entry.is_finished = True
+        db.session.commit()
+
+    return redirect(url_for('failed_tests'))
+
+
+
+
 
 @app.context_processor
 def inject_user():

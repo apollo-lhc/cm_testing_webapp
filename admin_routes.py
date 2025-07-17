@@ -10,8 +10,6 @@ from utils import (
     authenticate_admin
 )
 
-
-
 admin_bp = Blueprint('admin', __name__)
 
 fishy_users = {}

@@ -27,7 +27,7 @@
             <!--TODO add who cleared the lock to lock history-->
             {% if f.lock_owner %}
                 Locked by {{ f.lock_owner }}
-                <form method="POST" action="{{ url_for('clear_lock', entry_id=f.id) }}" class="d-inline">
+                <form method="POST" action="{{ url_for('admin.clear_lock', entry_id=f.id) }}" class="d-inline">
                 <button type="submit" class="btn btn-sm btn-warning ms-2"
                         onclick="return confirm('Clear lock for this form?');">
                     Clear Lock
