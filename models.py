@@ -83,7 +83,6 @@ class DeletedEntry(db.Model):
     failure = db.Column(db.Boolean)
     was_locked = db.Column(db.String(80))       # lock owner, if an
 
-
 class EntrySlot:
     """Model for keeping track and saving in use forms per serial number"""
     def __init__(self, closed=False, data=None, test=False):

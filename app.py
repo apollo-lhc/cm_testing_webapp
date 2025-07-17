@@ -34,6 +34,7 @@ app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
+
 db.init_app(app)
 
 app.register_blueprint(admin_bp)
@@ -94,6 +95,7 @@ def home():
         return redirect(url_for('login'))
     return render_template('index.html')
 
+
 @app.route('/form', methods=['GET', 'POST'])
 def form():
     """form submission save and failure function"""
@@ -125,6 +127,7 @@ def form():
         session['forms_per_serial'] = [None] * 51
 
     if request.method == 'POST':
+
         errors = {}
         if "CM_serial" in session['form_data'] and form_index > 0:
             request.form = request.form.copy()
@@ -135,6 +138,8 @@ def form():
             value = request.form.get(field.name)
             if value is not None:
                 session['form_data'][field.name] = value
+
+        session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
 
         session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
 
@@ -200,7 +205,7 @@ def form():
                     form_label=current_form.get("label"),
                     name="Form"
                 )
-
+              
             # ---------- GLOBAL SAVE ----------
             user = current_user()
             cm_serial = session['form_data'].get("CM_serial")
@@ -214,7 +219,6 @@ def form():
                     form_label=current_form.get("label"),
                     name="Form"
                 )
-
 
             # Look for an existing in‑progress TestEntry for this serial
             entry = (TestEntry.query
@@ -338,6 +342,7 @@ def form():
                 entry.contributors = (entry.contributors or []) + [user.username]
 
             entry.is_finished = False
+
             db.session.commit()
 
             if index is not None:
@@ -350,6 +355,7 @@ def form():
 
         # Step 4: full validation for Next
         if request.form.get("fail_test_start") != "true": #unnecessary if fix it
+
             is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
 
             if is_valid:
@@ -608,6 +614,7 @@ def resume_entry(entry_id):
     if not success:
         return "Entry is being edited by someone else. Try again later."
 
+
     # prime session data and redirect into the normal /form workflow
     session['form_data'] = entry.data.copy()
     step = entry.data.get("last_step", 0)
@@ -691,9 +698,6 @@ def clear_failed(entry_id):
         db.session.commit()
 
     return redirect(url_for('failed_tests'))
-
-
-
 
 
 @app.context_processor
