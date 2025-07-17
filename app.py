@@ -667,7 +667,7 @@ def retest_failed(entry_id):
         lock_acquired_at=None,
     )
     if user.username not in (new_entry.contributors or []):
-                new_entry.contributors = (new_entry.contributors or []) + [user.username]
+        new_entry.contributors = (new_entry.contributors or []) + [user.username]
 
 
     db.session.add(new_entry)
