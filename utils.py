@@ -9,6 +9,9 @@ from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
 
 fishy_users = {}
+
+
+# Constants
 LOCK_TIMEOUT = timedelta(minutes=20)   # how long before a stale lock is considered free
 
 def validate_field(field, value, data=None):
@@ -91,7 +94,6 @@ def acquire_lock(entry_id, username):
     db.session.commit()
     return updated == 1, db.session.get(TestEntry, entry_id)
 
-#TODO put in all submission places
 def release_lock(entry):
     """Free the lock on a TestEntry row that you already own."""
     entry.lock_owner = None

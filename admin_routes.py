@@ -14,6 +14,12 @@ admin_bp = Blueprint('admin', __name__)
 
 fishy_users = {}
 
+# Constants
+SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
+SERIAL_MAX = 3050
+SERIAL_MIN = SERIAL_OFFSET
+
+
 ## Admin commands for debugging and generating test data
 
 @admin_bp.route('/list_fishy_users')
@@ -64,7 +70,7 @@ def add_dummy_entry():
                 if ftype == "boolean":
                     test_data[name] = choice(["yes", "no"])
                 elif ftype == "integer":
-                    test_data[name] = str(randint(3000, 3050)) if name == "CM_serial" else str(randint(0, 9999))
+                    test_data[name] = str(randint(SERIAL_MIN, SERIAL_MAX)) if name == "CM_serial" else str(randint(0, 9999))
                 elif ftype == "float":
                     test_data[name] = f"{uniform(0.0, 10.0):.2f}"
                 elif ftype == "text":
@@ -88,8 +94,6 @@ def add_dummy_saves():
     # activate with http://localhost:5001/add_dummy_saves?entries=N for N entries
     # http://localhost:5001/add_dummy_saves?entries adds one entry
 
-    SERIAL_OFFSET = 3000
-
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
@@ -109,10 +113,10 @@ def add_dummy_saves():
     }
 
     for _ in range(num_entries):
-        cm_serial = randint(3000, 3050)
+        cm_serial = randint(SERIAL_MIN, SERIAL_MAX)
         attempts = 0
         while cm_serial in used_serials and attempts < 20:
-            cm_serial = randint(3000, 3050)
+            cm_serial = randint(SERIAL_MIN, SERIAL_MAX)
             attempts += 1
         if cm_serial in used_serials:
             continue

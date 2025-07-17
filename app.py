@@ -14,6 +14,7 @@ Features:
 # TODO remove entryslot entirely (entryslot -> testentries)
 # TODO move resume entry and lock and other routes out of admin routes
 # TODO make test resume button to avoid constantly needing to unlock lock
+# TODO fix formatting of code and make constantly repeated code into helper functions
 
 import os
 import io
@@ -38,6 +39,11 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 db.init_app(app)
 
 app.register_blueprint(admin_bp)
+
+# Constants
+SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
+SERIAL_MAX = 3050
+SERIAL_MIN = SERIAL_OFFSET
 
 
 with app.app_context():
@@ -102,8 +108,6 @@ def form():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
-
     form_index = request.args.get('step')
     if form_index is None:
         cm_serial = session.get('form_data', {}).get("CM_serial")
@@ -153,7 +157,7 @@ def form():
 
         if cm_serial and cm_serial.isdigit():
             cm_serial = int(cm_serial)
-            if 3000 <= cm_serial <= 3050:
+            if SERIAL_MIN <= cm_serial <= SERIAL_MAX:
                 index = cm_serial - SERIAL_OFFSET
             else:
                 serial_error = "Must be between 3000 and 3050"
@@ -191,9 +195,6 @@ def form():
                         name="Form"
                     )
 
-
-
-
         # Step 3: handle Save & Exit
         if request.form.get("save_exit") == "true":
             if serial_error:
@@ -205,10 +206,10 @@ def form():
                     form_label=current_form.get("label"),
                     name="Form"
                 )
-              
-            # ---------- GLOBAL SAVE ----------
+
             user = current_user()
             cm_serial = session['form_data'].get("CM_serial")
+
             # form index = 0 required to be serial number only see asserts in form_config
             if form_index == 0:
                 return render_template(
@@ -433,7 +434,7 @@ def form():
     cm_serial = session.get('form_data', {}).get("CM_serial")
     if cm_serial and cm_serial.isdigit():
         cm_serial = int(cm_serial)
-        if 3000 <= cm_serial <= 3050:
+        if SERIAL_MIN <= cm_serial <= SERIAL_MAX:
             index = cm_serial - SERIAL_OFFSET
             saved = session['forms_per_serial'][index]
 
