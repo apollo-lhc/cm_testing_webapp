@@ -6,7 +6,6 @@
 <div class="container">
   <h2 class="mb-4">Failed Test Submissions</h2>
 
-  <!-- Flash Messages -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="mb-3">
@@ -43,7 +42,12 @@
     <tbody>
       {% for e in entries %}
       <tr>
-        <td>{{ e.data["CM_serial"] }}</td>
+        <td>
+          CM{{ e.data["CM_serial"] }}
+          {% if e.parent %}
+            <br><small class="text-muted">Retest of Test{{ e.parent.id }}</small>
+          {% endif %}
+        </td>
         <td>{{ e.fail_reason or "N/A" }}</td>
         <td>{{ e.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
         <td>{{ ", ".join(e.contributors or []) }}</td>

@@ -667,6 +667,7 @@ def retest_failed(entry_id):
         is_finished=False,
         failure=False,
         is_saved=True,
+        parent_id=old_entry.id
     )
     if user.username not in (new_entry.contributors or []):
         new_entry.contributors = (new_entry.contributors or []) + [user.username]

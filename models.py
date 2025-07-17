@@ -49,6 +49,9 @@ class TestEntry(db.Model):
     fail_reason = db.Column(db.String, default=None)
 
     fail_stored = db.Column(db.Boolean, default=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'))
+    parent = db.relationship('TestEntry', remote_side=[id], backref='retests')
+
 
 # -------------- NEW GLOBAL‑SAVE FIELDS --------------
     is_saved         = db.Column(db.Boolean, default=False)
