@@ -1,10 +1,23 @@
 {% extends "base.html" %}
-{% block page_title %}Apollo CM Testing · In-Progress Forms{% endblock %}
-{% block title %}In-Progress Forms{% endblock %}
+{% block page_title %}Apollo CM Testing · Failed Tests{% endblock %}
+{% block title %}Failed Tests{% endblock %}
 
 {% block content %}
 <div class="container">
-  <h2 class="mb-4">In-Progress Forms</h2>
+  <h2 class="mb-4">Failed Test Submissions</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
 
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -20,50 +33,47 @@
     <thead class="table-dark">
       <tr>
         <th scope="col">Serial&nbsp;#</th>
-        <th scope="col">Current&nbsp;Step</th>
-        <th scope="col">Last&nbsp;Saved</th>
+        <th scope="col">Failure&nbsp;Reason</th>
+        <th scope="col">Last&nbsp;Updated</th>
         <th scope="col">Contributors</th>
-        <th scope="col">Lock</th>
-        <th scope="col">Action</th>
+        <th scope="col">Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for e in entries %}
       <tr>
-        <td>{{ e.data["CM_serial"] }}</td>
-        <td>{{ e.step_label }}</td>
+        <td>
+          CM{{ e.data["CM_serial"] }}
+          {% if e.parent %}
+            <br><small class="text-muted">Retest of Test{{ e.parent.id }}</small>
+          {% endif %}
+        </td>
+        <td>{{ e.fail_reason or "N/A" }}</td>
         <td>{{ e.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
         <td>{{ ", ".join(e.contributors or []) }}</td>
         <td>
-          {% if not e.is_locked %}
-            <span class="badge bg-success">Free</span>
-          {% else %}
-            <span class="badge bg-danger">Locked&nbsp;by&nbsp;{{ e.lock_owner }}</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if not e.is_locked %}
-            <form method="POST" action="{{ url_for('resume_entry', entry_id=e.id) }}" style="display:inline;">
-              <button type="submit" class="btn btn-sm btn-primary">Resume</button>
+          <div class="d-flex gap-1">
+            <form method="POST" action="{{ url_for('retest_failed', entry_id=e.id) }}">
+              <button type="submit" class="btn btn-sm btn-warning"
+                {% if not e.fail_stored %} disabled title="Already resumed"{% endif %}>
+                Retest
+              </button>
             </form>
-          {% else %}
-            <button class="btn btn-sm btn-secondary" disabled>Locked</button>
-          {% endif %}
+            <form method="POST" action="{{ url_for('clear_failed', entry_id=e.id) }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Clear</button>
+            </form>
+          </div>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% else %}
-    <p>No forms are currently in progress.</p>
+    <p>No failed tests to display.</p>
   {% endif %}
 
   <div class="mt-4">
-    <!--admin only buttons-->
-    {% if current_user.administrator %}
-      <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red mx-1">Administrator Dashboard</a>
-      <a href="{{ url_for('admin.deleted_entries') }}" class="btn btn-outline-red mx-1">View Deleted Forms</a>
-    {% endif %}
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-red mx-1">In-Progress Forms</a>
     <a href="{{ url_for('home') }}" class="btn btn-outline-red mx-1">Home</a>
     <a href="{{ url_for('history') }}" class="btn btn-outline-red mx-1">All&nbsp;Submissions</a>
     <a href="{{ url_for('help_button') }}" class="btn btn-outline-red mx-1">Help</a>
@@ -79,7 +89,7 @@
     refreshButton.textContent = "Disable Auto-Refresh";
     refreshInterval = setInterval(() => {
       window.location.reload();
-    }, 10000); // every 10 seconds auto refresh
+    }, 10000);
   }
 
   function stopAutoRefresh() {
@@ -87,14 +97,12 @@
     clearInterval(refreshInterval);
   }
 
-  // On page load: check if it was enabled last time
   if (localStorage.getItem("autoRefresh") === "true") {
     startAutoRefresh();
   } else {
     stopAutoRefresh();
   }
 
-  // Toggle when button is clicked
   refreshButton.addEventListener("click", () => {
     const enabled = localStorage.getItem("autoRefresh") === "true";
     if (enabled) {

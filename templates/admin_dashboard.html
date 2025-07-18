@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block page_title %}Admin · Manage In-Progress Forms{% endblock %}
+{% block title %}Manage In-Progress Forms{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>All In-Progress / Saved Forms</h3>
+
+  {% if forms %}
+  <table class="table table-striped table-bordered mt-3 align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>Serial</th>
+        <th>Last Updated</th>
+        <th>Contributors</th>
+        <th>Lock</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in forms %}
+      <tr>
+        <td>{{ f.data["CM_serial"] }}</td>
+        <td>{{ f.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+        <td>{{ ", ".join(f.contributors or []) }}</td>
+        <td>
+            <!--TODO add who cleared the lock to lock history-->
+            {% if f.lock_owner %}
+                Locked by {{ f.lock_owner }}
+                <form method="POST" action="{{ url_for('admin.clear_lock', entry_id=f.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-warning ms-2"
+                        onclick="return confirm('Clear lock for this form?');">
+                    Clear Lock
+                </button>
+                </form>
+            {% else %}
+                <span class="text-success">Free</span>
+            {% endif %}
+        </td>
+        <td>
+          <form method="POST" action="{{ url_for('delete_form', entry_id=f.id) }}">
+            <button type="submit" class="btn btn-sm btn-danger"
+              onclick="return confirm('Are you sure you want to permanently delete this form?');">
+              Delete
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No in-progress forms found.</p>
+  {% endif %}
+
+  <div class="mt-4">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Dashboard</a>
+    <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">Home</a>
+    {% if current_user.administrator %}
+        <a href="{{ url_for('admin.deleted_entries') }}" class="btn btn-outline-dark mx-1">View Deleted Forms</a>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
