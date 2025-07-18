@@ -17,6 +17,7 @@
 
   .clickable-label {
     color: #0d6efd;
+
     text-decoration: none;
     font-weight: 500;
   }
@@ -109,7 +110,7 @@
                 </a>
               </p>
             {% endif %}
-            <input class="form-control mb-3" type="file" name="{{ field.name }}">
+
           {% endif %}
         {% endif %}
       {% endfor %}
@@ -123,7 +124,6 @@
       <input type="hidden" name="fail_test_start" id="fail_test_start" value="false">
       <input type="hidden" name="fail_reason" id="fail_reason">
       <input type="hidden" name="fail_test" id="fail_test" value="false">
-
 
       <div id="fail-confirm-section" style="display: none;" class="mb-3">
         <label for="visible_reason_input">Enter reason for failure:</label>
@@ -169,6 +169,7 @@
   </div>
 </div>
 
+<!-- JavaScript for failure flow + character counter -->
 <script>
   // fail_test_start = 'true' by fail test btn if fields are ok then it passses trigger_fail_prompt = True which calls text box appear
   // should prob lock serial number or store it? while filling out field?
@@ -199,6 +200,25 @@
     document.getElementById('fail_test').value = 'true';
     document.querySelector('form').submit();
   }
+
+  function updateCharCount(textarea) {
+    const fieldName = textarea.dataset.fieldName;
+    const counter = document.getElementById(fieldName + "-counter");
+    if (counter) {
+      counter.textContent = textarea.value.length;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".text-field-with-counter").forEach((ta) => {
+      updateCharCount(ta);
+    });
+    const failReasonField = document.getElementById("visible_reason_input");
+    if (failReasonField) {
+      updateCharCount(failReasonField);
+    }
+  });
+</script>
 
   function updateCharCount(textarea) {
     const fieldName = textarea.dataset.fieldName;

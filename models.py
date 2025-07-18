@@ -233,6 +233,7 @@ class FormField:
             help_label=help_label,
             help_target=help_target
         )
+
     def get_value(self, request):
         if self.type_field == "file":
             file = request.files.get(self.name)

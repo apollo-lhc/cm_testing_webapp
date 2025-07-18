@@ -28,13 +28,11 @@ from form_config import FORMS, FORMS_NON_DICT
 from admin_routes import admin_bp
 from utils import (validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock)
 
-
 app = Flask(__name__)
 
 app.config['SECRET_KEY'] = 'testsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
-
 
 db.init_app(app)
 
@@ -100,7 +98,6 @@ def home():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return render_template('index.html')
-
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
