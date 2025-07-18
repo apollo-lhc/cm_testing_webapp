@@ -67,3 +67,132 @@ class EntrySlot:
             data=d.get('data', {}),
             test=d.get('test', False)
         )
+
+class FormField:
+    def __init__(
+        self,
+        *,
+        name=None,
+        label=None,
+        type_field=None,
+        validate=None,
+        display_history=True,
+        display_form=True,
+        help_text=None,
+        help_link=None,
+        help_label=None,
+        help_target=None,
+    ):
+        self.name = name
+        self.label = label
+        self.type_field = type_field
+        self.validate = validate
+        self.display_history = display_history
+        self.display_form = display_form
+        if not self.display_form:
+            self.display_history = False
+        self.help_text = help_text
+        self.help_link = help_link
+        self.help_label = help_label
+        self.help_target = help_target
+
+    def __repr__(self):
+        return f"FormField(name={self.name}, label={self.label}, type_field={self.type_field})"
+
+    @classmethod
+    def blank(cls):
+        return cls(name="blank", label="", type_field=None, display_history=False)
+
+    @classmethod
+    def null(cls, *, name, label, help_text=None, help_link=None, help_label=None, help_target=None):
+        return cls(
+            name=name,
+            label=label,
+            type_field="null",
+            display_history=False,
+            help_text=help_text,
+            help_link=help_link,
+            help_label=help_label,
+            help_target=help_target
+        )
+
+    @classmethod
+    def help_instance(cls, *, name, help_text=None, help_link=None, help_label=None):
+        return cls(
+            name=name,
+            display_form=False,
+            display_history=False,
+            help_text=help_text,
+            help_link=help_link,
+            help_label=help_label,
+        )
+
+    @classmethod
+    def text(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None, help_target=None):
+        return cls(
+            name=name,
+            label=label,
+            type_field="text",
+            validate=validate,
+            display_history=display_history,
+            help_text=help_text,
+            help_link=help_link,
+            help_label=help_label,
+            help_target=help_target
+        )
+
+    @classmethod
+    def integer(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None, help_target=None):
+        return cls(
+            name=name,
+            label=label,
+            type_field="integer",
+            validate=validate,
+            display_history=display_history,
+            help_text=help_text,
+            help_link=help_link,
+            help_label=help_label,
+            help_target=help_target
+        )
+
+    @classmethod
+    def float(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None, help_target=None):
+        return cls(
+            name=name,
+            label=label,
+            type_field="float",
+            validate=validate,
+            display_history=display_history,
+            help_text=help_text,
+            help_link=help_link,
+            help_label=help_label,
+            help_target=help_target
+        )
+
+    @classmethod
+    def boolean(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None, help_target=None):
+        return cls(
+            name=name,
+            label=label,
+            type_field="boolean",
+            validate=validate,
+            display_history=display_history,
+            help_text=help_text,
+            help_link=help_link,
+            help_label=help_label,
+            help_target=help_target
+        )
+
+    @classmethod
+    def file(cls, *, name, label, validate=None, display_history=True, help_text=None, help_link=None, help_label=None, help_target=None):
+        return cls(
+            name=name,
+            label=label,
+            type_field="file",
+            validate=validate,
+            display_history=display_history,
+            help_text=help_text,
+            help_link=help_link,
+            help_label=help_label,
+            help_target=help_target
+        )
