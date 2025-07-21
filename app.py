@@ -27,43 +27,40 @@ from models import db, User, TestEntry, EntrySlot
 from form_config import FORMS, FORMS_NON_DICT
 from admin_routes import admin_bp
 from utils import (validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock)
+from constants import SERIAL_OFFSET, SERIAL_MIN, SERIAL_MAX
+
+
 
 app = Flask(__name__)
 
+basedir = os.path.abspath(os.path.dirname(__file__))
+data_path = os.path.join(basedir, 'data')
+
 app.config['SECRET_KEY'] = 'testsecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(data_path, 'test.db')}"
+app.config['SQLALCHEMY_BINDS'] = {
+    'main': f"sqlite:///{os.path.join(data_path, 'test.db')}",
+    'users': f"sqlite:///{os.path.join(data_path, 'users.db')}"
+}
 
 db.init_app(app)
 
 app.register_blueprint(admin_bp)
 
-# Constants
-SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
-SERIAL_MAX = 3050
-SERIAL_MIN = SERIAL_OFFSET
-
-
 with app.app_context():
     db.create_all()
-    if not User.query.filter_by(username='admin').first():
-        admin = User(username='admin')  # type: ignore
-        admin.set_password('password')
-        admin.administrator = True
-        db.session.add(admin)
-        logan = User(username='logan')  # type: ignore
-        logan.set_password('prosser')
-        logan.administrator = True
-        db.session.add(logan)
-        db.session.commit()
+
 
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    """route to serve uploaded files"""
+    """Route to serve uploaded files"""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    # TODO fix ui for this
     """User registration route"""
     if request.method == 'POST':
         if User.query.filter_by(username=request.form['username']).first():
@@ -77,7 +74,8 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """login form route"""
+    #TODO fix ui for this
+    """Login form route"""
     if request.method == 'POST':
         user = User.query.filter_by(username=request.form['username']).first()
         if user and user.check_password(request.form['password']):
@@ -92,12 +90,14 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
+
 @app.route('/')
 def home():
     """home page route"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return render_template('index.html')
+
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
@@ -131,8 +131,8 @@ def form():
 
         errors = {}
         if "CM_serial" in session['form_data'] and form_index > 0:
-            request.form = request.form.copy()
-            request.form["CM_serial"] = session["form_data"]["CM_serial"]
+            form_data = request.form.copy()
+            form_data["CM_serial"] = session["form_data"]["CM_serial"]
 
         # Step 1: update form_data with current inputs
         for field in current_form["fields"]:
@@ -345,7 +345,7 @@ def form():
 
             if index is not None:
                 session['forms_per_serial'][index] = None
-                session.modified = True
+                session.modified = True  # pylint: disable=assigning-non-slot
 
             session.pop('form_data', None)
 
@@ -364,7 +364,7 @@ def form():
                         closed=False,
                         data=session['form_data'].copy()
                     ).to_dict()
-                    session.modified = True
+                    session.modified = True  # pylint: disable=assigning-non-slot
 
                 # To submit or create test entry each time user hits next on a form page to show in progress forms and for serial lock full funcitonality
                 user = current_user()
@@ -411,7 +411,7 @@ def form():
 
                 if index is not None:
                     session['forms_per_serial'][index] = None
-                    session.modified = True
+                    session.modified = True  # pylint: disable=assigning-non-slot
                 session.pop('form_data', None)
 
                 return render_template('form_complete.html')

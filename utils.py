@@ -1,18 +1,16 @@
 # utils.py
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from flask import session
 from werkzeug.utils import secure_filename
 
 from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
+from constants import LOCK_TIMEOUT
+
 
 fishy_users = {}
-
-
-# Constants
-LOCK_TIMEOUT = timedelta(minutes=20)   # how long before a stale lock is considered free
 
 def validate_field(field, value, data=None):
     """Validate a single field value based on its type and requirements."""

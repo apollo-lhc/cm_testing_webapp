@@ -3,24 +3,128 @@ from datetime import datetime
 from random import randint, uniform, choice
 from flask import render_template, request, redirect, url_for, session, current_app, Blueprint
 
-from models import db, TestEntry, EntrySlot, DeletedEntry
+from models import db, TestEntry, EntrySlot, DeletedEntry, User
 from form_config import FORMS
-from utils import (
-    current_user,
-    authenticate_admin
-)
+from utils import (current_user, authenticate_admin)
+from constants import SERIAL_OFFSET, SERIAL_MIN, SERIAL_MAX
+
 
 admin_bp = Blueprint('admin', __name__)
 
 fishy_users = {}
 
-# Constants
-SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
-SERIAL_MAX = 3050
-SERIAL_MIN = SERIAL_OFFSET
+## Admin commands for managing admin's debugging and generating test data
 
+@admin_bp.route('/create_admin', methods=['GET', 'POST'])
+def create_admin():
+    """
+    Creates a new user account with administrator privileges.
 
-## Admin commands for debugging and generating test data
+    Accessible only to logged-in admin users. Displays a form to input a username and password.
+    On POST, creates and stores a new admin user unless the username already exists.
+    """
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        if User.query.filter_by(username=username).first():
+            return "User already exists."
+
+        new_admin = User(username=username, administrator=True)
+        new_admin.set_password(password)
+        db.session.add(new_admin)
+        db.session.commit()
+
+        return f"Admin user {username} created."
+
+    return '''
+        <form method="post">
+            Username: <input type="text" name="username"><br>
+            Password: <input type="password" name="password"><br>
+            <input type="submit" value="Create Admin">
+        </form>
+    '''
+
+@admin_bp.route('/promote_user', methods=['GET', 'POST'])
+def promote_user():
+    """
+    Promotes an existing user to admin status.
+
+    Accessible only to logged-in admin users. Displays a form to input a username.
+    On POST, sets the `administrator` flag of the specified user to True if not already an admin.
+
+    Need to disable authenticate_admin check upon creation of new users.db without any exsiting admins
+    """
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    if request.method == 'POST':
+        username = request.form['username']
+        user = User.query.filter_by(username=username).first()
+
+        if not user:
+            return f"No such user: {username}"
+
+        if user.administrator:
+            return f"User {username} is already an admin."
+
+        user.administrator = True
+        db.session.commit()
+        return f"User {username} promoted to admin."
+
+    return '''
+        <form method="post">
+            Username to promote: <input type="text" name="username"><br>
+            <input type="submit" value="Promote to Admin">
+        </form>
+    '''
+
+@admin_bp.route('/demote_user', methods=['GET', 'POST'])
+def demote_user():
+    """
+    Demotes an existing user by removing admin privileges.
+
+    Accessible only to logged-in admin users. Displays a form to enter a username,
+    and on POST, updates the specified user's `administrator` flag to False.
+    """
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    if request.method == 'POST':
+        username = request.form['username']
+        user = User.query.filter_by(username=username).first()
+
+        if not user:
+            return f"No such user: {username}"
+
+        if not user.administrator:
+            return f"User {username} is already not an admin."
+
+        user.administrator = False
+        db.session.commit()
+        return f"User {username} demoted from admin."
+
+    return '''
+        <form method="post">
+            Username to demote: <input type="text" name="username"><br>
+            <input type="submit" value="Remove Admin Privileges">
+        </form>
+    '''
 
 @admin_bp.route('/list_fishy_users')
 def list_fishy_users():
@@ -37,6 +141,44 @@ def list_fishy_users():
         return "No such users"
 
     return fishy_users
+
+@admin_bp.route('/admin/help')
+def list_admin_commands():
+    """
+    Displays a list of all admin routes and their descriptions.
+    """
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    # commented commands are currently not working or not implemented or not needed
+
+    commands = {
+        '/create_admin': 'Create a new admin user.',
+        '/promote_user': 'Promote an existing user to admin.',
+        '/demote_user': 'Demote an admin to a regular user.',
+        '/list_fishy_users': 'View users flagged for suspicious admin access attempts.',
+        # '/add_dummy_entry': 'Add dummy test entries to the database.',
+        # '/add_dummy_saves': 'Add dummy form save data to the session.',
+        # '/clear_history': 'Delete all test history and uploaded files.',
+        # '/clear_dummy_history': 'Delete only test=True (dummy) history entries and files.',
+        # '/check_dummy_count': 'Show the number of dummy entries in the database.',
+        # '/clear_saves': 'Clear all of the current user’s saved progress.',
+        # '/clear_dummy_saves': 'Clear only dummy (test=True) saves for the current user.',
+        '/admin/admin_dashboard': 'Admin dashboard for viewing in-progress forms.',
+        '/admin/clear_lock/<entry_id>': 'Clear the lock on a form so it can be edited.',
+        '/admin/delete_form/<entry_id>': 'Delete a form and archive it in DeletedEntry.',
+        '/admin/deleted_entries': 'View forms that have been deleted from the dashboard.',
+    }
+
+    return render_template('admin_commands.html', commands=commands)
+
+
+# data generation commands - old as of 7/21 - not necessasary for time being
+#TODO remove these on actual website launch
 
 @admin_bp.route('/add_dummy_entry')
 def add_dummy_entry():
@@ -55,6 +197,8 @@ def add_dummy_entry():
         count = int(request.args.get('count', 1))
     except ValueError:
         count = 1
+
+    user = current_user()
 
     for _ in range(count):
         test_data = {}
@@ -79,7 +223,7 @@ def add_dummy_entry():
                     test_data[name] = ""  # Leave blank for file fields
 
         entry = TestEntry(
-            user_id=session['user_id'],
+            contributors=[user.username],
             data=test_data,
             timestamp=datetime.utcnow(),
             test=True
@@ -160,8 +304,9 @@ def add_dummy_saves():
             test=True
         ).to_dict()
 
-    session.modified = True
+    session.modified = True  # pylint: disable=assigning-non-slot
     return redirect(url_for('dashboard'))
+
 
 @admin_bp.route('/clear_history')
 def clear_history():
@@ -173,7 +318,8 @@ def clear_history():
         return "Permission Denied"
 
     with current_app.app_context():
-        db.session.query(TestEntry).delete()
+        #db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
+        db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
         db.session.commit()
 
         upload_dir = current_app.config['UPLOAD_FOLDER']
@@ -222,6 +368,7 @@ def check_dummy_count():
     count = db.session.query(TestEntry).filter_by(test=True).count()
     return f"Dummy entries: {count}"
 
+#TODO fix or remove
 @admin_bp.route('/clear_saves')
 def clear_saves():
     """clears all of current users saves to be removed later or made user friendly (non-admin)"""
@@ -233,10 +380,11 @@ def clear_saves():
 
     session['forms_per_serial'] = [None] * 51
     session.pop('form_data', None)
-    session.modified = True
+    session.modified = True  # pylint: disable=assigning-non-slot
 
     return redirect(request.referrer or url_for('dashboard'))
 
+#TODO fix or remove
 @admin_bp.route('/clear_dummy_saves')
 def clear_dummy_saves():
     """clears all current users saves with test=True (random generated entries)"""
@@ -250,12 +398,11 @@ def clear_dummy_saves():
         for i, save in enumerate(session['forms_per_serial']):
             if save and save.get('test'):
                 session['forms_per_serial'][i] = None
-            session.modified = True
+            session.modified = True  # pylint: disable=assigning-non-slot
 
     return redirect(request.referrer or url_for('dashboard'))
 
 # for admin dashboard:
-
 @admin_bp.route('/admin/admin_dashboard')
 def admin_dashboard():
     if 'user_id' not in session:
@@ -315,7 +462,6 @@ def delete_form(entry_id):
         db.session.commit()
 
     return redirect(url_for('admin_dashboard'))
-
 
 # for admin view of deleted entries:
 

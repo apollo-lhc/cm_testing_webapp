@@ -7,6 +7,8 @@ SERIAL_OFFSET = 3000  # Ensure forms_per_serial[0] maps to CM3000
 SERIAL_MIN = SERIAL_OFFSET
 SERIAL_MAX = 3050
 
+
+
 def validate_serial(v):
     if v and v.isdigit():
         valid = SERIAL_MIN <= int(v) <= SERIAL_MAX
@@ -27,9 +29,11 @@ def field_to_dict(field: FormField):
     }
 
 
+
 # Define FORMS_NON_DICT using the updated FormField class
 
 FORMS_NON_DICT = [
+
     {
         # Rewriting form route to require cm serial is the first form page and completely alone on form step = 0 (locking funcitonality)
         "name": "serial_request",
@@ -44,7 +48,7 @@ FORMS_NON_DICT = [
         "name": "hardware_test",
         "label": "Hardware Test",
         "fields": [
-            #FormField.integer(name="CM_serial", label="CM Serial number", validate=validate_serial)
+            #FormField.integer(name="CM_serial", label="CM Serial number", validate=validate_serial),
             FormField.boolean(name="passed_visual", label="Passed Visual Inspection"),
             FormField.text(name="comments", label="Comments"),
         ]
@@ -236,6 +240,8 @@ assert first_form["name"] == "serial_request", \
     "Config error: the first form page must be 'serial_request'."
 assert len(first_form["fields"]) == 1, \
     "serial_request page should contain exactly one field."
+
+
 
 FORMS = [
     {

@@ -17,6 +17,8 @@ db = SQLAlchemy()
 class User(db.Model):
     """User model for authentication."""
 
+    __bind_key__ = 'users'
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
@@ -36,6 +38,8 @@ class User(db.Model):
 
 class TestEntry(db.Model):
     """Model for storing test entry data and file uploads."""
+
+    __bind_key__ = 'main'
 
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow) # used on submission and failure and save, timestamp shown in history table summary
@@ -62,6 +66,7 @@ class TestEntry(db.Model):
     # ----------------------------------------------------
 
 class EntryHistory(db.Model):
+    __bind_key__ = 'main'
     #need to implement in save and exit logic
     id = db.Column(db.Integer, primary_key=True)
     entry_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'), nullable=False)
@@ -72,6 +77,7 @@ class EntryHistory(db.Model):
     changes = db.Column(JSON)  # Optional: record diff or snapshot of fields
 
 class DeletedEntry(db.Model):
+    __bind_key__ = 'main'
     id = db.Column(db.Integer, primary_key=True)
     original_entry_id = db.Column(db.Integer)   # id of the TestEntry that was deleted
     deleted_by = db.Column(db.String(80))       # username of admin who deleted
@@ -233,7 +239,6 @@ class FormField:
             help_label=help_label,
             help_target=help_target
         )
-
     def get_value(self, request):
         if self.type_field == "file":
             file = request.files.get(self.name)
