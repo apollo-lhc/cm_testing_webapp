@@ -1,4 +1,23 @@
-# utils.py
+"""
+utils.py
+
+Contains utility functions for form validation, file processing, user session handling,
+and lock management for test entries in the Flask web application.
+
+Functions:
+- validate_field: Validates individual form fields based on type and custom logic.
+- validate_form: Validates an entire form submission and returns error messages.
+- determine_step_from_data: Identifies the next incomplete step in a multi-step form.
+- acquire_lock: Attempts to lock a TestEntry for editing by a specific user.
+- release_lock: Releases a previously acquired TestEntry lock.
+- process_file_fields: Saves uploaded files with unique names and updates the form data.
+- current_user: Retrieves the currently logged-in user from the session.
+- authenticate_admin: Checks if the current user is an admin and logs suspicious access.
+
+Constants and external references:
+- fishy_users: Tracks users attempting unauthorized admin access.
+- FORMS_NON_DICT, LOCK_TIMEOUT: Imported for validation and lock control.
+"""
 
 import os
 from datetime import datetime

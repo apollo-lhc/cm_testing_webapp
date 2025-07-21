@@ -1,3 +1,15 @@
+"""
+constants.py
+
+Defines shared configuration constants used across the Flask web application.
+
+Constants:
+- SERIAL_OFFSET: Starting serial number used to align form index mapping with CM serials.
+- SERIAL_MIN: Minimum valid CM serial number (same as SERIAL_OFFSET).
+- SERIAL_MAX: Maximum valid CM serial number.
+- LOCK_TIMEOUT: Duration after which a form lock is considered expired and can be reassigned.
+"""
+
 from datetime import timedelta
 
 

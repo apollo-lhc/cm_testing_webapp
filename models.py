@@ -66,6 +66,8 @@ class TestEntry(db.Model):
     # ----------------------------------------------------
 
 class EntryHistory(db.Model):
+    """Model to keep track of who added / changed what in a test entry."""
+
     __bind_key__ = 'main'
     #need to implement in save and exit logic
     id = db.Column(db.Integer, primary_key=True)
@@ -77,6 +79,8 @@ class EntryHistory(db.Model):
     changes = db.Column(JSON)  # Optional: record diff or snapshot of fields
 
 class DeletedEntry(db.Model):
+    """Model for admin deleted entries that are stored in the deleted entries table """
+
     __bind_key__ = 'main'
     id = db.Column(db.Integer, primary_key=True)
     original_entry_id = db.Column(db.Integer)   # id of the TestEntry that was deleted

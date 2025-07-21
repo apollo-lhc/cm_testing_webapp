@@ -1,3 +1,47 @@
+"""
+admin_routes.py
+
+Defines all administrative routes for managing users, test data, and system state
+in the Flask web application. These routes are restricted to authenticated admin users.
+
+Features:
+- User Management:
+    - /create_admin: Create a new admin user.
+    - /promote_user: Promote an existing user to admin status.
+    - /demote_user: Demote an admin user to regular status.
+    - /list_fishy_users: View users flagged for suspicious admin access attempts.
+
+- Admin Help:
+    - /admin/help: View a list of available admin commands and their descriptions.
+
+- Data Generation and Testing:
+    - /add_dummy_entry: Generate dummy test entries for testing the form pipeline.
+    - /add_dummy_saves: Generate dummy in-progress form saves (session-based).
+    - /check_dummy_count: Count the number of dummy (test=True) entries in the database.
+
+- Data Clearing and Cleanup:
+    - /clear_history: Delete all test history and uploaded files.
+    - /clear_dummy_history: Delete only dummy (test=True) entries and associated files.
+    - /clear_saves: Clear all saved form progress for the current user.
+    - /clear_dummy_saves: Clear only dummy saves for the current user.
+
+- Admin Dashboard Actions:
+    - /admin/admin_dashboard: View all in-progress TestEntry forms.
+    - /admin/clear_lock/<entry_id>: Remove a lock from a TestEntry.
+    - /admin/delete_form/<entry_id>: Delete a TestEntry and archive it in DeletedEntry.
+    - /admin/deleted_entries: View all deleted/archived entries for audit or recovery.
+
+Security:
+All routes require:
+- A valid user session (via `session['user_id']`)
+- Admin status (checked using `authenticate_admin()`)
+
+Note:
+Dummy data and cleanup routes are intended for development/debugging and may be disabled
+or removed in production environments.
+"""
+
+
 import os
 from datetime import datetime
 from random import randint, uniform, choice
