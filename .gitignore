@@ -1,9 +1,10 @@
 
 ###
 uploads/**
-data/**
+data/*
 venv
-
+!data/.gitkeep
+!data/users.db
 ## standard python stuff below here
 
 # Byte-compiled / optimized / DLL files
