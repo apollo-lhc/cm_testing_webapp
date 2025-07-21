@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block page_title %}Apollo CM Testing · Failed Tests{% endblock %}
+{% block title %}Failed Tests{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Failed Test Submissions</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <strong>Last updated:</strong> <span id="last-updated">{{ now.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+    </div>
+    <div>
+      <button id="toggle-refresh" class="btn btn-outline-primary btn-sm">Enable Auto-Refresh</button>
+    </div>
+  </div>
+
+  {% if entries %}
+  <table class="table table-striped table-bordered align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th scope="col">Serial&nbsp;#</th>
+        <th scope="col">Failure&nbsp;Reason</th>
+        <th scope="col">Last&nbsp;Updated</th>
+        <th scope="col">Contributors</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td>
+          CM{{ e.data["CM_serial"] }}
+          {% if e.parent %}
+            <br><small class="text-muted">Retest of Test{{ e.parent.id }}</small>
+          {% endif %}
+        </td>
+        <td>{{ e.fail_reason or "N/A" }}</td>
+        <td>{{ e.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
+        <td>{{ ", ".join(e.contributors or []) }}</td>
+        <td>
+          <div class="d-flex gap-1">
+            <form method="POST" action="{{ url_for('retest_failed', entry_id=e.id) }}">
+              <button type="submit" class="btn btn-sm btn-warning"
+                {% if not e.fail_stored %} disabled title="Already resumed"{% endif %}>
+                Retest
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('clear_failed', entry_id=e.id) }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Clear</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No failed tests to display.</p>
+  {% endif %}
+
+  <div class="mt-4">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-red mx-1">In-Progress Forms</a>
+    <a href="{{ url_for('home') }}" class="btn btn-outline-red mx-1">Home</a>
+    <a href="{{ url_for('history') }}" class="btn btn-outline-red mx-1">All&nbsp;Submissions</a>
+    <a href="{{ url_for('help_button') }}" class="btn btn-outline-red mx-1">Help</a>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-red mx-1">Log&nbsp;out</a>
+  </div>
+</div>
+
+<script>
+  const refreshButton = document.getElementById("toggle-refresh");
+  let refreshInterval;
+
+  function startAutoRefresh() {
+    refreshButton.textContent = "Disable Auto-Refresh";
+    refreshInterval = setInterval(() => {
+      window.location.reload();
+    }, 10000);
+  }
+
+  function stopAutoRefresh() {
+    refreshButton.textContent = "Enable Auto-Refresh";
+    clearInterval(refreshInterval);
+  }
+
+  if (localStorage.getItem("autoRefresh") === "true") {
+    startAutoRefresh();
+  } else {
+    stopAutoRefresh();
+  }
+
+  refreshButton.addEventListener("click", () => {
+    const enabled = localStorage.getItem("autoRefresh") === "true";
+    if (enabled) {
+      localStorage.setItem("autoRefresh", "false");
+      stopAutoRefresh();
+    } else {
+      localStorage.setItem("autoRefresh", "true");
+      startAutoRefresh();
+    }
+  });
+</script>
+{% endblock %}
