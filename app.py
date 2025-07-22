@@ -16,6 +16,10 @@ Features:
 # TODO make test resume button to avoid constantly needing to unlock lock
 # TODO fix formatting of code and make constantly repeated code into helper functions
 
+
+#TODO get rid of lock and key system and only check if user holds something
+#TODO rewrite form route after one form per user gets done
+
 import os
 import io
 import csv
@@ -51,7 +55,6 @@ app.register_blueprint(admin_bp)
 
 with app.app_context():
     db.create_all()
-
 
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
@@ -90,7 +93,6 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
-
 @app.route('/')
 def home():
     """home page route"""
@@ -98,25 +100,15 @@ def home():
         return redirect(url_for('login'))
     return render_template('index.html')
 
-
 @app.route('/form', methods=['GET', 'POST'])
 def form():
     """form submission save and failure function"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
+    user = current_user()
+
     form_index = request.args.get('step')
-    if form_index is None:
-        cm_serial = session.get('form_data', {}).get("CM_serial")
-        if cm_serial and cm_serial.isdigit():
-            index = int(cm_serial) - SERIAL_OFFSET
-            if 0 <= index < len(session['forms_per_serial']):
-                saved = session['forms_per_serial'][index]
-                if saved:
-                    entry = EntrySlot.from_dict(saved)
-                    form_index = entry.data.get('last_step', 0)
-
-
     form_index = int(form_index or 0)
     form_index = max(0, min(form_index, len(FORMS_NON_DICT) - 1))
     current_form = FORMS_NON_DICT[form_index]
@@ -124,23 +116,15 @@ def form():
     if 'form_data' not in session:
         session['form_data'] = {}
 
-    if 'forms_per_serial' not in session:
-        session['forms_per_serial'] = [None] * 51
-
     if request.method == 'POST':
 
-        errors = {}
-        if "CM_serial" in session['form_data'] and form_index > 0:
-            form_data = request.form.copy()
-            form_data["CM_serial"] = session["form_data"]["CM_serial"]
+        #errors = {}
 
         # Step 1: update form_data with current inputs
         for field in current_form["fields"]:
             value = request.form.get(field.name)
             if value is not None:
                 session['form_data'][field.name] = value
-
-        session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
 
         session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
 
@@ -166,9 +150,7 @@ def form():
             posted_serial = request.form.get("CM_serial")
 
             if posted_serial and posted_serial.isdigit():
-                existing_entry = (
-                    TestEntry.query
-                    .filter(
+                existing_entry = TestEntry.query.filter(
                         TestEntry.data["CM_serial"].as_string() == str(cm_serial),
                         db.or_(
                             TestEntry.is_saved.is_(True),
@@ -179,7 +161,6 @@ def form():
                             )
                         )
                     ).first()
-                )
 
                 if existing_entry:
                     session.pop('form_data', None)
@@ -192,37 +173,23 @@ def form():
                         name="Form"
                     )
 
-        # Step 3: handle Save & Exit
+        # Save & Exit
         if request.form.get("save_exit") == "true":
-            if serial_error:
+            if serial_error or form_index == 0:
                 return render_template(
                     "form.html",
                     fields=current_form["fields"],
                     prefill_values=session['form_data'],
-                    errors={"CM_serial": serial_error},
-                    form_label=current_form.get("label"),
-                    name="Form"
-                )
-
-            user = current_user()
-            cm_serial = session['form_data'].get("CM_serial")
-
-            # form index = 0 required to be serial number only see asserts in form_config
-            if form_index == 0:
-                return render_template(
-                    "form.html",
-                    fields=current_form["fields"],
-                    prefill_values=session['form_data'],
-                    errors={"CM_serial": "Submit Serial Number Before Saving"},
+                    errors={"CM_serial": serial_error or "Submit Serial Number Before Saving"},
                     form_label=current_form.get("label"),
                     name="Form"
                 )
 
             # Look for an existing in‑progress TestEntry for this serial
-            entry = (TestEntry.query
-                    .filter(TestEntry.data["CM_serial"].as_string() == str(cm_serial),
-                            TestEntry.is_saved.is_(True))
-                    .first())
+            entry = TestEntry.query.filter(
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial),
+                TestEntry.is_saved.is_(True)
+                ).first()
 
             if not entry:
                 entry = TestEntry(data={}, is_saved=True)
@@ -230,12 +197,14 @@ def form():
             # Merge new data; do NOT overwrite existing uploaded filenames if none chosen
             entry.data.update(session['form_data'])
             flag_modified(entry, "data")
-            if user.username not in (entry.contributors or []):
-                entry.contributors = (entry.contributors or []) + [user.username]
             entry.timestamp = datetime.utcnow()
             entry.failure = False
             entry.fail_reason = None
             entry.fail_stored = False
+
+            if user.username not in (entry.contributors or []):
+                entry.contributors = (entry.contributors or []) + [user.username]
+
             db.session.add(entry)
             db.session.commit()
             release_lock(entry)
@@ -244,26 +213,17 @@ def form():
 
         # 1st Check for Error Valid Serial Number
         if request.form.get("fail_test_start") == "true":
-            if serial_error:
+            if serial_error or form_index == 0:
                 return render_template(
                     "form.html",
                     fields=current_form["fields"],
                     prefill_values=session['form_data'],
-                    errors={"CM_serial": serial_error},
+                    errors={"CM_serial": serial_error or "Submit Serial Number Before Submitting Test as Failure"},
                     form_label=current_form.get("label"),
                     name="Form",
                 )
 
-            if form_index == 0:
-                return render_template(
-                    "form.html",
-                    fields=current_form["fields"],
-                    prefill_values=session['form_data'],
-                    errors={"CM_serial": "Submit Serial Number Before Submitting Test as Failure"},
-                    form_label=current_form.get("label"),
-                    name="Form"
-                )
-
+            # Renders Form Failure Text Box
             return render_template(
                 "form.html",
                 fields=current_form["fields"],
@@ -288,7 +248,6 @@ def form():
                 )
 
             reason = request.form.get("fail_reason", "").strip()
-            user = current_user()
 
             # Update session data with latest input
             for field in current_form["fields"]:
@@ -304,117 +263,78 @@ def form():
             )
 
             # Find existing in-progress entry to mark as failed
-            entry = (
-                TestEntry.query
-                .filter(TestEntry.data["CM_serial"].as_string() == str(cm_serial),
-                        TestEntry.is_saved.is_(True))
-                .first()
-            )
+            entry = TestEntry.query.filter(
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial),
+                TestEntry.is_saved.is_(True)
+            ).first()
+
             if entry:
                 entry.data = session['form_data']
                 flag_modified(entry, "data")
-                entry.failure = True
-                entry.fail_reason = reason
                 entry.is_saved = False  # not in progress anymore
-                entry.timestamp = datetime.utcnow()
-                entry.is_finished = True
-
-                if entry.lock_owner:
-                    release_lock(entry)
-
 
             else:
-                # fallback if no saved form found
-                entry = TestEntry(
-                    data=session['form_data'],
-                    timestamp=datetime.utcnow(),
-                    failure=True,
-                    fail_reason=reason,
-                    is_saved=False,
-                    is_finished=True)
+                entry = TestEntry(data=session['form_data'])
 
-                db.session.add(entry)
 
+            entry.failure = True
+            entry.fail_reason = reason
             entry.fail_stored = True
-            if user.username not in (entry.contributors or []):
-                entry.contributors = (entry.contributors or []) + [user.username]
-
             entry.is_finished = False
+            entry.timestamp = datetime.utcnow()
 
+            if user.username not in (entry.contributors or []):
+                entry.contributors = (entry.contributors or []) + user.username
+
+            db.session.add(entry)
             db.session.commit()
-
-            if index is not None:
-                session['forms_per_serial'][index] = None
-                session.modified = True  # pylint: disable=assigning-non-slot
-
+            release_lock(entry)
             session.pop('form_data', None)
 
             return render_template('form_complete.html')
 
-        # Step 4: full validation for Next
-        if request.form.get("fail_test_start") != "true": #unnecessary if fix it
+        # Final Submission
 
-            is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
+        is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
 
-            if is_valid:
-                if index is not None:
-                    if 'timestamp' not in session['form_data']:
-                        session['form_data']['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    session['forms_per_serial'][index] = EntrySlot(
-                        closed=False,
-                        data=session['form_data'].copy()
-                    ).to_dict()
-                    session.modified = True  # pylint: disable=assigning-non-slot
+        if is_valid:
+            entry = TestEntry.query.filter(
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial),
+                TestEntry.is_saved.is_(True)
+            ).first()
 
-                # To submit or create test entry each time user hits next on a form page to show in progress forms and for serial lock full funcitonality
-                user = current_user()
-
-                entry = (TestEntry.query
-                         .filter(TestEntry.data["CM_serial"].as_string() == str(cm_serial),
-                                 TestEntry.is_saved.is_(True))
-                         .first()
-                )
-
-                if not entry:
-                    entry = TestEntry(data=session['form_data'], is_saved=True)
-                    db.session.add(entry)
-                else:
-                    if entry.lock_owner and entry.lock_owner != user.username:
-                        return "This form is currently being edited by another user."
-                    entry.data = session['form_data']
-                    flag_modified(entry, "data")
-
-                if user.username not in (entry.contributors or []):
-                    entry.contributors = (entry.contributors or []) + [user.username]
-
-                entry.timestamp = datetime.utcnow()
-                entry.is_saved = True
-                db.session.commit()
-
-                if form_index + 1 < len(FORMS):
-                    return redirect(url_for('form', step=form_index + 1))
-
-                # Final submission
-                user = db.session.get(User, session['user_id'])
+            if not entry:
+                entry = TestEntry(data=session['form_data'], is_saved=True)
+                db.session.add(entry)
+            else:
+                if entry.lock_owner and entry.lock_owner != user.username:
+                    return "This form is currently being edited by another user."
                 entry.data = session['form_data']
                 flag_modified(entry, "data")
-                if user.username not in (entry.contributors or []):
-                    entry.contributors = (entry.contributors or []) + [user.username]
-                release_lock(entry)
-                entry.is_finished = True
-                entry.failure = False
-                entry.fail_reason = None
-                entry.fail_stored = False
-                entry.is_saved = False
-                #db.session.add(entry)
+
+            entry.timestamp = datetime.utcnow()
+            entry.is_saved = True
+
+            if user.username not in (entry.contributors or []):
+                entry.contributors = (entry.contributors or []) + [user.username]
+
+            if form_index + 1 < len(FORMS):
                 db.session.commit()
+                return redirect(url_for('form', step=form_index + 1))
 
-                if index is not None:
-                    session['forms_per_serial'][index] = None
-                    session.modified = True  # pylint: disable=assigning-non-slot
-                session.pop('form_data', None)
+            # Final submission - mark complete and final
+            entry.is_saved = False
+            entry.is_finished = True
+            entry.failure = False
+            entry.fail_reason = None
+            entry.fail_stored = False
+            flag_modified(entry, "data")
 
-                return render_template('form_complete.html')
+            db.session.commit()
+            release_lock(entry)
+            session.pop('form_data', None)
+            return render_template("form_complete.html")
+
 
         # Step 5: re-render form with inline errors
         if serial_error:
@@ -430,17 +350,6 @@ def form():
         )
 
     # GET request: load saved state if exists
-    cm_serial = session.get('form_data', {}).get("CM_serial")
-    if cm_serial and cm_serial.isdigit():
-        cm_serial = int(cm_serial)
-        if SERIAL_MIN <= cm_serial <= SERIAL_MAX:
-            index = cm_serial - SERIAL_OFFSET
-            saved = session['forms_per_serial'][index]
-
-            if saved and not session['form_data']:
-                entry = EntrySlot.from_dict(saved)
-                session['form_data'] = entry.data.copy()
-
     return render_template(
         "form.html",
         fields=current_form["fields"],

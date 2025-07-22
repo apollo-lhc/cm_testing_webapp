@@ -16,13 +16,17 @@ db = SQLAlchemy()
 
 class User(db.Model):
     """User model for authentication."""
-
     __bind_key__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     administrator = db.Column(db.Boolean, default=False)
+
+
+    # holding_form = db.Column(db.Boolean, default=False)
+    # curr_form_id = db.Column(db.Integer, nullable=True)
+
 
     def set_password(self, password):
         """Hash and set the user's password."""
@@ -43,15 +47,11 @@ class TestEntry(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow) # used on submission and failure and save, timestamp shown in history table summary
-    #TODO add current timestamp for in progress forms
-    #user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     data = db.Column(JSON)
     file_name = db.Column(db.String(120))
-    #user = db.relationship('User', backref=db.backref('entries', lazy=True))
     test = db.Column(db.Boolean, default=False)
     failure = db.Column(db.Boolean, default=False)
     fail_reason = db.Column(db.String, default=None)
-
     fail_stored = db.Column(db.Boolean, default=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'))
     parent = db.relationship('TestEntry', remote_side=[id], backref='retests')
@@ -63,13 +63,13 @@ class TestEntry(db.Model):
     contributors     = db.Column(JSON, default=list)                  # e.g. ["alice","bob"]
     lock_owner       = db.Column(db.String(80), nullable=True)
     lock_acquired_at = db.Column(db.DateTime, nullable=True)
-    # ----------------------------------------------------
+# ----------------------------------------------------
 
 class EntryHistory(db.Model):
     """Model to keep track of who added / changed what in a test entry."""
 
     __bind_key__ = 'main'
-    #need to implement in save and exit logic
+    #TODO: need to implement in save and exit logic or make alternative history table for users in progress
     id = db.Column(db.Integer, primary_key=True)
     entry_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'), nullable=False)
     username = db.Column(db.String(80), nullable=False)
@@ -95,6 +95,7 @@ class DeletedEntry(db.Model):
 
 class EntrySlot:
     """Model for keeping track and saving in use forms per serial number"""
+    #TODO get rid of this entirely
     def __init__(self, closed=False, data=None, test=False):
         self.closed = closed
         self.data = data or {}
