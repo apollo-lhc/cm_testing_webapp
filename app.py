@@ -70,7 +70,7 @@ def register():
         db.session.add(new_user)
         db.session.commit()
         return redirect(url_for('login'))
-    return render_template('register.html')
+    return render_template('register.html', is_admin_creation=False)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
