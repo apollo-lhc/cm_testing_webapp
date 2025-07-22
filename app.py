@@ -27,11 +27,10 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash
 from flask import send_from_directory
 from sqlalchemy.orm.attributes import flag_modified #TODO include in the .yml and enviroment if needed later
-from models import db, User, TestEntry, EntrySlot
+from models import db, User, TestEntry
 from form_config import FORMS, FORMS_NON_DICT
 from admin_routes import admin_bp
 from utils import (validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock)
-from constants import SERIAL_OFFSET, SERIAL_MIN, SERIAL_MAX
 
 
 
@@ -133,17 +132,7 @@ def form():
 
         # Step 2.5: determine CM_serial and index
         cm_serial = session['form_data'].get("CM_serial")
-        index = None
         serial_error = None
-
-        if cm_serial and cm_serial.isdigit():
-            cm_serial = int(cm_serial)
-            if SERIAL_MIN <= cm_serial <= SERIAL_MAX:
-                index = cm_serial - SERIAL_OFFSET
-            else:
-                serial_error = "Must be between 3000 and 3050"
-        else:
-            serial_error = "Must be an integer between 3000 and 3050"
 
         # check to see if existing entry (saved or failed or in progress) exists
         if form_index == 0:
