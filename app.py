@@ -203,7 +203,7 @@ def form():
 
             # Look for an existing in‑progress TestEntry for this serial
             entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished == False
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
                 ).first()
 
             if not entry:
@@ -296,7 +296,7 @@ def form():
 
             # Find existing in-progress entry to mark as failed
             entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished == False
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
             ).first()
 
             if entry:
@@ -334,7 +334,7 @@ def form():
         if is_valid:
 
             entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished == False
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
             ).first()
 
             if not entry:
