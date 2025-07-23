@@ -18,6 +18,7 @@ Features:
 # TODO block people using back button on forms
 #TODO get rid of lock and key system and only check if user holds something
 #TODO rewrite form route after one form per user gets done
+# TODO have files visible in js for form.html
 
 import os
 import io
@@ -117,6 +118,7 @@ def form():
     form_index = request.args.get('step')
     form_index = int(form_index or 0)
 
+    # always current user in progress form on correct step
     if request.method == 'GET' and user.form_id is not None:
         held_entry = db.session.get(TestEntry, user.form_id)
         if held_entry:
@@ -201,7 +203,7 @@ def form():
 
             # Look for an existing in‑progress TestEntry for this serial
             entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial)
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished == False
                 ).first()
 
             if not entry:
@@ -294,7 +296,7 @@ def form():
 
             # Find existing in-progress entry to mark as failed
             entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial)
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished == False
             ).first()
 
             if entry:
@@ -332,7 +334,7 @@ def form():
         if is_valid:
 
             entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial)
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished == False
             ).first()
 
             if not entry:
@@ -346,7 +348,6 @@ def form():
                 flag_modified(entry, "data")
 
             entry.timestamp = datetime.utcnow()
-            #entry.is_saved = True #why does it need ot be saved to get a entry id??????
 
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
@@ -580,6 +581,8 @@ def resume_entry(entry_id):
     success, entry = acquire_lock(entry_id, user.username)
     if not success:
         return "Entry is being edited by someone else. Try again later."
+
+    entry.is_saved = False
 
     user.form_id = entry.id
     db.session.commit()
