@@ -17,13 +17,16 @@ db = SQLAlchemy()
 class User(db.Model):
     """User model for authentication."""
 
+    __bind_key__ = 'users'
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
+    administrator = db.Column(db.Boolean, default=False)
 
     def set_password(self, password):
         """Hash and set the user's password."""
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
 
     def check_password(self, password):
         """Check the user's password against the stored hash."""
@@ -36,15 +39,59 @@ class User(db.Model):
 class TestEntry(db.Model):
     """Model for storing test entry data and file uploads."""
 
+    __bind_key__ = 'main'
+
     id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow) # used on submission and failure and save, timestamp shown in history table summary
+    #TODO add current timestamp for in progress forms
+    #user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     data = db.Column(JSON)
     file_name = db.Column(db.String(120))
-    user = db.relationship('User', backref=db.backref('entries', lazy=True))
+    #user = db.relationship('User', backref=db.backref('entries', lazy=True))
     test = db.Column(db.Boolean, default=False)
     failure = db.Column(db.Boolean, default=False)
     fail_reason = db.Column(db.String, default=None)
+
+    fail_stored = db.Column(db.Boolean, default=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'))
+    parent = db.relationship('TestEntry', remote_side=[id], backref='retests')
+
+
+# -------------- NEW GLOBAL‑SAVE FIELDS --------------
+    is_saved         = db.Column(db.Boolean, default=False)
+    is_finished = db.Column(db.Boolean, default=False)
+    contributors     = db.Column(JSON, default=list)                  # e.g. ["alice","bob"]
+    lock_owner       = db.Column(db.String(80), nullable=True)
+    lock_acquired_at = db.Column(db.DateTime, nullable=True)
+    # ----------------------------------------------------
+
+class EntryHistory(db.Model):
+    """Model to keep track of who added / changed what in a test entry."""
+
+    __bind_key__ = 'main'
+    #need to implement in save and exit logic
+    id = db.Column(db.Integer, primary_key=True)
+    entry_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'), nullable=False)
+    username = db.Column(db.String(80), nullable=False)
+    form_index = db.Column(db.Integer)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    creation_time = db.Column(db.DateTime, nullable=True)
+    changes = db.Column(JSON)  # Optional: record diff or snapshot of fields
+
+class DeletedEntry(db.Model):
+    """Model for admin deleted entries that are stored in the deleted entries table """
+
+    __bind_key__ = 'main'
+    id = db.Column(db.Integer, primary_key=True)
+    original_entry_id = db.Column(db.Integer)   # id of the TestEntry that was deleted
+    deleted_by = db.Column(db.String(80))       # username of admin who deleted
+    deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    data = db.Column(JSON)                      # copy of the TestEntry data
+    contributors = db.Column(db.PickleType)     # list of contributors
+    fail_reason = db.Column(db.Text)
+    failure = db.Column(db.Boolean)
+    was_locked = db.Column(db.String(80))       # lock owner, if an
 
 class EntrySlot:
     """Model for keeping track and saving in use forms per serial number"""
@@ -196,3 +243,26 @@ class FormField:
             help_label=help_label,
             help_target=help_target
         )
+    def get_value(self, request):
+        if self.type_field == "file":
+            file = request.files.get(self.name)
+            return file.filename if file and file.filename else None
+        return request.form.get(self.name)
+
+    def validate_value(self, value, existing_data=None):
+        if self.validate:
+            return self.validate(value)
+        if self.type_field in ("integer", "float"):
+            if value is None or value == "":
+                return False, "This field is required."
+            try:
+                float(value) if self.type_field == "float" else int(value)
+            except ValueError:
+                return False, f"Must be a {self.type_field}."
+        elif self.type_field == "boolean":
+            if value not in ("yes", "no"):
+                return False, "Please select yes or no."
+        elif self.type_field == "file":
+            if not value and not (existing_data or {}).get(self.name):
+                return False, "File is required."
+        return True, ""

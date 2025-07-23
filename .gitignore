@@ -1,6 +1,9 @@
 
 ###
 uploads/**
+data/*
+venv
+!data/.gitkeep
 
 ## standard python stuff below here
 
