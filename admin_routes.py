@@ -143,10 +143,7 @@ def demote_user():
 
     if request.method == 'POST':
         username = request.form['username']
-
-        if username.lower() == "logan":     # could create masterlist
-            return "Permission Denied"
-
+        
         user = User.query.filter_by(username=username).first()
 
         if not user:
