@@ -15,10 +15,12 @@ Features:
 # TODO move resume entry and lock and other routes out of admin routes
 # TODO make test resume button to avoid constantly needing to unlock lock
 # TODO fix formatting of code and make constantly repeated code into helper functions
+# TODO block people using back button on forms
 
 
 #TODO get rid of lock and key system and only check if user holds something
 #TODO rewrite form route after one form per user gets done
+#TODO fix admin dashboard etc.
 
 import os
 import io
@@ -65,9 +67,11 @@ def register():
     # TODO fix ui for this
     """User registration route"""
     if request.method == 'POST':
-        if User.query.filter_by(username=request.form['username']).first():
+        username = request.form['username'].strip()
+        if User.query.filter_by(username=username).first():
             return 'Error: User already exists'
-        new_user = User(username=request.form['username'])  # type: ignore
+
+        new_user = User(username=username)  # type: ignore
         new_user.set_password(request.form['password'])
         db.session.add(new_user)
         db.session.commit()
@@ -79,7 +83,8 @@ def login():
     #TODO fix ui for this
     """Login form route"""
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form['username']).first()
+        username = request.form['username'].strip()
+        user = User.query.filter_by(username=username).first()
         if user and user.check_password(request.form['password']):
             session['user_id'] = user.id
             return redirect(url_for('home'))
@@ -102,18 +107,43 @@ def home():
 @app.route('/form', methods=['GET', 'POST'])
 def form():
     """form submission save and failure function"""
+
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
     user = current_user()
+    if user is None:
+        return redirect(url_for('login'))
 
     form_index = request.args.get('step')
     form_index = int(form_index or 0)
+
+    if request.method == 'GET':
+        if user.form_id is not None:
+            held_entry = db.session.get(TestEntry, user.form_id)
+            if held_entry:
+                session['form_data'] = held_entry.data.copy()
+                print("[DEBUG] session['form_data'] keys after loading:", list(session['form_data'].keys()))
+                last_step = held_entry.data.get("last_step", -1)
+                print(f"[DEBUG] Loaded held entry. Last step: {last_step}")
+                if form_index != last_step:
+                    return redirect(url_for('form', step=last_step))
+
+        # ✅ Only set empty dict if it hasn't already been loaded
+        if 'form_data' not in session or not isinstance(session['form_data'], dict) or not session['form_data']:
+            print("[DEBUG] No held entry. Setting empty form_data.")
+            session['form_data'] = {}
+
+
+    if user.form_id is None:
+        print("no user-id")
+
     form_index = max(0, min(form_index, len(FORMS_NON_DICT) - 1))
     current_form = FORMS_NON_DICT[form_index]
 
-    if 'form_data' not in session:
-        session['form_data'] = {}
+
+    # if 'form_data' not in session:
+    #     session['form_data'] = {}
 
     if request.method == 'POST':
 
@@ -162,6 +192,7 @@ def form():
                         name="Form"
                     )
 
+
         # Save & Exit
         if request.form.get("save_exit") == "true":
             if serial_error or form_index == 0:
@@ -194,6 +225,7 @@ def form():
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
 
+            user.form_id = None
             db.session.add(entry)
             db.session.commit()
             release_lock(entry)
@@ -275,6 +307,7 @@ def form():
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + user.username
 
+            user.form_id = None
             db.session.add(entry)
             db.session.commit()
             release_lock(entry)
@@ -287,6 +320,7 @@ def form():
         is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
 
         if is_valid:
+
             entry = TestEntry.query.filter(
                 TestEntry.data["CM_serial"].as_string() == str(cm_serial),
                 TestEntry.is_saved.is_(True)
@@ -301,14 +335,43 @@ def form():
                 entry.data = session['form_data']
                 flag_modified(entry, "data")
 
+            # This originally assumed and guess the next id but the querey actually makes the db give test entry an id so this block should assign nothing
+            # TODO prob fix this if anyone an figure this out right now
+            if form_index == 0 and not user.form_id:
+                # Start with the latest existing ID (or 0 if no entries yet)
+                latest_entry = db.session.query(TestEntry).order_by(TestEntry.created_at.desc()).first()
+                latest_id = latest_entry.id if latest_entry else 0
+
+                # Find the next unused ID
+                while True:
+                    next_id = latest_id + 1
+                    exists = db.session.query(
+                        db.exists().where(TestEntry.id == next_id)
+                    ).scalar()
+                    if not exists:
+                        break
+                    latest_id += 1
+
+                # user.form_id = next_id
+                # print(f"Assigned {user.username} id: {user.form_id}")
+
+
             entry.timestamp = datetime.utcnow()
             entry.is_saved = True
 
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
 
+            entry.data['last_step'] = form_index + 1
+            flag_modified(entry, "data")
+            user.form_id = entry.id
+            print(f"assigned {user.username} id: {user.form_id}")
+
+
+            db.session.commit()
+
+
             if form_index + 1 < len(FORMS):
-                db.session.commit()
                 return redirect(url_for('form', step=form_index + 1))
 
             # Final submission - mark complete and final
@@ -339,6 +402,11 @@ def form():
         )
 
     # GET request: load saved state if exists
+    print("[DEBUG] Current form_index:", form_index)
+    print("[DEBUG] session['form_data'] keys at render:", list(session['form_data'].keys()))
+    print("[DEBUG] Current step field names:", [f.name for f in current_form["fields"]])
+    print("[DEBUG] Prefill keys available:", list(session['form_data'].keys()))
+
     return render_template(
         "form.html",
         fields=current_form["fields"],

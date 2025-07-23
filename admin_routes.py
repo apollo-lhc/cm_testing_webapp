@@ -473,7 +473,7 @@ def clear_lock(entry_id):
         entry.lock_owner = None
         db.session.commit()
 
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin.admin_dashboard'))
 
 @admin_bp.route('/admin/delete_form/<int:entry_id>', methods=['POST'])
 def delete_form(entry_id):
@@ -501,7 +501,7 @@ def delete_form(entry_id):
         db.session.delete(entry)
         db.session.commit()
 
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin.admin_dashboard'))
 
 # for admin view of deleted entries:
 

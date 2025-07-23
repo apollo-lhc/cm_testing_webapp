@@ -23,10 +23,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     administrator = db.Column(db.Boolean, default=False)
 
-
-    # holding_form = db.Column(db.Boolean, default=False)
-    # curr_form_id = db.Column(db.Integer, nullable=True)
-
+    form_id = db.Column(db.Integer, nullable=True)
 
     def set_password(self, password):
         """Hash and set the user's password."""
@@ -44,6 +41,7 @@ class TestEntry(db.Model):
     """Model for storing test entry data and file uploads."""
 
     __bind_key__ = 'main'
+    __tablename__ = 'test_entry'
 
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow) # used on submission and failure and save, timestamp shown in history table summary
@@ -55,6 +53,8 @@ class TestEntry(db.Model):
     fail_stored = db.Column(db.Boolean, default=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'))
     parent = db.relationship('TestEntry', remote_side=[id], backref='retests')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
 # -------------- NEW GLOBAL‑SAVE FIELDS --------------
