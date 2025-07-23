@@ -146,7 +146,7 @@ def demote_user():
 
         if username.lower() == "logan":     # could create masterlist
             return "Permission Denied"
-    
+
         user = User.query.filter_by(username=username).first()
 
         if not user:
@@ -498,7 +498,7 @@ def delete_form(entry_id):
         db.session.add(deleted)
         db.session.delete(entry)
         db.session.commit()
-        
+
     return redirect(url_for('admin.admin_dashboard'))
 
 # for admin view of deleted entries:

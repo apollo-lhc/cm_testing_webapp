@@ -16,7 +16,6 @@ Features:
 # TODO make test resume button to avoid constantly needing to unlock lock
 # TODO fix formatting of code and make constantly repeated code into helper functions
 # TODO block people using back button on forms
-
 #TODO get rid of lock and key system and only check if user holds something
 #TODO rewrite form route after one form per user gets done
 
@@ -103,7 +102,7 @@ def home():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return render_template('index.html')
-  
+
 @app.route('/form', methods=['GET', 'POST'])
 def form():
     """form submission save and failure function"""
@@ -158,7 +157,7 @@ def form():
         # Step 2.5: determine CM_serial and index
         cm_serial = session['form_data'].get("CM_serial")
         serial_error = None
-        
+
         # check to see if existing entry (saved or failed or in progress) exists
         if form_index == 0:
             posted_serial = request.form.get("CM_serial")
@@ -176,7 +175,7 @@ def form():
                             )
                         )
                     ).first()
-                
+
                 if existing_entry:
                     session.pop('form_data', None)
                     return render_template(

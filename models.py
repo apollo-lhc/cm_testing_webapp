@@ -105,35 +105,7 @@ class DeletedEntry(db.Model):
     contributors     = db.Column(JSON, default=list)                  # e.g. ["alice","bob"]
     lock_owner       = db.Column(db.String(80), nullable=True)
     lock_acquired_at = db.Column(db.DateTime, nullable=True)
-    # ----------------------------------------------------
-
-class EntryHistory(db.Model):
-    """Model to keep track of who added / changed what in a test entry."""
-
-    __bind_key__ = 'main'
-    #need to implement in save and exit logic
-    id = db.Column(db.Integer, primary_key=True)
-    entry_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'), nullable=False)
-    username = db.Column(db.String(80), nullable=False)
-    form_index = db.Column(db.Integer)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    creation_time = db.Column(db.DateTime, nullable=True)
-    changes = db.Column(JSON)  # Optional: record diff or snapshot of fields
-
-class DeletedEntry(db.Model):
-    """Model for admin deleted entries that are stored in the deleted entries table """
-
-    __bind_key__ = 'main'
-    id = db.Column(db.Integer, primary_key=True)
-    original_entry_id = db.Column(db.Integer)   # id of the TestEntry that was deleted
-    deleted_by = db.Column(db.String(80))       # username of admin who deleted
-    deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    data = db.Column(JSON)                      # copy of the TestEntry data
-    contributors = db.Column(db.PickleType)     # list of contributors
-    fail_reason = db.Column(db.Text)
-    failure = db.Column(db.Boolean)
-    was_locked = db.Column(db.String(80))       # lock owner, if an
+# ----------------------------------------------------
 
 class EntrySlot:
     """Model for keeping track and saving in use forms per serial number"""
