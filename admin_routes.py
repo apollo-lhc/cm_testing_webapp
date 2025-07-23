@@ -143,7 +143,7 @@ def demote_user():
 
     if request.method == 'POST':
         username = request.form['username']
-        
+
         user = User.query.filter_by(username=username).first()
 
         if not user:
