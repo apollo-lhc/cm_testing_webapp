@@ -118,22 +118,14 @@ def form():
     form_index = request.args.get('step')
     form_index = int(form_index or 0)
 
-    if request.method == 'GET':
-        if user.form_id is not None:
-            held_entry = db.session.get(TestEntry, user.form_id)
-            if held_entry:
+    if request.method == 'GET' and user.form_id is not None:
+        held_entry = db.session.get(TestEntry, user.form_id)
+        if held_entry:
+            last_step = held_entry.data.get("last_step", -1)
+            print(f"last step:{last_step}")
+            if form_index != last_step:
                 session['form_data'] = held_entry.data.copy()
-                print("[DEBUG] session['form_data'] keys after loading:", list(session['form_data'].keys()))
-                last_step = held_entry.data.get("last_step", -1)
-                print(f"[DEBUG] Loaded held entry. Last step: {last_step}")
-                if form_index != last_step:
-                    return redirect(url_for('form', step=last_step))
-
-        # ✅ Only set empty dict if it hasn't already been loaded
-        if 'form_data' not in session or not isinstance(session['form_data'], dict) or not session['form_data']:
-            print("[DEBUG] No held entry. Setting empty form_data.")
-            session['form_data'] = {}
-
+                return redirect(url_for('form', step=last_step))
 
     if user.form_id is None:
         print("no user-id")
@@ -142,8 +134,8 @@ def form():
     current_form = FORMS_NON_DICT[form_index]
 
 
-    # if 'form_data' not in session:
-    #     session['form_data'] = {}
+    if 'form_data' not in session:
+        session['form_data'] = {}
 
     if request.method == 'POST':
 
@@ -207,12 +199,11 @@ def form():
 
             # Look for an existing in‑progress TestEntry for this serial
             entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial),
-                TestEntry.is_saved.is_(True)
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial)
                 ).first()
 
             if not entry:
-                entry = TestEntry(data={}, is_saved=True)
+                entry = TestEntry(data={})
 
             # Merge new data; do NOT overwrite existing uploaded filenames if none chosen
             entry.data.update(session['form_data'])
@@ -221,6 +212,7 @@ def form():
             entry.failure = False
             entry.fail_reason = None
             entry.fail_stored = False
+            entry.is_saved = True
 
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
@@ -285,8 +277,7 @@ def form():
 
             # Find existing in-progress entry to mark as failed
             entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial),
-                TestEntry.is_saved.is_(True)
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial)
             ).first()
 
             if entry:
@@ -305,12 +296,13 @@ def form():
             entry.timestamp = datetime.utcnow()
 
             if user.username not in (entry.contributors or []):
-                entry.contributors = (entry.contributors or []) + user.username
+                entry.contributors = (entry.contributors or []) + [user.username]
 
             user.form_id = None
             db.session.add(entry)
             db.session.commit()
             release_lock(entry)
+            entry.is_saved = False
             session.pop('form_data', None)
 
             return render_template('form_complete.html')
@@ -322,42 +314,21 @@ def form():
         if is_valid:
 
             entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial),
-                TestEntry.is_saved.is_(True)
+                TestEntry.data["CM_serial"].as_string() == str(cm_serial)
             ).first()
 
             if not entry:
-                entry = TestEntry(data=session['form_data'], is_saved=True)
+                entry = TestEntry(data=session['form_data'], is_saved=False)
                 db.session.add(entry)
+                db.session.flush()
             else:
                 if entry.lock_owner and entry.lock_owner != user.username:
                     return "This form is currently being edited by another user."
                 entry.data = session['form_data']
                 flag_modified(entry, "data")
 
-            # This originally assumed and guess the next id but the querey actually makes the db give test entry an id so this block should assign nothing
-            # TODO prob fix this if anyone an figure this out right now
-            if form_index == 0 and not user.form_id:
-                # Start with the latest existing ID (or 0 if no entries yet)
-                latest_entry = db.session.query(TestEntry).order_by(TestEntry.created_at.desc()).first()
-                latest_id = latest_entry.id if latest_entry else 0
-
-                # Find the next unused ID
-                while True:
-                    next_id = latest_id + 1
-                    exists = db.session.query(
-                        db.exists().where(TestEntry.id == next_id)
-                    ).scalar()
-                    if not exists:
-                        break
-                    latest_id += 1
-
-                # user.form_id = next_id
-                # print(f"Assigned {user.username} id: {user.form_id}")
-
-
             entry.timestamp = datetime.utcnow()
-            entry.is_saved = True
+            #entry.is_saved = True #why does it need ot be saved to get a entry id??????
 
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
@@ -366,7 +337,6 @@ def form():
             flag_modified(entry, "data")
             user.form_id = entry.id
             print(f"assigned {user.username} id: {user.form_id}")
-
 
             db.session.commit()
 
@@ -402,11 +372,6 @@ def form():
         )
 
     # GET request: load saved state if exists
-    print("[DEBUG] Current form_index:", form_index)
-    print("[DEBUG] session['form_data'] keys at render:", list(session['form_data'].keys()))
-    print("[DEBUG] Current step field names:", [f.name for f in current_form["fields"]])
-    print("[DEBUG] Prefill keys available:", list(session['form_data'].keys()))
-
     return render_template(
         "form.html",
         fields=current_form["fields"],
@@ -576,10 +541,17 @@ def resume_entry(entry_id):
         return redirect(url_for('login'))
 
     user = current_user()
+
+    if user.form_id is not None:
+        flash(f"{user.username} already has an inprogress form. Fail or save current test before accessing saved forms", "warning")
+        return redirect(url_for('dashboard'))
+
     success, entry = acquire_lock(entry_id, user.username)
     if not success:
         return "Entry is being edited by someone else. Try again later."
 
+    user.form_id = entry.id
+    db.session.commit()
 
     # prime session data and redirect into the normal /form workflow
     session['form_data'] = entry.data.copy()
@@ -621,6 +593,12 @@ def retest_failed(entry_id):
         return redirect(url_for('login'))
 
     user = current_user()
+
+    if user.form_id is not None:
+        flash(f"{user.username} already has an inprogress form. Fail or save current test before restarting forms", "warning")
+        return redirect(url_for('failed_tests'))
+
+
     old_entry = TestEntry.query.get(entry_id)
 
     if not old_entry or not old_entry.fail_stored:
@@ -645,6 +623,7 @@ def retest_failed(entry_id):
     if user.username not in (new_entry.contributors or []):
         new_entry.contributors = (new_entry.contributors or []) + [user.username]
 
+    user.form_id = new_entry.id
     db.session.add(new_entry)
     db.session.commit()
 
