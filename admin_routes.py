@@ -146,7 +146,7 @@ def demote_user():
 
         if username.lower() == "logan":     # could create masterlist
             return "Permission Denied"
-
+    
         user = User.query.filter_by(username=username).first()
 
         if not user:
@@ -355,11 +355,9 @@ def clear_history():
 
     if not authenticate_admin():
         return "Permission Denied"
-
-    #TODO change this to only clear test entries
     with current_app.app_context():
-        db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
-        #db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
+        #db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
+        db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
         db.session.commit()
 
         upload_dir = current_app.config['UPLOAD_FOLDER']
@@ -500,7 +498,7 @@ def delete_form(entry_id):
         db.session.add(deleted)
         db.session.delete(entry)
         db.session.commit()
-
+        
     return redirect(url_for('admin.admin_dashboard'))
 
 # for admin view of deleted entries:

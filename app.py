@@ -17,10 +17,8 @@ Features:
 # TODO fix formatting of code and make constantly repeated code into helper functions
 # TODO block people using back button on forms
 
-
 #TODO get rid of lock and key system and only check if user holds something
 #TODO rewrite form route after one form per user gets done
-#TODO fix admin dashboard etc.
 
 import os
 import io
@@ -33,6 +31,7 @@ from models import db, User, TestEntry
 from form_config import FORMS, FORMS_NON_DICT
 from admin_routes import admin_bp
 from utils import (validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock)
+
 
 
 
@@ -97,13 +96,14 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
+
 @app.route('/')
 def home():
     """home page route"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return render_template('index.html')
-
+  
 @app.route('/form', methods=['GET', 'POST'])
 def form():
     """form submission save and failure function"""
@@ -133,13 +133,16 @@ def form():
     form_index = max(0, min(form_index, len(FORMS_NON_DICT) - 1))
     current_form = FORMS_NON_DICT[form_index]
 
-
     if 'form_data' not in session:
         session['form_data'] = {}
 
     if request.method == 'POST':
 
         #errors = {}
+        #if "CM_serial" in session['form_data'] and form_index > 0:
+            #form_data = request.form.copy()
+            #form_data["CM_serial"] = session["form_data"]["CM_serial"]
+
 
         # Step 1: update form_data with current inputs
         for field in current_form["fields"]:
@@ -155,12 +158,13 @@ def form():
         # Step 2.5: determine CM_serial and index
         cm_serial = session['form_data'].get("CM_serial")
         serial_error = None
-
+        
         # check to see if existing entry (saved or failed or in progress) exists
         if form_index == 0:
             posted_serial = request.form.get("CM_serial")
 
             if posted_serial and posted_serial.isdigit():
+
                 existing_entry = TestEntry.query.filter(
                         TestEntry.data["CM_serial"].as_string() == str(cm_serial),
                         db.or_(
@@ -172,7 +176,7 @@ def form():
                             )
                         )
                     ).first()
-
+                
                 if existing_entry:
                     session.pop('form_data', None)
                     return render_template(
@@ -183,7 +187,6 @@ def form():
                         form_label=current_form.get("label"),
                         name="Form"
                     )
-
 
         # Save & Exit
         if request.form.get("save_exit") == "true":
@@ -218,6 +221,7 @@ def form():
                 entry.contributors = (entry.contributors or []) + [user.username]
 
             user.form_id = None
+
             db.session.add(entry)
             db.session.commit()
             release_lock(entry)
@@ -261,6 +265,20 @@ def form():
                 )
 
             reason = request.form.get("fail_reason", "").strip()
+            user = current_user()
+
+            # Update session data with latest input
+            for field in current_form["fields"]:
+                value = request.form.get(field.name)
+                if value is not None:
+                    session['form_data'][field.name] = value
+
+            session['form_data'] = process_file_fields(
+                current_form["fields"],
+                request,
+                app.config['UPLOAD_FOLDER'],
+                session['form_data']
+            )
 
             # Update session data with latest input
             for field in current_form["fields"]:
@@ -303,6 +321,7 @@ def form():
             db.session.commit()
             release_lock(entry)
             entry.is_saved = False
+
             session.pop('form_data', None)
 
             return render_template('form_complete.html')
@@ -372,6 +391,19 @@ def form():
         )
 
     # GET request: load saved state if exists
+
+    #cm_serial = session.get('form_data', {}).get("CM_serial")
+    #if cm_serial and cm_serial.isdigit():
+        #cm_serial = int(cm_serial)
+        #if SERIAL_MIN <= cm_serial <= SERIAL_MAX:
+            #index = cm_serial - SERIAL_OFFSET
+            #saved = session['forms_per_serial'][index]
+
+            #if saved and not session['form_data']:
+                #entry = EntrySlot.from_dict(saved)
+                #session['form_data'] = entry.data.copy()
+
+
     return render_template(
         "form.html",
         fields=current_form["fields"],
@@ -643,6 +675,7 @@ def clear_failed(entry_id):
         db.session.commit()
 
     return redirect(url_for('failed_tests'))
+
 
 
 @app.context_processor
