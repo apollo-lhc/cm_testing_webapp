@@ -70,7 +70,7 @@ class EntryHistory(db.Model):
     """Model to keep track of who added / changed what in a test entry."""
 
     __bind_key__ = 'main'
-    #TODO: need to implement in save and exit logic or make alternative history table for users in progress
+    #TODO need to implement in save and exit logic
     id = db.Column(db.Integer, primary_key=True)
     entry_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'), nullable=False)
     username = db.Column(db.String(80), nullable=False)
@@ -93,19 +93,6 @@ class DeletedEntry(db.Model):
     fail_reason = db.Column(db.Text)
     failure = db.Column(db.Boolean)
     was_locked = db.Column(db.String(80))       # lock owner, if an
-
-    fail_stored = db.Column(db.Boolean, default=False)
-    parent_id = db.Column(db.Integer, db.ForeignKey('test_entry.id'))
-    parent = db.relationship('TestEntry', remote_side=[id], backref='retests')
-
-
-# -------------- NEW GLOBAL‑SAVE FIELDS --------------
-    is_saved         = db.Column(db.Boolean, default=False)
-    is_finished = db.Column(db.Boolean, default=False)
-    contributors     = db.Column(JSON, default=list)                  # e.g. ["alice","bob"]
-    lock_owner       = db.Column(db.String(80), nullable=True)
-    lock_acquired_at = db.Column(db.DateTime, nullable=True)
-# ----------------------------------------------------
 
 class EntrySlot:
     """Model for keeping track and saving in use forms per serial number"""
