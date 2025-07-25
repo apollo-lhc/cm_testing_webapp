@@ -4,7 +4,7 @@
 {% block content %}
 <h2>Edit Field</h2>
 
-<form method="post">
+<form method="post" action="{{ url_for('form_editor.edit_field', page_idx=page_idx, field_idx=field_idx) }}">
   <div>
     <label><strong>Label</strong> (Required):</label><br>
     <input type="text" name="label" value="{{ field.label or '' }}" required>

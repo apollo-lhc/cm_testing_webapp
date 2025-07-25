@@ -198,7 +198,7 @@ def list_admin_commands():
         '/promote_user': 'Promote an existing user to admin.',
         '/demote_user': 'Demote an admin to a regular user.',
         '/list_fishy_users': 'View users flagged for suspicious admin access attempts.',
-        '/add_dummy_entry': 'Add dummy test entries to the database.',
+        '/add_dummy_entry?count=#': 'Add dummy test entries to the database.',
         # '/add_dummy_saves': 'Add dummy form save data to the session.',
          '/clear_history': 'Delete all test history and uploaded files.',
          '/clear_dummy_history': 'Delete only test=True (dummy) history entries and files.',
@@ -355,8 +355,8 @@ def clear_history():
         return "Permission Denied"
 
     with current_app.app_context():
-        #db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
-        db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
+        db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
+        #db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
         db.session.commit()
 
         upload_dir = current_app.config['UPLOAD_FOLDER']

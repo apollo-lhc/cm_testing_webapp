@@ -13,7 +13,8 @@ def edit_field(page_idx, field_idx):
     if page_idx == 0:
         return "Editing Page 0 is restricted.", 403
 
-    field = FORMS_NON_DICT[page_idx]["fields"][field_idx]
+    page = FORMS_NON_DICT[page_idx]
+    field = page.fields[field_idx]
 
     if request.method == "POST":
         field.label = request.form["label"]
@@ -21,8 +22,12 @@ def edit_field(page_idx, field_idx):
         field.type_field = request.form["type"]
         field.help_text = request.form.get("help_text")
         field.help_label = request.form.get("help_label")
+        field.help_link = request.form.get("help_link")
+        field.help_target = request.form.get("help_target")
+        field.display_form = "display_form" in request.form
+        field.display_history = "display_history" in request.form
         save_forms_to_file(FORMS_NON_DICT)
-        return redirect(url_for("form_editor.edit_field", page_idx=page_idx, field_idx=field_idx))
+        return redirect(url_for("form_editor.list_forms", page_idx=page_idx, field_idx=field_idx))
 
     # Update type_field if changed in dropdown and form resubmitted
     new_type = request.args.get("type")
@@ -37,7 +42,7 @@ def add_field(page_idx):
         return "Cannot add fields to Page 0.", 403
 
     new_field = FormField.text(name="new_field", label="New Field")
-    FORMS_NON_DICT[page_idx]["fields"].append(new_field)
+    FORMS_NON_DICT[page_idx].fields.append(new_field)
     save_forms_to_file(FORMS_NON_DICT)
     return redirect(url_for("form_editor.list_forms"))
 
@@ -47,7 +52,7 @@ def delete_field(page_idx, field_idx):
         return "Cannot delete fields from Page 0.", 403
 
     if 0 <= page_idx < len(FORMS_NON_DICT):
-        fields = FORMS_NON_DICT[page_idx]["fields"]
+        fields = FORMS_NON_DICT[page_idx].fields
         if 0 <= field_idx < len(fields):
             del fields[field_idx]
             save_forms_to_file(FORMS_NON_DICT)

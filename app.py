@@ -137,14 +137,14 @@ def form():
             form_data["CM_serial"] = session["form_data"]["CM_serial"]
 
         # Step 1: update form_data with current inputs
-        for field in current_form["fields"]:
+        for field in current_form.fields:
             value = request.form.get(field.name)
             if value is not None:
                 session['form_data'][field.name] = value
 
-        session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
+        session['form_data'] = process_file_fields(current_form.fields, request, app.config['UPLOAD_FOLDER'], session['form_data'])
 
-        session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
+        session['form_data'] = process_file_fields(current_form.fields, request, app.config['UPLOAD_FOLDER'], session['form_data'])
 
         # Step 2: mark current step
         session['form_data']['last_step'] = form_index
@@ -187,10 +187,10 @@ def form():
                     session.pop('form_data', None)
                     return render_template(
                         "form.html",
-                        fields=current_form["fields"],
+                        fields=current_form.fields,
                         prefill_values=session.get('form_data', {}),
                         errors={"CM_serial": f"A form for CM{posted_serial} is already in progress or failed and pending retest."},
-                        form_label=current_form.get("label"),
+                        form_label=current_form.label,
                         name="Form"
                     )
 
@@ -199,10 +199,10 @@ def form():
             if serial_error:
                 return render_template(
                     "form.html",
-                    fields=current_form["fields"],
+                    fields=current_form.fields,
                     prefill_values=session['form_data'],
                     errors={"CM_serial": serial_error},
-                    form_label=current_form.get("label"),
+                    form_label=current_form.label,
                     name="Form"
                 )
 
@@ -213,10 +213,10 @@ def form():
             if form_index == 0:
                 return render_template(
                     "form.html",
-                    fields=current_form["fields"],
+                    fields=current_form.fields,
                     prefill_values=session['form_data'],
                     errors={"CM_serial": "Submit Serial Number Before Saving"},
-                    form_label=current_form.get("label"),
+                    form_label=current_form.label,
                     name="Form"
                 )
 
@@ -249,29 +249,29 @@ def form():
             if serial_error:
                 return render_template(
                     "form.html",
-                    fields=current_form["fields"],
+                    fields=current_form.fields,
                     prefill_values=session['form_data'],
                     errors={"CM_serial": serial_error},
-                    form_label=current_form.get("label"),
+                    form_label=current_form.label,
                     name="Form",
                 )
 
             if form_index == 0:
                 return render_template(
                     "form.html",
-                    fields=current_form["fields"],
+                    fields=current_form.fields,
                     prefill_values=session['form_data'],
                     errors={"CM_serial": "Submit Serial Number Before Submitting Test as Failure"},
-                    form_label=current_form.get("label"),
+                    form_label=current_form.label,
                     name="Form"
                 )
 
             return render_template(
                 "form.html",
-                fields=current_form["fields"],
+                fields=current_form.fields,
                 prefill_values=session['form_data'],
                 errors={},
-                form_label=current_form.get("label"),
+                form_label=current_form.label,
                 name="Form",
                 trigger_fail_prompt=True  # passed to js to call text box appear
             )
@@ -281,10 +281,10 @@ def form():
             if serial_error:
                 return render_template(
                     "form.html",
-                    fields=current_form["fields"],
+                    fields=current_form.fields,
                     prefill_values=session['form_data'],
                     errors={"CM_serial": serial_error},
-                    form_label=current_form.get("label"),
+                    form_label=current_form.label,
                     name="Form",
                     trigger_fail_prompt=True
                 )
@@ -293,13 +293,13 @@ def form():
             user = current_user()
 
             # Update session data with latest input
-            for field in current_form["fields"]:
+            for field in current_form.fields:
                 value = request.form.get(field.name)
                 if value is not None:
                     session['form_data'][field.name] = value
 
             session['form_data'] = process_file_fields(
-                current_form["fields"],
+                current_form.fields,
                 request,
                 app.config['UPLOAD_FOLDER'],
                 session['form_data']
@@ -356,7 +356,7 @@ def form():
         # Step 4: full validation for Next
         if request.form.get("fail_test_start") != "true": #unnecessary if fix it
 
-            is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
+            is_valid, errors = validate_form(current_form.fields, request, session.get('form_data'))
 
             if is_valid:
                 if index is not None:
@@ -424,10 +424,10 @@ def form():
 
         return render_template(
             "form.html",
-            fields=current_form["fields"],
+            fields=current_form.fields,
             prefill_values=session['form_data'],
             errors=errors,
-            form_label=current_form.get("label"),
+            form_label=current_form.label,
             name="Form"
         )
 
@@ -445,10 +445,10 @@ def form():
 
     return render_template(
         "form.html",
-        fields=current_form["fields"],
+        fields=current_form.fields,
         prefill_values=session['form_data'],
         errors={},
-        form_label=current_form.get("label"),
+        form_label=current_form.label,
         name="Form"
     )
 
@@ -555,19 +555,19 @@ def help_button():
     grouped_help_fields = {}
 
     for form_iter in FORMS_NON_DICT:
-        section = form_iter.get("label", "Unnamed Section")
-        for field in form_iter.get("fields", []):
+        section = getattr(form_iter, "label", "Unnamed Section")
+        for field in getattr(form_iter, "fields", []):
             if any([
                 getattr(field, "help_text", None),
                 getattr(field, "help_link", None),
                 getattr(field, "help_label", None)
             ]):
-                getattr(field, "label", None)
                 if section not in grouped_help_fields:
                     grouped_help_fields[section] = []
                 grouped_help_fields[section].append(field)
 
     return render_template("help.html", grouped_help_fields=grouped_help_fields)
+
 
 @app.route('/prod_test_doc')
 def prod_test_doc():
