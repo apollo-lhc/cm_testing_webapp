@@ -251,3 +251,21 @@ assert len(first_form["fields"]) == 1, \
 #     }
 #     for f in FORMS_NON_DICT
 # ]
+
+def get_forms():
+    """Returns the current editable form configuration."""
+    return FORMS_NON_DICT
+
+# def reset_forms():
+#     """Resets FORMS_NON_DICT to its original hardcoded values."""
+#     global FORMS_NON_DICT
+#     # Re-import or reinitialize the original list (if using deep copy or stored baseline)
+#     from copy import deepcopy
+#     FORMS_NON_DICT = deepcopy(ORIGINAL_FORMS)  # you'd define ORIGINAL_FORMS at top
+
+
+def save_forms(forms):
+    """Stub function to simulate saving forms — currently does nothing."""
+    print("[DEBUG] save_forms() called — changes are in-memory only.")
+
+

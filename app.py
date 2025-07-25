@@ -26,6 +26,7 @@ from sqlalchemy.orm.attributes import flag_modified #TODO include in the .yml an
 from models import db, User, TestEntry, EntrySlot
 from form_config import FORMS_NON_DICT
 from admin_routes import admin_bp
+from admin_form_editor import form_editor_bp
 from utils import (validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock)
 from constants import SERIAL_OFFSET, SERIAL_MIN, SERIAL_MAX
 
@@ -48,6 +49,7 @@ app.config['SQLALCHEMY_BINDS'] = {
 db.init_app(app)
 
 app.register_blueprint(admin_bp)
+app.register_blueprint(form_editor_bp)
 
 with app.app_context():
     db.create_all()

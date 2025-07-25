@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Form Editor{% endblock %}
+
+{% block content %}
+<h2>Form Editor</h2>
+
+{% for page in forms %}
+  {% set page_idx = loop.index0 %}
+  <h3>Page {{ page_idx + 1 }} - {{ page.name }}</h3>
+  <ul>
+    {% for field in page.fields %}
+      {% set field_idx = loop.index0 %}
+      <li>
+        <b>{{ field.label }}</b> ({{ field.type_field }}) — <code>{{ field.name }}</code>
+
+        {% if page_idx != 0 %}
+        <!-- Delete button -->
+        <form method="post"
+              action="{{ url_for('form_editor.delete_field', page_idx=page_idx, field_idx=field_idx) }}"
+              style="display:inline;">
+          <button type="submit" onclick="return confirm('Delete this field?')">❌</button>
+        </form>
+
+        <!-- Edit button -->
+        <a href="{{ url_for('form_editor.edit_field', page_idx=page_idx, field_idx=field_idx) }}">✏️ Edit</a>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if page_idx != 0 %}
+  <form method="post" action="{{ url_for('form_editor.add_field', page_idx=page_idx) }}">
+    <button type="submit">➕ Add Field</button>
+  </form>
+  {% endif %}
+  <hr>
+{% endfor %}
+{% endblock %}

@@ -198,10 +198,10 @@ def list_admin_commands():
         '/promote_user': 'Promote an existing user to admin.',
         '/demote_user': 'Demote an admin to a regular user.',
         '/list_fishy_users': 'View users flagged for suspicious admin access attempts.',
-        # '/add_dummy_entry': 'Add dummy test entries to the database.',
+        '/add_dummy_entry': 'Add dummy test entries to the database.',
         # '/add_dummy_saves': 'Add dummy form save data to the session.',
-        # '/clear_history': 'Delete all test history and uploaded files.',
-        # '/clear_dummy_history': 'Delete only test=True (dummy) history entries and files.',
+         '/clear_history': 'Delete all test history and uploaded files.',
+         '/clear_dummy_history': 'Delete only test=True (dummy) history entries and files.',
         # '/check_dummy_count': 'Show the number of dummy entries in the database.',
         # '/clear_saves': 'Clear all of the current user’s saved progress.',
         # '/clear_dummy_saves': 'Clear only dummy (test=True) saves for the current user.',
@@ -347,7 +347,7 @@ def add_dummy_saves():
 
 @admin_bp.route('/clear_history')
 def clear_history():
-    '''clears all entries from history to be removed later'''
+    '''clears all entries from history to be TODO removed later'''
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
