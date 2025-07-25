@@ -243,11 +243,11 @@ assert len(first_form["fields"]) == 1, \
 
 
 
-FORMS = [
-    {
-        "name": f["name"],
-        "label": f["label"],
-        "fields": [field_to_dict(field) for field in f["fields"]],
-    }
-    for f in FORMS_NON_DICT
-]
+# FORMS = [
+#     {
+#         "name": f["name"],
+#         "label": f["label"],
+#         "fields": [field_to_dict(field) for field in f["fields"]],
+#     }
+#     for f in FORMS_NON_DICT
+# ]

@@ -24,7 +24,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, s
 from flask import send_from_directory
 from sqlalchemy.orm.attributes import flag_modified #TODO include in the .yml and enviroment if needed later
 from models import db, User, TestEntry, EntrySlot
-from form_config import FORMS, FORMS_NON_DICT
+from form_config import FORMS_NON_DICT
 from admin_routes import admin_bp
 from utils import (validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock)
 from constants import SERIAL_OFFSET, SERIAL_MIN, SERIAL_MAX
@@ -391,7 +391,7 @@ def form():
                 entry.is_saved = True
                 db.session.commit()
 
-                if form_index + 1 < len(FORMS):
+                if form_index + 1 < len(FORMS_NON_DICT):
                     return redirect(url_for('form', step=form_index + 1))
 
                 # Final submission
@@ -466,8 +466,8 @@ def history():
     unique_toggle = request.args.get('unique') == "true"
 
     all_fields = []
-    for single_form in FORMS:
-        all_fields.extend([f for f in single_form["fields"] if f.get("display_history", True)])
+    for single_form in FORMS_NON_DICT:
+        all_fields.extend([f for f in single_form["fields"] if getattr(f, "display_history", True)])
 
     if unique_toggle:
         subquery = (
@@ -504,7 +504,7 @@ def export_csv():
 
     # Combine all fields from all forms for CSV export
     all_fields = []
-    for single_form in FORMS:
+    for single_form in FORMS_NON_DICT:
         all_fields.extend(single_form["fields"])
 
     if unique_toggle:
@@ -531,11 +531,11 @@ def export_csv():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File', "Test Aborted", "Reason Aborted"])
+    writer.writerow(['Time', 'User'] + [f.label for f in all_fields] + ['File', "Test Aborted", "Reason Aborted"])
 
     for e in entries:
         row = [e.timestamp, e.user.username]
-        row += [e.data.get(f["name"]) for f in all_fields]
+        row += [e.data.get(f.name) for f in all_fields]
         row += [e.file_name, "yes" if e.failure else "no", e.fail_reason or ""]
         writer.writerow(row)
 
@@ -597,8 +597,8 @@ def dashboard():
 
         e.step_label = (
             "Finished"
-            if step_idx >= len(FORMS)
-            else FORMS[step_idx]["label"]
+            if step_idx >= len(FORMS_NON_DICT)
+            else FORMS_NON_DICT[step_idx].label
         )
         e.is_locked = bool(e.lock_owner)
 
