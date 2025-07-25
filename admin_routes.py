@@ -88,7 +88,6 @@ def create_admin():
 
     return render_template('register.html', is_admin_creation=True)
 
-
 @admin_bp.route('/promote_user', methods=['GET', 'POST'])
 def promote_user():
     """
@@ -103,8 +102,8 @@ def promote_user():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    if not authenticate_admin():
-        return "Permission Denied"
+    # if not authenticate_admin():
+    #     return "Permission Denied"
 
     if request.method == 'POST':
         username = request.form['username']
@@ -144,6 +143,7 @@ def demote_user():
 
     if request.method == 'POST':
         username = request.form['username']
+
         user = User.query.filter_by(username=username).first()
 
         if not user:
@@ -344,7 +344,6 @@ def add_dummy_saves():
     session.modified = True  # pylint: disable=assigning-non-slot
     return redirect(url_for('dashboard'))
 
-
 @admin_bp.route('/clear_history')
 def clear_history():
     '''clears all entries from history to be removed later'''
@@ -353,7 +352,6 @@ def clear_history():
 
     if not authenticate_admin():
         return "Permission Denied"
-
     with current_app.app_context():
         #db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
         db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
@@ -470,7 +468,7 @@ def clear_lock(entry_id):
         entry.lock_owner = None
         db.session.commit()
 
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin.admin_dashboard'))
 
 @admin_bp.route('/admin/delete_form/<int:entry_id>', methods=['POST'])
 def delete_form(entry_id):
@@ -498,7 +496,7 @@ def delete_form(entry_id):
         db.session.delete(entry)
         db.session.commit()
 
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin.admin_dashboard'))
 
 # for admin view of deleted entries:
 

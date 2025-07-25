@@ -6,6 +6,19 @@
 <div class="container">
   <h2 class="mb-4">In-Progress Forms</h2>
 
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <strong>Last updated:</strong> <span id="last-updated">{{ now.strftime('%Y-%m-%d %H:%M:%S') }}</span>
@@ -23,7 +36,7 @@
         <th scope="col">Current&nbsp;Step</th>
         <th scope="col">Last&nbsp;Saved</th>
         <th scope="col">Contributors</th>
-        <th scope="col">Lock</th>
+        <!--<th scope="col">Status</th>-->
         <th scope="col">Action</th>
       </tr>
     </thead>
@@ -34,13 +47,13 @@
         <td>{{ e.step_label }}</td>
         <td>{{ e.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
         <td>{{ ", ".join(e.contributors or []) }}</td>
-        <td>
+        <!--<td>
           {% if not e.is_locked %}
             <span class="badge bg-success">Free</span>
           {% else %}
             <span class="badge bg-danger">Locked&nbsp;by&nbsp;{{ e.lock_owner }}</span>
           {% endif %}
-        </td>
+        </td>-->
         <td>
           {% if not e.is_locked %}
             <form method="POST" action="{{ url_for('resume_entry', entry_id=e.id) }}" style="display:inline;">
@@ -55,7 +68,7 @@
     </tbody>
   </table>
   {% else %}
-    <p>No forms are currently in progress.</p>
+    <p>No forms are currently available to edit.</p>
   {% endif %}
 
   <div class="mt-4">

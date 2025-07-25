@@ -217,5 +217,67 @@
       updateCharCount(failReasonField);
     }
   });
+  // Cache field values to sessionStorage
+  function cacheFieldInput(event) {
+    const field = event.target;
+    if (!field.name) return;
+
+    if (field.type === "file") return; // Skip files
+
+    if (field.type === "radio" || field.type === "checkbox") {
+      const groupName = field.name;
+      const checkedInputs = document.querySelectorAll(`input[name="${groupName}"]:checked`);
+      const values = Array.from(checkedInputs).map(el => el.value);
+      sessionStorage.setItem(groupName, JSON.stringify(values));
+    } else {
+      sessionStorage.setItem(field.name, field.value);
+    }
+  }
+
+  // Restore cached values to form inputs
+  function restoreCachedFields() {
+    const allInputs = document.querySelectorAll('input, textarea, select');
+
+    allInputs.forEach((field) => {
+      const name = field.name;
+      if (!name || field.type === "file") return;
+
+      const cached = sessionStorage.getItem(name);
+      if (cached !== null) {
+        if (field.type === "radio" || field.type === "checkbox") {
+          const values = JSON.parse(cached);
+          field.checked = values.includes(field.value);
+        } else {
+          field.value = cached;
+        }
+
+        // Also update character counter for textareas
+        if (field.classList.contains("text-field-with-counter")) {
+          updateCharCount(field);
+        }
+      }
+    });
+  }
+
+  // Attach input listeners
+  function attachFieldListeners() {
+    const allInputs = document.querySelectorAll('input, textarea, select');
+
+    allInputs.forEach((field) => {
+      field.addEventListener("input", cacheFieldInput);
+      if (field.type === "radio" || field.type === "checkbox") {
+        field.addEventListener("change", cacheFieldInput);
+      }
+    });
+  }
+
+  // Initialize restore + listener setup
+  document.addEventListener("DOMContentLoaded", () => {
+    restoreCachedFields();
+    attachFieldListeners();
+  });
+    document.querySelector("form").addEventListener("submit", () => {
+    sessionStorage.clear();
+  });
 </script>
 {% endblock %}
