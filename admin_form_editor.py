@@ -45,7 +45,7 @@ def add_field(page_idx):
 def delete_field(page_idx, field_idx):
     if page_idx == 0:
         return "Cannot delete fields from Page 0.", 403
-    
+
     if 0 <= page_idx < len(FORMS_NON_DICT):
         fields = FORMS_NON_DICT[page_idx]["fields"]
         if 0 <= field_idx < len(fields):

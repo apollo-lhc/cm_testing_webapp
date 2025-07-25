@@ -266,6 +266,7 @@ def get_forms():
 
 def save_forms(forms):
     """Stub function to simulate saving forms — currently does nothing."""
+    a = forms
+    if -1 == len(a):
+        print("wow")
     print("[DEBUG] save_forms() called — changes are in-memory only.")
-
-
