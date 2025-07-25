@@ -469,7 +469,7 @@ def history():
 
     all_fields = []
     for single_form in FORMS_NON_DICT:
-        all_fields.extend([f for f in single_form["fields"] if getattr(f, "display_history", True)])
+        all_fields.extend([f for f in single_form.fields if getattr(f, "display_history", True)])
 
     if unique_toggle:
         subquery = (
@@ -507,7 +507,8 @@ def export_csv():
     # Combine all fields from all forms for CSV export
     all_fields = []
     for single_form in FORMS_NON_DICT:
-        all_fields.extend(single_form["fields"])
+        all_fields.extend(single_form.fields)
+
 
     if unique_toggle:
         subquery = (
@@ -687,7 +688,6 @@ def retest_failed(entry_id):
     session['form_data'] = retest_data.copy()
     return redirect(url_for('form', step=retest_data["last_step"]))
 
-
 @app.route('/clear_failed/<int:entry_id>', methods=['POST'])
 def clear_failed(entry_id):
     if 'user_id' not in session:
@@ -701,11 +701,9 @@ def clear_failed(entry_id):
 
     return redirect(url_for('failed_tests'))
 
-
 @app.context_processor
 def inject_user():
     return {"current_user": current_user()}
-
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

@@ -1,38 +1,29 @@
-from models import FormField
+import os
+import json
+from models import FormField, FormPage
 
-# Create a new Python module that uses the FormField class to define FORMS in a cleaner way
+data_path = os.path.join(os.path.dirname(__file__), "data")
+os.makedirs(data_path, exist_ok=True)
+
+forms_config_path = os.path.join(data_path, "forms_config.json")
 
 #constants:
 SERIAL_OFFSET = 3000  # Ensure forms_per_serial[0] maps to CM3000
 SERIAL_MIN = SERIAL_OFFSET
 SERIAL_MAX = 3050
 
-
-
 def validate_serial(v):
     if v and v.isdigit():
         valid = SERIAL_MIN <= int(v) <= SERIAL_MAX
-        return valid, "Must be between 3000 and 3050" if valid else "Must be between 3000 and 3050"
+        return valid, "" if valid else "Must be between 3000 and 3050"
     return False, "Must be an integer between 3000 and 3050"
 
-def field_to_dict(field: FormField):
-    return {
-        "name": field.name,
-        "label": field.label,
-        "type_field": field.type_field,
-        "validate": field.validate,
-        "display_history": field.display_history,
-        "display_form": field.display_form,
-        "help_label": getattr(field, "help_label", None),
-        "help_target": getattr(field, "help_target", None),
-        "help_text": getattr(field, "help_text", None),
-    }
+def get_validator(name):
+    if name == "validate_serial":
+        return validate_serial
+    return None
 
-
-
-# Define FORMS_NON_DICT using the updated FormField class
-
-FORMS_NON_DICT = [
+FORMS_NON_DICT_DEFAULT = [
 
     {
         # Rewriting form route to require cm serial is the first form page and completely alone on form step = 0 (locking funcitonality)
@@ -233,12 +224,93 @@ FORMS_NON_DICT = [
     }
 ]
 
+
+def field_to_dict(field: FormField):
+    return {
+        "name": field.name,
+        "label": field.label,
+        "type_field": field.type_field,
+        "validate": field.validate,
+        "display_history": field.display_history,
+        "display_form": field.display_form,
+        "help_label": getattr(field, "help_label", None),
+        "help_target": getattr(field, "help_target", None),
+        "help_text": getattr(field, "help_text", None),
+    }
+
+def save_forms_to_file(forms, filepath=forms_config_path):
+    serializable = []
+    for page_iter in forms:
+        for page in forms:
+            serializable.append({
+                "name": page_iter.name,
+                "label": page_iter.label,
+                "fields": [
+                    {
+                        "name": f.name,
+                        "label": f.label,
+                        "type_field": f.type_field,
+                        "display_form": f.display_form,
+                        "display_history": f.display_history,
+                        "help_text": f.help_text,
+                        "help_link": f.help_link,
+                        "help_label": f.help_label,
+                        "help_target": f.help_target,
+                    }
+                    for f in page.fields
+                ]
+            })
+
+    with open(filepath, "w",  encoding="utf-8") as f:
+        json.dump(serializable, f, indent=2)
+
+def load_forms_from_file(filepath=forms_config_path):
+    if not os.path.exists(filepath):
+        # File doesn't exist — write defaults
+        save_forms_to_file(FORMS_NON_DICT_DEFAULT, filepath)
+        return FORMS_NON_DICT_DEFAULT
+
+    with open(filepath, "r",  encoding="utf-8") as f:
+        raw = json.load(f)
+
+    loaded = []
+    for page_iter in raw:
+        page_fields = []
+        for f in page_iter["fields"]:
+            page_fields.append(FormField(
+                name=f.get("name"),
+                label=f.get("label"),
+                type_field=f.get("type_field"),
+                validate=get_validator(f.get("validate")),
+                display_form=f.get("display_form", True),
+                display_history=f.get("display_history", True),
+                help_text=f.get("help_text"),
+                help_link=f.get("help_link"),
+                help_label=f.get("help_label"),
+                help_target=f.get("help_target"),
+            ))
+
+        loaded.append(FormPage(
+            name=page_iter.get("name", f"Page {len(loaded) + 1}"),
+            label=page_iter.get("label", f"Page {len(loaded) + 1}"),
+            fields=page_fields
+        ))
+
+    return loaded
+
+FORMS_NON_DICT = load_forms_from_file()
+
+def reset_forms():
+    save_forms_to_file(FORMS_NON_DICT_DEFAULT, forms_config_path)
+
+# Define FORMS_NON_DICT using the updated FormField class
+
 first_form = FORMS_NON_DICT[0]
 
 #assertions to keep serial request first form
-assert first_form["name"] == "serial_request", \
+assert first_form.name == "serial_request", \
     "Config error: the first form page must be 'serial_request'."
-assert len(first_form["fields"]) == 1, \
+assert len(first_form.fields) == 1, \
     "serial_request page should contain exactly one field."
 
 
@@ -251,22 +323,3 @@ assert len(first_form["fields"]) == 1, \
 #     }
 #     for f in FORMS_NON_DICT
 # ]
-
-def get_forms():
-    """Returns the current editable form configuration."""
-    return FORMS_NON_DICT
-
-# def reset_forms():
-#     """Resets FORMS_NON_DICT to its original hardcoded values."""
-#     global FORMS_NON_DICT
-#     # Re-import or reinitialize the original list (if using deep copy or stored baseline)
-#     from copy import deepcopy
-#     FORMS_NON_DICT = deepcopy(ORIGINAL_FORMS)  # you'd define ORIGINAL_FORMS at top
-
-
-def save_forms(forms):
-    """Stub function to simulate saving forms — currently does nothing."""
-    a = forms
-    if -1 == len(a):
-        print("wow")
-    print("[DEBUG] save_forms() called — changes are in-memory only.")
