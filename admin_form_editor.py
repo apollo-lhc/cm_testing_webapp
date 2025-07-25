@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for
 from form_config import FORMS_NON_DICT, save_forms_to_file, reset_forms
-from models import FormField
+from models import FormField, FormPage
 
 form_editor_bp = Blueprint("form_editor", __name__, url_prefix="/admin/forms")
 
@@ -57,6 +57,61 @@ def delete_field(page_idx, field_idx):
             del fields[field_idx]
             save_forms_to_file(FORMS_NON_DICT)
     return redirect(url_for("form_editor.list_forms"))
+
+@form_editor_bp.route("/add_page", methods=["POST"])
+def add_page():
+    name = request.form.get("page_name")
+    label = request.form.get("page_label")
+
+    if not name or not label:
+        return "Both page name and label are required.", 400
+
+    new_page = FormPage(name=name, label=label, fields=[])
+    FORMS_NON_DICT.append(new_page)
+    save_forms_to_file(FORMS_NON_DICT)
+    return redirect(url_for("form_editor.list_forms"))
+
+@form_editor_bp.route("/delete_page/<int:page_idx>", methods=["POST"])
+def delete_page(page_idx):
+    if page_idx == 0:
+        return "Cannot delete Page 0.", 403
+
+    if 0 <= page_idx < len(FORMS_NON_DICT):
+        del FORMS_NON_DICT[page_idx]
+        save_forms_to_file(FORMS_NON_DICT)
+
+    return redirect(url_for("form_editor.list_forms"))
+
+@form_editor_bp.route("/move_page/<int:page_idx>/<string:direction>", methods=["POST"])
+def move_page(page_idx, direction):
+    if direction == "up" and page_idx > 1:
+        FORMS_NON_DICT[page_idx - 1], FORMS_NON_DICT[page_idx] = (
+            FORMS_NON_DICT[page_idx],
+            FORMS_NON_DICT[page_idx - 1],
+        )
+    elif direction == "down" and page_idx < len(FORMS_NON_DICT) - 1:
+        FORMS_NON_DICT[page_idx + 1], FORMS_NON_DICT[page_idx] = (
+            FORMS_NON_DICT[page_idx],
+            FORMS_NON_DICT[page_idx + 1],
+        )
+    save_forms_to_file(FORMS_NON_DICT)
+    return redirect(url_for("form_editor.list_forms"))
+
+@form_editor_bp.route("/move_field/<int:page_idx>/<int:field_idx>/<string:direction>", methods=["POST"])
+def move_field(page_idx, field_idx, direction):
+    page = FORMS_NON_DICT[page_idx]
+    fields = page.fields
+
+    if direction == "up" and field_idx > 0:
+        fields[field_idx - 1], fields[field_idx] = fields[field_idx], fields[field_idx - 1]
+    elif direction == "down" and field_idx < len(fields) - 1:
+        fields[field_idx + 1], fields[field_idx] = fields[field_idx], fields[field_idx + 1]
+
+    save_forms_to_file(FORMS_NON_DICT)
+    return redirect(url_for("form_editor.list_forms"))
+
+
+
 
 @form_editor_bp.route("/reset_forms", methods=["POST"])
 def reset_forms_route():

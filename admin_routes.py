@@ -241,7 +241,7 @@ def add_dummy_entry():
         test_data = {}
 
         for form_iter in FORMS_NON_DICT:
-            for field in form_iter["fields"]:
+            for field in form_iter.fields:
                 name = getattr(field, "name", None)
                 ftype = getattr(field, "type_field", None)
 
@@ -311,7 +311,7 @@ def add_dummy_saves():
         }
 
         for form_iter in FORMS_NON_DICT:
-            for field in form_iter["fields"]:
+            for field in form_iter.fields:
                 if field.type_field == "boolean":
                     entry_data[field.name] = choice(["yes", "no"])
                 elif field.type_field == "integer":

@@ -267,6 +267,8 @@ class FormField:
                 return False, "File is required."
         return True, ""
 
+# In models.py
+
 class FormPage:
     def __init__(self, name, label, fields):
         self.name = name

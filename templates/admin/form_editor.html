@@ -6,18 +6,37 @@
 
 {% for page in forms %}
   {% set page_idx = loop.index0 %}
-  <h3>Page {{ page_idx + 1 }} - {{ page.name }}</h3>
+  <h3 id="page-{{ page.name }}">Page {{ page_idx + 1 }} - {{ page.name }}</h3>
   <ul>
     {% for field in page.fields %}
       {% set field_idx = loop.index0 %}
       <li>
         <b>{{ field.label }}</b> ({{ field.type_field }}) — <code>{{ field.name }}</code>
+        {% if page_idx > 0 %}
+        <!-- Move field up -->
+          {% if field_idx > 0 %}
+            <form method="post"
+                  action="{{ url_for('form_editor.move_field', page_idx=page_idx, field_idx=field_idx, direction='up') }}"
+                  style="display:inline;">
+              <input type="hidden" name="page_name" value="{{ page.name }}">
+              <button type="submit">⬆️</button>
+            </form>
+          {% endif %}
 
-        {% if page_idx != 0 %}
+          <!-- Move field down -->
+          {% if field_idx < page.fields|length - 1 %}
+            <form method="post"
+                  action="{{ url_for('form_editor.move_field', page_idx=page_idx, field_idx=field_idx, direction='down') }}"
+                  style="display:inline;">
+              <input type="hidden" name="page_name" value="{{ page.name }}">
+              <button type="submit">⬇️</button>
+            </form>
+          {% endif %}
         <!-- Delete button -->
         <form method="post"
               action="{{ url_for('form_editor.delete_field', page_idx=page_idx, field_idx=field_idx) }}"
               style="display:inline;">
+          <input type="hidden" name="page_name" value="{{ page.name }}">
           <button type="submit" onclick="return confirm('Delete this field?')">❌</button>
         </form>
 
@@ -29,10 +48,103 @@
   </ul>
 
   {% if page_idx != 0 %}
-  <form method="post" action="{{ url_for('form_editor.add_field', page_idx=page_idx) }}">
+  <!-- Add field button -->
+  <form method="post"
+        action="{{ url_for('form_editor.add_field', page_idx=page_idx) }}">
+    <input type="hidden" name="page_name" value="{{ page.name }}">
     <button type="submit">➕ Add Field</button>
+  </form>
+
+  <!-- Move up button -->
+  {% if page_idx > 1 %}
+  <form method="post"
+        action="{{ url_for('form_editor.move_page', page_idx=page_idx, direction='up') }}"
+        style="display:inline;">
+    <input type="hidden" name="last_page_idx" value="{{ page_idx }}">
+    <input type="hidden" name="page_name" value="{{ page.name }}">
+    <button type="submit">⬆️</button>
+  </form>
+  {% endif %}
+
+  <!-- Move down button -->
+  {% if page_idx < forms|length - 1 %}
+  <form method="post"
+        action="{{ url_for('form_editor.move_page', page_idx=page_idx, direction='down') }}"
+        style="display:inline;">
+    <input type="hidden" name="last_page_idx" value="{{ page_idx }}">
+    <input type="hidden" name="page_name" value="{{ page.name }}">
+    <button type="submit">⬇️</button>
+  </form>
+  {% endif %}
+  <!-- Delete page button -->
+  <form method="post"
+        action="{{ url_for('form_editor.delete_page', page_idx=page_idx) }}"
+        onsubmit="return confirm('Are you sure you want to delete this entire page and all its fields?')"
+        style="display:inline;">
+    <input type="hidden" name="page_name" value="{{ page.name }}">
+    <button type="submit">🗑️ Delete Page</button>
   </form>
   {% endif %}
   <hr>
 {% endfor %}
+
+<!-- Add page button -->
+<form method="post" action="{{ url_for('form_editor.add_page') }}" style="margin-bottom: 1em;">
+  <label>
+    Page Name:
+    <input type="text" name="page_name" required placeholder="e.g., power_test">
+  </label>
+  <label>
+    Page Label:
+    <input type="text" name="page_label" required placeholder="e.g., Power Up Test">
+  </label>
+  <button type="submit">➕ Add New Page</button>
+</form>
+
+<!-- Optional buffer to allow smooth scrolling all the way down -->
+<div style="height: 200px;"></div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Scroll to saved target (page_name)
+    const targetName = localStorage.getItem("scrollToPage");
+    if (targetName) {
+      const el = document.getElementById(`page-${targetName}`);
+      if (el) {
+        const offset = el.getBoundingClientRect().top + window.scrollY - 60;
+        window.scrollTo({ top: offset, behavior: "smooth" });
+      }
+      localStorage.removeItem("scrollToPage");
+    }
+
+    // Save targetName on any form submission
+    const scrollForms = document.querySelectorAll("form[action*='move_field'], form[action*='add_field'], form[action*='delete_field'], form[action*='move_page'], form[action*='add_page']");
+    scrollForms.forEach(form => {
+      form.addEventListener("submit", function () {
+        const input = form.querySelector("input[name='page_name']");
+        if (input && input.value) {
+          localStorage.setItem("scrollToPage", input.value);
+        }
+      });
+    });
+
+    // Save targetName on edit clicks
+    document.querySelectorAll("a[href*='edit_field']").forEach(link => {
+      link.addEventListener("click", () => {
+        const match = link.href.match(/page_idx=(\d+)/);
+        if (!match) return;
+
+        const pageIdx = parseInt(match[1]);
+        const headers = document.querySelectorAll("h3[id^='page-']");
+        for (const h of headers) {
+          if (h.textContent.trim().startsWith(`Page ${pageIdx + 1} `)) {
+            const name = h.id.replace("page-", "");
+            localStorage.setItem("scrollToPage", name);
+            break;
+          }
+        }
+      });
+    });
+  });
+</script>
 {% endblock %}

@@ -1,16 +1,12 @@
 import os
 import json
 from models import FormField, FormPage
+from constants import SERIAL_MAX, SERIAL_MIN
 
 data_path = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(data_path, exist_ok=True)
 
 forms_config_path = os.path.join(data_path, "forms_config.json")
-
-#constants:
-SERIAL_OFFSET = 3000  # Ensure forms_per_serial[0] maps to CM3000
-SERIAL_MIN = SERIAL_OFFSET
-SERIAL_MAX = 3050
 
 def validate_serial(v):
     if v and v.isdigit():
@@ -24,30 +20,25 @@ def get_validator(name):
     return None
 
 FORMS_NON_DICT_DEFAULT = [
-
-    {
-        # Rewriting form route to require cm serial is the first form page and completely alone on form step = 0 (locking funcitonality)
-        "name": "serial_request",
-        "label": "Serial Number",
-        "fields": [
+    FormPage(
+        name="serial_request",
+        label="Serial Number",
+        fields=[
             FormField.integer(name="CM_serial", label="CM Serial Number", validate=validate_serial),
         ]
-
-
-    },
-    {
-        "name": "hardware_test",
-        "label": "Hardware Test",
-        "fields": [
-            #FormField.integer(name="CM_serial", label="CM Serial number", validate=validate_serial),
+    ),
+    FormPage(
+        name="hardware_test",
+        label="Hardware Test",
+        fields=[
             FormField.boolean(name="passed_visual", label="Passed Visual Inspection"),
             FormField.text(name="comments", label="Comments"),
         ]
-    },
-    {
-        "name": "power_test",
-        "label": "Power Up Test",
-        "fields": [
+    ),
+    FormPage(
+        name="power_test",
+        label="Power Up Test",
+        fields=[
             FormField.blank(),
             FormField.null(name="powertesttext", label="Voltages should be around 11.5 - 12.5 V, Currents 0.5 - 2.0 A"),
             FormField.blank(),
@@ -67,11 +58,11 @@ FORMS_NON_DICT_DEFAULT = [
             FormField.float(name="current_draw", label="Current Draw (mA) at 3.3 V"),
             FormField.boolean(name="mcu_programmed", label="MCU Programmed Successfully"),
         ]
-    },
-    {
-        "name": "second_step_mcu_test",
-        "label": "Second-Step MCU Test",
-        "fields": [
+    ),
+    FormPage(
+        name="second_step_mcu_test",
+        label="Second-Step MCU Test",
+        fields=[
             FormField.null(name="second_step_instruction", label="Set FireFly transmit switches to the 3.3v position and load second step code, (clock output sent through front panel connector)"),
             FormField.float(name="fpga_oscillator_clock_1", label="FPGA Oscillator Clock Frequency 1 (MHz)", help_target="clock_freq_help"),
             FormField.help_instance(name="clock_freq_help", help_text="""
@@ -90,22 +81,22 @@ FORMS_NON_DICT_DEFAULT = [
                 help_label="Flash Memory Test - find link"
             ),
         ]
-    },
-    {
-        "name": "link_test",
-        "label": "Link Integrity Testing",
-        "fields": [
+    ),
+    FormPage(
+        name="link_test",
+        label="Link Integrity Testing",
+        fields=[
             FormField.null(name="fpga_second_step_tip", label="Load the second-step FPGA code to test FPGA-FPGA and MCU-FPGA connections"),
             FormField.boolean(name="ibert_test", label="IBERT link Test Passed"),
             FormField.file(name="ibert_test_upload", label="Upload IBERT Test Results"),
             FormField.boolean(name="full_link_test", label="Firefly, FPGA-FPGA, C2C, and TCDS Links Passed"),
             FormField.file(name="firefly_test_upload", label="Upload Firefly Test Results"),
         ]
-    },
-    {
-        "name": "manual_link_testing",
-        "label": "Manual Link Testing",
-        "fields": [
+    ),
+    FormPage(
+        name="manual_link_testing",
+        label="Manual Link Testing",
+        fields=[
             FormField.null(name="manual_test_tip_1", label="Remove the board from the test stand. Remove the FireFly devices and loopback cables. Install the proper FireFly configuration for the end use."),
             FormField.blank(),
             FormField.null(name="manual_test_tip_2", label="Set the FireFly transmit voltage switches to 3.8v for 25Gx12 transmitters. Install the FireFly heatsink. Route FireFly cables to the front panel. Install loopback connectors"),
@@ -116,28 +107,28 @@ FORMS_NON_DICT_DEFAULT = [
             FormField.blank(),
             FormField.boolean(name="third_step_fpga_test", label="Third Step FPGA Test Passed"),
         ]
-    },
-    {
-        "name": "heating_tests",
-        "label": "Heating Testing",
-        "fields": [
+    ),
+    FormPage(
+        name="heating_tests",
+        label="Heating Testing",
+        fields=[
             FormField.boolean(name="heating_test", label="Heater Tests Passed With Sufficient Cooling"),
             FormField.null(name="heating_tip", label="Remove the CM/SM from the ATCA shelf. Remove the FireFly loopback connectors. Separate the CM from the SM. Pack the CM for shipping"),
             FormField.blank(),
             FormField.blank(),
         ]
-    },
-    {
-        "name": "report_upload",
-        "label": "Upload Test Report",
-        "fields": [
+    ),
+    FormPage(
+        name="report_upload",
+        label="Upload Test Report",
+        fields=[
             FormField.file(name="test_report", label="Upload PDF"),
         ]
-    },
-    {
-        "name": "i2c_tests",
-        "label": "I2C Tests",
-        "fields": [
+    ),
+    FormPage(
+        name="i2c_tests",
+        label="I2C Tests",
+        fields=[
             FormField.boolean(
                 name="i2c_to_dcdc",
                 label="I2C to DC-DC Converter Passed",
@@ -221,56 +212,44 @@ FORMS_NON_DICT_DEFAULT = [
                 help_label="I2C to EEPROM Test"
             ),
         ]
-    }
+    ),
 ]
 
 
-def field_to_dict(field: FormField):
-    return {
-        "name": field.name,
-        "label": field.label,
-        "type_field": field.type_field,
-        "validate": field.validate,
-        "display_history": field.display_history,
-        "display_form": field.display_form,
-        "help_label": getattr(field, "help_label", None),
-        "help_target": getattr(field, "help_target", None),
-        "help_text": getattr(field, "help_text", None),
-    }
 
 def save_forms_to_file(forms, filepath=forms_config_path):
     serializable = []
-    for page_iter in forms:
-        for page in forms:
-            serializable.append({
-                "name": page_iter.name,
-                "label": page_iter.label,
-                "fields": [
-                    {
-                        "name": f.name,
-                        "label": f.label,
-                        "type_field": f.type_field,
-                        "display_form": f.display_form,
-                        "display_history": f.display_history,
-                        "help_text": f.help_text,
-                        "help_link": f.help_link,
-                        "help_label": f.help_label,
-                        "help_target": f.help_target,
-                    }
-                    for f in page.fields
-                ]
-            })
+    for page in forms:
+        serializable.append({
+            "name": page.name,
+            "label": page.label,
+            "fields": [
+                {
+                    "name": f.name,
+                    "label": f.label,
+                    "type_field": f.type_field,
+                    "display_form": f.display_form,
+                    "display_history": f.display_history,
+                    "help_text": f.help_text,
+                    "help_link": f.help_link,
+                    "help_label": f.help_label,
+                    "help_target": f.help_target,
+                    "validate": f.validate.__name__ if f.validate else None
+                }
+                for f in page.fields
+            ]
+        })
 
-    with open(filepath, "w",  encoding="utf-8") as f:
+    with open(filepath, "w", encoding="utf-8") as f:
         json.dump(serializable, f, indent=2)
 
 def load_forms_from_file(filepath=forms_config_path):
     if not os.path.exists(filepath):
-        # File doesn't exist — write defaults
         save_forms_to_file(FORMS_NON_DICT_DEFAULT, filepath)
         return FORMS_NON_DICT_DEFAULT
 
-    with open(filepath, "r",  encoding="utf-8") as f:
+
+    with open(filepath, "r", encoding="utf-8") as f:
         raw = json.load(f)
 
     loaded = []
@@ -303,23 +282,9 @@ FORMS_NON_DICT = load_forms_from_file()
 def reset_forms():
     save_forms_to_file(FORMS_NON_DICT_DEFAULT, forms_config_path)
 
-# Define FORMS_NON_DICT using the updated FormField class
-
 first_form = FORMS_NON_DICT[0]
 
+
 #assertions to keep serial request first form
-assert first_form.name == "serial_request", \
-    "Config error: the first form page must be 'serial_request'."
-assert len(first_form.fields) == 1, \
-    "serial_request page should contain exactly one field."
-
-
-
-# FORMS = [
-#     {
-#         "name": f["name"],
-#         "label": f["label"],
-#         "fields": [field_to_dict(field) for field in f["fields"]],
-#     }
-#     for f in FORMS_NON_DICT
-# ]
+assert first_form.name == "serial_request", "Config error: the first form page must be 'serial_request'."
+assert len(first_form.fields) == 1, "serial_request page should contain exactly one field."
