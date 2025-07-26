@@ -112,7 +112,7 @@ def move_field(page_idx, field_idx, direction):
 
 @form_editor_bp.route("/preview/<int:page_idx>")
 def preview_page(page_idx):
-    if not (0 <= page_idx < len(FORMS_NON_DICT)):
+    if not 0 <= page_idx < len(FORMS_NON_DICT):
         return "Invalid page index", 404
 
     page = FORMS_NON_DICT[page_idx]
