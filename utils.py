@@ -98,7 +98,7 @@ def acquire_lock(entry_id, username):
             TestEntry.id == entry_id,                     # implicit AND
             (                                             # explicit OR via |
                 TestEntry.lock_owner.is_(None) |          #   • lock is free
-                (TestEntry.lock_acquired_at + LOCK_TIMEOUT == now)  # • or expired turned off rn TODO fix this or implement it
+                (TestEntry.lock_acquired_at + LOCK_TIMEOUT == now)  # • or expired turned off rn,  fix this or implement it
             )
         )
     )
