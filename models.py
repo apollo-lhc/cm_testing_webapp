@@ -266,3 +266,11 @@ class FormField:
             if not value and not (existing_data or {}).get(self.name):
                 return False, "File is required."
         return True, ""
+
+# In models.py
+
+class FormPage:
+    def __init__(self, name, label, fields):
+        self.name = name
+        self.label = label
+        self.fields = fields

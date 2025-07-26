@@ -48,7 +48,7 @@ from random import randint, uniform, choice
 from flask import render_template, request, redirect, url_for, session, current_app, Blueprint
 
 from models import db, TestEntry, EntrySlot, DeletedEntry, User
-from form_config import FORMS
+from form_config import FORMS_NON_DICT
 from utils import (current_user, authenticate_admin)
 from constants import SERIAL_OFFSET, SERIAL_MIN, SERIAL_MAX
 
@@ -197,11 +197,12 @@ def list_admin_commands():
         '/create_admin': 'Create a new admin user.',
         '/promote_user': 'Promote an existing user to admin.',
         '/demote_user': 'Demote an admin to a regular user.',
+        '/admin/forms/': 'View and edit form fields, pages, and help page entries.',
         '/list_fishy_users': 'View users flagged for suspicious admin access attempts.',
-        # '/add_dummy_entry': 'Add dummy test entries to the database.',
+        '/add_dummy_entry?count=#': 'Add dummy test entries to the database.',
         # '/add_dummy_saves': 'Add dummy form save data to the session.',
-        # '/clear_history': 'Delete all test history and uploaded files.',
-        # '/clear_dummy_history': 'Delete only test=True (dummy) history entries and files.',
+         '/clear_history': 'Delete all test history and uploaded files.',
+         '/clear_dummy_history': 'Delete only test=True (dummy) history entries and files.',
         # '/check_dummy_count': 'Show the number of dummy entries in the database.',
         # '/clear_saves': 'Clear all of the current user’s saved progress.',
         # '/clear_dummy_saves': 'Clear only dummy (test=True) saves for the current user.',
@@ -240,10 +241,10 @@ def add_dummy_entry():
     for _ in range(count):
         test_data = {}
 
-        for form_iter in FORMS:
-            for field in form_iter["fields"]:
-                name = field.get("name")
-                ftype = field.get("type_field")
+        for form_iter in FORMS_NON_DICT:
+            for field in form_iter.fields:
+                name = getattr(field, "name", None)
+                ftype = getattr(field, "type_field", None)
 
                 if not name or ftype is None:
                     continue
@@ -310,28 +311,28 @@ def add_dummy_saves():
             "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         }
 
-        for form_iter in FORMS:
-            for field in form_iter["fields"]:
-                if field["type_field"] == "boolean":
-                    entry_data[field["name"]] = choice(["yes", "no"])
-                elif field["type_field"] == "integer":
-                    entry_data[field["name"]] = str(randint(0, 1000))
-                elif field["type_field"] == "float":
-                    entry_data[field["name"]] = f"{uniform(0, 10):.2f}"
-                elif field["type_field"] == "text":
-                    entry_data[field["name"]] = "Lorem ipsum"
+        for form_iter in FORMS_NON_DICT:
+            for field in form_iter.fields:
+                if field.type_field == "boolean":
+                    entry_data[field.name] = choice(["yes", "no"])
+                elif field.type_field == "integer":
+                    entry_data[field.name] = str(randint(0, 1000))
+                elif field.type_field == "float":
+                    entry_data[field.name]= f"{uniform(0, 10):.2f}"
+                elif field.type_field == "text":
+                    entry_data[field.name] = "Lorem ipsum"
 
         # Determine last step with missing fields3
-        for i, form_iter in enumerate(FORMS):
+        for i, form_iter in enumerate(FORMS_NON_DICT):
             for field in form_iter["fields"]:
-                if field["name"] not in entry_data:
+                if field.name not in entry_data:
                     form_index = i
                     break
             else:
                 continue
             break
         else:
-            form_index = len(FORMS) - 1
+            form_index = len(FORMS_NON_DICT) - 1
 
         entry_data['last_step'] = form_index
 
@@ -346,15 +347,15 @@ def add_dummy_saves():
 
 @admin_bp.route('/clear_history')
 def clear_history():
-    '''clears all entries from history to be removed later'''
+    '''clears all entries from history to be TODO removed later'''
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
     if not authenticate_admin():
         return "Permission Denied"
     with current_app.app_context():
-        #db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
-        db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
+        db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
+        #db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
         db.session.commit()
 
         upload_dir = current_app.config['UPLOAD_FOLDER']
