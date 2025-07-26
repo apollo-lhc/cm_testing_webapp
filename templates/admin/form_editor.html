@@ -85,6 +85,7 @@
     <button type="submit">🗑️ Delete Page</button>
   </form>
   {% endif %}
+  <a href="{{ url_for('form_editor.preview_page', page_idx=page_idx) }}" class="btn btn-outline-primary btn-sm mt-2">👁️ Preview Page</a>
   <hr>
 {% endfor %}
 

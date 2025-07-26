@@ -110,6 +110,24 @@ def move_field(page_idx, field_idx, direction):
     save_forms_to_file(FORMS_NON_DICT)
     return redirect(url_for("form_editor.list_forms"))
 
+@form_editor_bp.route("/preview/<int:page_idx>")
+def preview_page(page_idx):
+    if not (0 <= page_idx < len(FORMS_NON_DICT)):
+        return "Invalid page index", 404
+
+    page = FORMS_NON_DICT[page_idx]
+    dummy_prefill = {field.name: "" for field in page.fields}
+
+    return render_template(
+        "admin/form_preview.html",
+        fields=page.fields,
+        form_label=f"(Preview) {page.label}",
+        prefill_values=dummy_prefill,
+        errors={},
+        show_overwrite_prompt=False,
+        trigger_fail_prompt=False,
+        name=page.name
+    )
 
 
 
