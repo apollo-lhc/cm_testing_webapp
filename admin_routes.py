@@ -103,8 +103,8 @@ def promote_user():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    # if not authenticate_admin():
-    #     return "Permission Denied"
+    if not authenticate_admin():
+        return "Permission Denied"
 
     if request.method == 'POST':
         username = request.form['username']
