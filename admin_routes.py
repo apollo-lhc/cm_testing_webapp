@@ -197,6 +197,7 @@ def list_admin_commands():
         '/create_admin': 'Create a new admin user.',
         '/promote_user': 'Promote an existing user to admin.',
         '/demote_user': 'Demote an admin to a regular user.',
+        '/admin/forms/': 'View and edit form fields, pages, and help page entries.',
         '/list_fishy_users': 'View users flagged for suspicious admin access attempts.',
         '/add_dummy_entry?count=#': 'Add dummy test entries to the database.',
         # '/add_dummy_saves': 'Add dummy form save data to the session.',

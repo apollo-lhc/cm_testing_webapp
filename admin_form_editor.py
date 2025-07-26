@@ -129,8 +129,6 @@ def preview_page(page_idx):
         name=page.name
     )
 
-
-
 @form_editor_bp.route("/reset_forms", methods=["POST"])
 def reset_forms_route():
     reset_forms()
