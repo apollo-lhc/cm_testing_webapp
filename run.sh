@@ -14,6 +14,7 @@ SVC_OPTS="--bind=${IPADDR}:8000 --disable-redirect-access-to-syslog --log-syslog
 cm_webapp_start () {
 	echo "Starting cm_webapp"
 	cd ${BASE_DIR}/cm_webapp
+	mkdir -p ${LOG_DIR}/cm_webapp-status
 	nohup .venv/bin/python3 .venv/bin/gunicorn $SVC_OPTS app:app \
 		 >${LOG_DIR}/cm_webapp-status/startup.log 2>&1 &
 	return 0
