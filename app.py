@@ -205,11 +205,14 @@ def form():
                 )
 
             # Look for an existing in‑progress TestEntry for this serial
-            entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
-                ).first()
+            # entry = TestEntry.query.filter(
+            #     TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
+            #     ).first()
+
+            entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
 
             if not entry:
+                print(f"DEBUG Save - NEW ENTRY - no entry found for user {user.username} with form_id {user.form_id}")
                 entry = TestEntry(data={})
 
             # Merge new data; do NOT overwrite existing uploaded filenames if none chosen
@@ -285,22 +288,24 @@ def form():
             )
 
             # Update session data with latest input
-            for field in current_form["fields"]:
+            for field in current_form.fields:
                 value = request.form.get(field.name)
                 if value is not None:
                     session['form_data'][field.name] = value
 
             session['form_data'] = process_file_fields(
-                current_form["fields"],
+                current_form.fields,
                 request,
                 app.config['UPLOAD_FOLDER'],
                 session['form_data']
             )
 
-            # Find existing in-progress entry to mark as failed
-            entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
-            ).first()
+            # # Find existing in-progress entry to mark as failed
+            # entry = TestEntry.query.filter(
+            #     TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
+            # ).first()
+
+            entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
 
             if entry:
                 entry.data = session['form_data']
@@ -308,6 +313,7 @@ def form():
                 entry.is_saved = False  # not in progress anymore
 
             else:
+                print(f"DEBUG - Fail NEW ENTRY - no entry found for user {user.username} with form_id {user.form_id}")
                 entry = TestEntry(data=session['form_data'])
 
 
@@ -330,16 +336,13 @@ def form():
 
             return render_template('form_complete.html')
 
-        # Final Submission
-
+        # Final Submission & Next
 
         is_valid, errors = validate_form(current_form.fields, request, session.get('form_data'))
 
         if is_valid:
 
-            entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
-            ).first()
+            entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
 
             if not entry:
                 entry = TestEntry(data=session['form_data'], is_saved=False)
@@ -372,7 +375,7 @@ def form():
             entry.failure = False
             entry.fail_reason = None
             entry.fail_stored = False
-            flag_modified(entry, "data")
+            user.form_id = None
 
             db.session.commit()
             release_lock(entry)
