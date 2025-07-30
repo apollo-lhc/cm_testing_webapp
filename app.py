@@ -27,9 +27,11 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash
 from flask import send_from_directory
 from sqlalchemy.orm.attributes import flag_modified #TODO include in the .yml and enviroment if needed later
+
 from models import db, User, TestEntry
-from form_config import FORMS, FORMS_NON_DICT
+from form_config import FORMS_NON_DICT
 from admin_routes import admin_bp
+from admin_form_editor import form_editor_bp
 from utils import (validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock)
 
 
@@ -52,6 +54,7 @@ app.config['SQLALCHEMY_BINDS'] = {
 db.init_app(app)
 
 app.register_blueprint(admin_bp)
+app.register_blueprint(form_editor_bp)
 
 with app.app_context():
     db.create_all()
@@ -146,12 +149,12 @@ def form():
 
 
         # Step 1: update form_data with current inputs
-        for field in current_form["fields"]:
+        for field in current_form.fields:
             value = request.form.get(field.name)
             if value is not None:
                 session['form_data'][field.name] = value
 
-        session['form_data'] = process_file_fields(current_form["fields"], request, app.config['UPLOAD_FOLDER'], session['form_data'])
+        session['form_data'] = process_file_fields(current_form.fields, request, app.config['UPLOAD_FOLDER'], session['form_data'])
 
         # Step 2: mark current step
         session['form_data']['last_step'] = form_index
@@ -182,10 +185,10 @@ def form():
                     session.pop('form_data', None)
                     return render_template(
                         "form.html",
-                        fields=current_form["fields"],
+                        fields=current_form.fields,
                         prefill_values=session.get('form_data', {}),
                         errors={"CM_serial": f"A form for CM{posted_serial} is already in progress or failed and pending retest."},
-                        form_label=current_form.get("label"),
+                        form_label=current_form.label,
                         name="Form"
                     )
 
@@ -194,7 +197,7 @@ def form():
             if serial_error or form_index == 0:
                 return render_template(
                     "form.html",
-                    fields=current_form["fields"],
+                    fields=current_form.fields,
                     prefill_values=session['form_data'],
                     errors={"CM_serial": serial_error or "Submit Serial Number Before Saving"},
                     form_label=current_form.get("label"),
@@ -202,11 +205,14 @@ def form():
                 )
 
             # Look for an existing in‑progress TestEntry for this serial
-            entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
-                ).first()
+            # entry = TestEntry.query.filter(
+            #     TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
+            #     ).first()
+
+            entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
 
             if not entry:
+                print(f"DEBUG Save - NEW ENTRY - no entry found for user {user.username} with form_id {user.form_id}")
                 entry = TestEntry(data={})
 
             # Merge new data; do NOT overwrite existing uploaded filenames if none chosen
@@ -234,7 +240,7 @@ def form():
             if serial_error or form_index == 0:
                 return render_template(
                     "form.html",
-                    fields=current_form["fields"],
+                    fields=current_form.fields,
                     prefill_values=session['form_data'],
                     errors={"CM_serial": serial_error or "Submit Serial Number Before Submitting Test as Failure"},
                     form_label=current_form.get("label"),
@@ -244,10 +250,10 @@ def form():
             # Renders Form Failure Text Box
             return render_template(
                 "form.html",
-                fields=current_form["fields"],
+                fields=current_form.fields,
                 prefill_values=session['form_data'],
                 errors={},
-                form_label=current_form.get("label"),
+                form_label=current_form.label,
                 name="Form",
                 trigger_fail_prompt=True  # passed to js to call text box appear
             )
@@ -257,10 +263,10 @@ def form():
             if serial_error:
                 return render_template(
                     "form.html",
-                    fields=current_form["fields"],
+                    fields=current_form.fields,
                     prefill_values=session['form_data'],
                     errors={"CM_serial": serial_error},
-                    form_label=current_form.get("label"),
+                    form_label=current_form.label,
                     name="Form",
                     trigger_fail_prompt=True
                 )
@@ -269,35 +275,37 @@ def form():
             user = current_user()
 
             # Update session data with latest input
-            for field in current_form["fields"]:
+            for field in current_form.fields:
                 value = request.form.get(field.name)
                 if value is not None:
                     session['form_data'][field.name] = value
 
             session['form_data'] = process_file_fields(
-                current_form["fields"],
+                current_form.fields,
                 request,
                 app.config['UPLOAD_FOLDER'],
                 session['form_data']
             )
 
             # Update session data with latest input
-            for field in current_form["fields"]:
+            for field in current_form.fields:
                 value = request.form.get(field.name)
                 if value is not None:
                     session['form_data'][field.name] = value
 
             session['form_data'] = process_file_fields(
-                current_form["fields"],
+                current_form.fields,
                 request,
                 app.config['UPLOAD_FOLDER'],
                 session['form_data']
             )
 
-            # Find existing in-progress entry to mark as failed
-            entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
-            ).first()
+            # # Find existing in-progress entry to mark as failed
+            # entry = TestEntry.query.filter(
+            #     TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
+            # ).first()
+
+            entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
 
             if entry:
                 entry.data = session['form_data']
@@ -305,6 +313,7 @@ def form():
                 entry.is_saved = False  # not in progress anymore
 
             else:
+                print(f"DEBUG - Fail NEW ENTRY - no entry found for user {user.username} with form_id {user.form_id}")
                 entry = TestEntry(data=session['form_data'])
 
 
@@ -327,15 +336,13 @@ def form():
 
             return render_template('form_complete.html')
 
-        # Final Submission
+        # Final Submission & Next
 
-        is_valid, errors = validate_form(current_form["fields"], request, session.get('form_data'))
+        is_valid, errors = validate_form(current_form.fields, request, session.get('form_data'))
 
         if is_valid:
 
-            entry = TestEntry.query.filter(
-                TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
-            ).first()
+            entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
 
             if not entry:
                 entry = TestEntry(data=session['form_data'], is_saved=False)
@@ -359,8 +366,7 @@ def form():
 
             db.session.commit()
 
-
-            if form_index + 1 < len(FORMS):
+            if form_index + 1 < len(FORMS_NON_DICT):
                 return redirect(url_for('form', step=form_index + 1))
 
             # Final submission - mark complete and final
@@ -369,7 +375,7 @@ def form():
             entry.failure = False
             entry.fail_reason = None
             entry.fail_stored = False
-            flag_modified(entry, "data")
+            user.form_id = None
 
             db.session.commit()
             release_lock(entry)
@@ -383,10 +389,10 @@ def form():
 
         return render_template(
             "form.html",
-            fields=current_form["fields"],
+            fields=current_form.fields,
             prefill_values=session['form_data'],
             errors=errors,
-            form_label=current_form.get("label"),
+            form_label=current_form.label,
             name="Form"
         )
 
@@ -406,10 +412,10 @@ def form():
 
     return render_template(
         "form.html",
-        fields=current_form["fields"],
+        fields=current_form.fields,
         prefill_values=session['form_data'],
         errors={},
-        form_label=current_form.get("label"),
+        form_label=current_form.label,
         name="Form"
     )
 
@@ -429,8 +435,8 @@ def history():
     unique_toggle = request.args.get('unique') == "true"
 
     all_fields = []
-    for single_form in FORMS:
-        all_fields.extend([f for f in single_form["fields"] if f.get("display_history", True)])
+    for single_form in FORMS_NON_DICT:
+        all_fields.extend([f for f in single_form.fields if getattr(f, "display_history", True)])
 
     if unique_toggle:
         subquery = (
@@ -455,7 +461,7 @@ def history():
     else:
         entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
 
-    return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle)
+    return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle, now=datetime.utcnow())
 
 @app.route('/export_csv')
 def export_csv():
@@ -467,8 +473,9 @@ def export_csv():
 
     # Combine all fields from all forms for CSV export
     all_fields = []
-    for single_form in FORMS:
-        all_fields.extend(single_form["fields"])
+    for single_form in FORMS_NON_DICT:
+        all_fields.extend(single_form.fields)
+
 
     if unique_toggle:
         subquery = (
@@ -494,11 +501,11 @@ def export_csv():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Time', 'User'] + [f["label"] for f in all_fields] + ['File', "Test Aborted", "Reason Aborted"])
+    writer.writerow(['Time', 'User'] + [f.label for f in all_fields] + ['File', "Test Aborted", "Reason Aborted"])
 
     for e in entries:
         row = [e.timestamp, e.user.username]
-        row += [e.data.get(f["name"]) for f in all_fields]
+        row += [e.data.get(f.name) for f in all_fields]
         row += [e.file_name, "yes" if e.failure else "no", e.fail_reason or ""]
         writer.writerow(row)
 
@@ -515,19 +522,19 @@ def help_button():
     grouped_help_fields = {}
 
     for form_iter in FORMS_NON_DICT:
-        section = form_iter.get("label", "Unnamed Section")
-        for field in form_iter.get("fields", []):
+        section = getattr(form_iter, "label", "Unnamed Section")
+        for field in getattr(form_iter, "fields", []):
             if any([
                 getattr(field, "help_text", None),
                 getattr(field, "help_link", None),
                 getattr(field, "help_label", None)
             ]):
-                getattr(field, "label", None)
                 if section not in grouped_help_fields:
                     grouped_help_fields[section] = []
                 grouped_help_fields[section].append(field)
 
     return render_template("help.html", grouped_help_fields=grouped_help_fields)
+
 
 @app.route('/prod_test_doc')
 def prod_test_doc():
@@ -560,8 +567,8 @@ def dashboard():
 
         e.step_label = (
             "Finished"
-            if step_idx >= len(FORMS)
-            else FORMS[step_idx]["label"]
+            if step_idx >= len(FORMS_NON_DICT)
+            else FORMS_NON_DICT[step_idx].label
         )
         e.is_locked = bool(e.lock_owner)
 
@@ -664,7 +671,6 @@ def retest_failed(entry_id):
     session['form_data'] = retest_data.copy()
     return redirect(url_for('form', step=retest_data["last_step"]))
 
-
 @app.route('/clear_failed/<int:entry_id>', methods=['POST'])
 def clear_failed(entry_id):
     if 'user_id' not in session:
@@ -678,12 +684,9 @@ def clear_failed(entry_id):
 
     return redirect(url_for('failed_tests'))
 
-
-
 @app.context_processor
 def inject_user():
-    return {"current_user": current_user()}
-
+    return {"current_user": current_user}
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

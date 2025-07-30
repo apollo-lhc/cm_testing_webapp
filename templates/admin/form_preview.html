@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Preview Form Page{% endblock %}
+{% block content %}
+
+<div class="container text-center">
+  <h2 class="my-4">{{ form_label }}</h2>
+  <div class="d-flex justify-content-center">
+    <div class="w-100 text-start" style="max-width: 600px;">
+      {% for field in fields if field.display_form %}
+        <!-- Include same field rendering as your form page -->
+        <div class="mb-3">
+          <label class="form-label">{{ field.label }}</label>
+          {% if field.type_field == 'boolean' %}
+            <div><input type="radio" disabled> Yes <input type="radio" disabled> No</div>
+          {% elif field.type_field == 'float' or field.type_field == 'integer' %}
+            <input type="text" class="form-control" disabled placeholder="{{ field.type_field }}">
+          {% elif field.type_field == 'text' %}
+            <textarea class="form-control" rows="4" disabled></textarea>
+          {% elif field.type_field == 'file' %}
+            <input type="file" class="form-control" disabled>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="text-center mt-4">
+    <a href="{{ url_for('form_editor.list_forms') }}" class="btn btn-secondary">Back to Form Editor</a>
+  </div>
+</div>
+
+{% endblock %}

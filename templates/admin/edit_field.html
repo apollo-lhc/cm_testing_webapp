@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Edit Field{% endblock %}
+
+{% block content %}
+<h2>Edit Field</h2>
+
+<form method="post" action="{{ url_for('form_editor.edit_field', page_idx=page_idx, field_idx=field_idx) }}">
+  <div>
+    <label><strong>Label</strong> (Required):</label><br>
+    <input type="text" name="label" value="{{ field.label or '' }}" required>
+  </div>
+
+  <div>
+    <label><strong>Name</strong> (Required, unique within page):</label><br>
+    <input type="text" name="name" value="{{ field.name or '' }}" required>
+  </div>
+
+  <div>
+    <label><strong>Field Type</strong> (Required):</label><br>
+    <select name="type" id="field-type" onchange="adjustFieldOptions()" required>
+      {% for type in ['text', 'integer', 'float', 'boolean', 'file', 'null', 'blank', 'help_instance'] %}
+        <option value="{{ type }}" {% if field.type_field == type %}selected{% endif %}>{{ type }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div id="help-text-group">
+    <label><strong>Help Text</strong> (Optional):</label><br>
+    <textarea name="help_text" rows="3">{{ field.help_text or '' }}</textarea>
+  </div>
+
+  <div id="help-link-group">
+    <label><strong>Help Link</strong> (Optional):</label><br>
+    <input type="url" name="help_link" value="{{ field.help_link or '' }}">
+  </div>
+
+  <div id="help-label-group">
+    <label><strong>Help Label</strong> (Optional):</label><br>
+    <input type="text" name="help_label" value="{{ field.help_label or '' }}">
+  </div>
+
+  <div id="help-target-group">
+    <label><strong>Help Target</strong> (Optional — create link to this help object by placing name here):</label><br>
+    <input type="text" name="help_target" value="{{ field.help_target or '' }}">
+  </div>
+
+  <div id="display-form-group">
+    <label><strong>Show in Form</strong>:</label>
+    <input type="checkbox" name="display_form" value="1" {% if field.display_form %}checked{% endif %}>
+  </div>
+
+  <div id="display-history-group">
+    <label><strong>Show in History</strong>:</label>
+    <input type="checkbox" name="display_history" value="1" {% if field.display_history %}checked{% endif %}>
+  </div>
+
+  <br>
+  <button type="submit">💾 Save Changes</button>
+  <a href="{{ url_for('form_editor.list_forms') }}">Cancel</a>
+</form>
+
+<script>
+  function adjustFieldOptions() {
+    const type = document.getElementById("field-type").value;
+    const show = id => document.getElementById(id).style.display = "block";
+    const hide = id => document.getElementById(id).style.display = "none";
+
+    // Reset all
+    ["help-text-group", "help-link-group", "help-label-group", "help-target-group", "display-form-group", "display-history-group"]
+      .forEach(show);
+
+    if (type === "blank") {
+      hide("help-text-group");
+      hide("help-link-group");
+      hide("help-label-group");
+      hide("help-target-group");
+      hide("display-form-group");
+      hide("display-history-group");
+    }
+
+    if (type === "help_instance") {
+      show("help-text-group");
+      show("help-link-group");
+      show("help-label-group");
+      hide("display-form-group");
+      hide("display-history-group");
+    }
+
+    if (type === "null") {
+      show("help-text-group");
+      show("help-link-group");
+      show("help-label-group");
+    }
+  }
+
+  window.onload = adjustFieldOptions;
+</script>
+{% endblock %}

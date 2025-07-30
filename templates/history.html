@@ -113,6 +113,21 @@
   .history-container .table-striped tbody tr:nth-of-type(odd) {
     background-color: #f8f9fa !important;
   }
+
+    .truncated-cell {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+
+  .expanded-cell {
+    white-space: normal;
+    max-width: none;
+    word-break: break-word;
+  }
+
 </style>
 
 <div class="full-width-container history-container">
@@ -132,42 +147,102 @@
       <a class="btn btn-outline-red custom-btn" href="/help">Help</a>
     </div>
   </div>
-  
+
+  <div class="mb-3 d-flex justify-content-between align-items-center">
+    <div>
+      <strong>Last updated:</strong> <span id="last-updated">{{ now.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+    </div>
+    <div>
+      <button id="toggle-refresh" class="btn btn-outline-primary btn-sm">Enable Auto-Refresh</button>
+    </div>
+  </div>
+
   <div class="card p-3">
+    <div class="mb-3">
+      <strong>Status Filters:</strong>
+      <div class="btn-group" role="group" aria-label="Status Filters">
+        <button class="btn btn-outline-success btn-sm" onclick="filterByStatus('finished')">✅ Finished</button>
+        <button class="btn btn-outline-danger btn-sm" onclick="filterByStatus('failed')">❌ Failed</button>
+        <button class="btn btn-outline-primary btn-sm" onclick="filterByStatus('saved')">💾 Saved</button>
+        <button class="btn btn-outline-warning btn-sm" onclick="filterByStatus('inprogress')">⏳ In Progress</button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('all')">Show All</button>
+        <button class="btn btn-outline-dark btn-sm" onclick="toggleColoring()">🎨 Toggle Row Coloring</button>
+      </div>
+    </div>
+
     <div class="table-responsive">
-      <table id="data-table" class="table table-bordered table-striped">
+      <table id="data-table" class="table table-bordered ">
         <thead>
           <tr>
             <th>Time</th>
             <th>Users</th>
-            {% for field in fields %}
+
+            {% if fields|length > 0 %}
+              <th>{{ fields[0].label }}</th>
+            {% endif %}
+
+            <th>Status</th>
+
+            {% for field in fields[1:] %}
               <th>{{ field.label }}</th>
             {% endfor %}
+
             <th>Test Aborted</th>
             <th>Reason Aborted</th>
           </tr>
         </thead>
         <tbody>
           {% for e in entries %}
-          <tr>
-            <td>{{ e.timestamp }}</td>
+          <tr
+            {% set step = e.data.get('last_step', 0) %}
+            {% set total = fields|length - 1 %}
+            {% set progress = (step / total) if step is not none and total > 0 else 0 %}
+            {% set status = (
+              'failed' if e.failure else
+              'saved' if e.is_saved else
+              'finished' if e.is_finished else
+              'inprogress'
+            ) %}
+            data-status="{{ status }}"
+            data-progress="{{ progress|round(2) }}"
+          >
+            <td>{{ e.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
             <td>{{ ", ".join(e.contributors) if e.contributors else "None" }}</td>
-            {% for field in fields %}
-              <td>
-                {% if field.type_field == 'file' %}
-                  {% set filename = e.data.get(field.name) %}
-                  {% if filename %}
-                    <a href="{{ url_for('uploaded_file', filename=filename) }}" target="_blank">{{ filename }}</a>
+
+            {% if fields|length > 0 %}
+              {% set value = e.data.get(fields[0].name, '') %}
+              {% if fields[0].type_field == 'file' %}
+                <td class="truncated-cell">
+                  {% if value %}
+                    <a href="{{ url_for('uploaded_file', filename=value) }}" target="_blank">{{ value }}</a>
                   {% else %}
                     -
                   {% endif %}
-                {% else %}
-                  {{ e.data.get(field.name, '') }}
-                {% endif %}
-              </td>
+                </td>
+              {% else %}
+                <td class="truncated-cell">{{ value }}</td>
+              {% endif %}
+            {% endif %}
+
+            <td>{{ status }}</td>
+
+            {% for field in fields[1:] %}
+              {% set value = e.data.get(field.name, '') %}
+              {% if field.type_field == 'file' %}
+                <td class="truncated-cell">
+                  {% if value %}
+                    <a href="{{ url_for('uploaded_file', filename=value) }}" target="_blank">{{ value }}</a>
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+              {% else %}
+                <td class="truncated-cell">{{ value }}</td>
+              {% endif %}
             {% endfor %}
+
             <td>{{ "yes" if e.failure else "no" }}</td>
-            <td>{{ e.fail_reason }}</td>
+            <td>{{ e.fail_reason or "-" }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -191,6 +266,7 @@
       if (table) {
         $('.dataTables_scrollBody').css('max-height', `${height}px`);
         table.draw(false);
+        applyRowColors();
       } else {
         table = tableElement.DataTable({
           scrollY: height,
@@ -201,12 +277,16 @@
           order: [[0, 'desc']],
           scrollX: true,
           autoWidth: false,
-          columnDefs: [{ targets: "_all", defaultContent: "-" }]
+          columnDefs: [{ targets: "_all", defaultContent: "-" }],
+          drawCallback: function() {
+            applyRowColors();
+          }
         });
       }
     }
 
     initOrUpdateTable();
+    applyRowColors();
     $(window).on('resize', initOrUpdateTable);
   });
 
@@ -248,5 +328,119 @@
     link.click();
     document.body.removeChild(link);
   }
+
+  function filterByStatus(status) {
+    const table = $('#data-table').DataTable();
+
+    // Find the column index where the header is 'Status'
+    const statusColIndex = $('#data-table thead th')
+      .toArray()
+      .findIndex(th => th.textContent.trim().toLowerCase() === 'status');
+
+    if (statusColIndex === -1) {
+      console.error("Status column not found!");
+      return;
+    }
+
+    if (status === 'all') {
+      table.column(statusColIndex).search('').draw();  // Clear filter
+    } else {
+      table.column(statusColIndex).search(status, true, false).draw();  // Exact match
+    }
+  }
+
+
+
+  let colorEnabled = true;
+
+  function applyRowColors() {
+    $('#data-table tbody tr').each(function () {
+      const status = $(this).data('status');
+      const progress = parseFloat($(this).data('progress')) || 0;
+
+      let bgColor = '';
+
+      if (!colorEnabled) {
+        $(this).css('background-color', '');
+        return;
+      }
+
+      if (status === 'failed') {
+        bgColor = '#e45762'; // red
+      } else if (status === 'saved') {
+        bgColor = '#65e1f7'; // blue
+      } else if (status === 'finished') {
+        bgColor = '#3ef168'; // green
+      } else if (status === 'inprogress') {
+        const r = Math.round(255 + (62 - 255) * progress);
+        const g = Math.round(255 + (241 - 255) * progress);
+        const b = Math.round(100 + (104 - 100) * progress);
+        bgColor = `rgb(${r}, ${g}, ${b})`;
+      }
+
+      $(this).css('background-color', bgColor);
+    });
+  }
+
+  function toggleColoring() {
+    colorEnabled = !colorEnabled;
+
+    const table = document.getElementById("data-table");
+
+    if (colorEnabled) {
+      table.classList.remove("table-striped");  // Remove Bootstrap striping
+    } else {
+      table.classList.add("table-striped");     // Restore Bootstrap striping
+    }
+
+    applyRowColors();
+  }
+
+  function toggleCellExpansion(cell) {
+    cell.classList.toggle("expanded-cell");
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".truncated-cell").forEach(cell => {
+      cell.addEventListener("click", function () {
+        toggleCellExpansion(this);
+      });
+    });
+  });
+
+  const refreshButton = document.getElementById("toggle-refresh");
+  let refreshInterval;
+
+  function startAutoRefresh() {
+    refreshButton.textContent = "Disable Auto-Refresh";
+    refreshInterval = setInterval(() => {
+      window.location.reload();
+    }, 10000); // 10 seconds
+  }
+
+  function stopAutoRefresh() {
+    refreshButton.textContent = "Enable Auto-Refresh";
+    clearInterval(refreshInterval);
+  }
+
+  // On load
+  if (localStorage.getItem("autoRefresh") === "true") {
+    startAutoRefresh();
+  } else {
+    stopAutoRefresh();
+  }
+
+  refreshButton.addEventListener("click", () => {
+    const enabled = localStorage.getItem("autoRefresh") === "true";
+    if (enabled) {
+      localStorage.setItem("autoRefresh", "false");
+      stopAutoRefresh();
+    } else {
+      localStorage.setItem("autoRefresh", "true");
+      startAutoRefresh();
+    }
+  });
+
+
 </script>
 {% endblock %}

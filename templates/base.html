@@ -111,6 +111,15 @@
                 <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
             </div>
             <h1 class="h3 mb-0">{% block page_title %}Apollo CM Testing{% endblock %}</h1>
+            {% if session.get('user_id') %}
+                {% set user = current_user() %}
+                <div class="ms-auto text-end">
+                    <small>
+                        Logged in as <strong>{{ user.username }}</strong>
+                        {% if user.administrator %}(Admin){% endif %}
+                    </small>
+                </div>
+            {% endif %}
         </div>
     </header>
 
