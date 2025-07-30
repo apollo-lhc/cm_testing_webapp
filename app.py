@@ -461,7 +461,7 @@ def history():
     else:
         entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
 
-    return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle)
+    return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle, now=datetime.utcnow())
 
 @app.route('/export_csv')
 def export_csv():
@@ -686,7 +686,7 @@ def clear_failed(entry_id):
 
 @app.context_processor
 def inject_user():
-    return {"current_user": current_user()}
+    return {"current_user": current_user}
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

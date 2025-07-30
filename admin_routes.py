@@ -212,7 +212,7 @@ def list_admin_commands():
         '/admin/deleted_entries': 'View forms that have been deleted from the dashboard.',
     }
 
-    return render_template('admin_commands.html', commands=commands)
+    return render_template('admin/admin_commands.html', commands=commands)
 
 
 # data generation commands - old as of 7/21 - not necessasary for time being
@@ -454,7 +454,7 @@ def admin_dashboard():
         .all()
     )
 
-    return render_template("admin_dashboard.html", forms=forms)
+    return render_template("admin/admin_dashboard.html", forms=forms)
 
 @admin_bp.route('/clear_lock/<int:entry_id>', methods=['POST'])
 def clear_lock(entry_id):
@@ -510,4 +510,4 @@ def deleted_entries():
         return "Permission Denied"
 
     entries = DeletedEntry.query.order_by(DeletedEntry.deleted_at.desc()).all()
-    return render_template('deleted_entries.html', entries=entries)
+    return render_template('admin/deleted_entries.html', entries=entries)
