@@ -53,7 +53,7 @@ from utils import (current_user, authenticate_admin)
 from constants import SERIAL_OFFSET, SERIAL_MIN, SERIAL_MAX
 
 
-admin_bp = Blueprint('admin', __name__)
+admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 fishy_users = {}
 
@@ -179,7 +179,7 @@ def list_fishy_users():
 
     return fishy_users
 
-@admin_bp.route('/admin/help')
+@admin_bp.route('/help')
 def list_admin_commands():
     """
     Displays a list of all admin routes and their descriptions.
@@ -194,18 +194,18 @@ def list_admin_commands():
     # commented commands are currently not working or not implemented or not needed
 
     commands = {
-        '/create_admin': 'Create a new admin user.',
-        '/promote_user': 'Promote an existing user to admin.',
-        '/demote_user': 'Demote an admin to a regular user.',
+        '/admin/create_admin': 'Create a new admin user.',
+        '/admin/promote_user': 'Promote an existing user to admin.',
+        '/admin/demote_user': 'Demote an admin to a regular user.',
         '/admin/forms/': 'View and edit form fields, pages, and help page entries.',
-        '/list_fishy_users': 'View users flagged for suspicious admin access attempts.',
-        '/add_dummy_entry?count=#': 'Add dummy test entries to the database.',
-        # '/add_dummy_saves': 'Add dummy form save data to the session.',
-         '/clear_history': 'Delete all test history and uploaded files.',
-         '/clear_dummy_history': 'Delete only test=True (dummy) history entries and files.',
-        # '/check_dummy_count': 'Show the number of dummy entries in the database.',
-        # '/clear_saves': 'Clear all of the current user’s saved progress.',
-        # '/clear_dummy_saves': 'Clear only dummy (test=True) saves for the current user.',
+        '/admin/list_fishy_users': 'View users flagged for suspicious admin access attempts.',
+        '/admin/add_dummy_entry?count=#': 'Add dummy test entries to the database.',
+        # '/admin/add_dummy_saves': 'Add dummy form save data to the session.',
+         '/admin/clear_history': 'Delete all test history and uploaded files.',
+         '/admin/clear_dummy_history': 'Delete only test=True (dummy) history entries and files.',
+        # '/admin/check_dummy_count': 'Show the number of dummy entries in the database.',
+        # '/admin/clear_saves': 'Clear all of the current user’s saved progress.',
+        # '/admin/clear_dummy_saves': 'Clear only dummy (test=True) saves for the current user.',
         '/admin/admin_dashboard': 'Admin dashboard for viewing in-progress forms.',
         '/admin/clear_lock/<entry_id>': 'Clear the lock on a form so it can be edited.',
         '/admin/delete_form/<entry_id>': 'Delete a form and archive it in DeletedEntry.',
@@ -439,7 +439,7 @@ def clear_dummy_saves():
     return redirect(request.referrer or url_for('dashboard'))
 
 # for admin dashboard:
-@admin_bp.route('/admin/admin_dashboard')
+@admin_bp.route('/admin_dashboard')
 def admin_dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -456,7 +456,7 @@ def admin_dashboard():
 
     return render_template("admin_dashboard.html", forms=forms)
 
-@admin_bp.route('/admin/clear_lock/<int:entry_id>', methods=['POST'])
+@admin_bp.route('/clear_lock/<int:entry_id>', methods=['POST'])
 def clear_lock(entry_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -471,7 +471,7 @@ def clear_lock(entry_id):
 
     return redirect(url_for('admin.admin_dashboard'))
 
-@admin_bp.route('/admin/delete_form/<int:entry_id>', methods=['POST'])
+@admin_bp.route('/delete_form/<int:entry_id>', methods=['POST'])
 def delete_form(entry_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -501,7 +501,7 @@ def delete_form(entry_id):
 
 # for admin view of deleted entries:
 
-@admin_bp.route('/admin/deleted_entries')
+@admin_bp.route('/deleted_entries')
 def deleted_entries():
     if 'user_id' not in session:
         return redirect(url_for('login'))
