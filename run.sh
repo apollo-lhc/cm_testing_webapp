@@ -1,6 +1,8 @@
 #! /bin/sh
 # Makefile for Apollo CM testing Web app, with inspiration from chess-status
 # run with ./run.sh start|stop
+# Intended to be run _outside_ a Docker container, to start/stop the web app
+# Uses Gunicorn to run the Flask app, with a default configuration
 
 
 # Set BASE_DIR to default if not already set
@@ -8,14 +10,14 @@
 LOG_DIR="${BASE_DIR}/log"
 
 : "${IPADDR:="172.31.5.80"}"
-SVC_OPTS="--bind=${IPADDR}:8000 --disable-redirect-access-to-syslog --log-syslog"
+SVC_OPTS="--bind=${IPADDR}:5001 --disable-redirect-access-to-syslog --log-syslog"
 
 
 cm_webapp_start () {
 	echo "Starting cm_webapp"
 	cd ${BASE_DIR}/cm_webapp
-	mkdir -p ${LOG_DIR}/cm_webapp-status
-	nohup .venv/bin/python3 .venv/bin/gunicorn $SVC_OPTS app:app \
+	[ -d ${LOG_DIR}/cm_webapp-status ] || mkdir ${LOG_DIR}/cm_webapp-status
+	nohup .venv/bin/python3 .venv/bin/gunicorn $SVC_OPTS wsgi:app \
 		 >${LOG_DIR}/cm_webapp-status/startup.log 2>&1 &
 	echo $! > ${BASE_DIR}/cm_webapp/gunicorn.pid
 	return 0
@@ -38,12 +40,27 @@ cm_webapp_stop () {
 	fi
 }
 
+cm_webapp_restart () {
+	echo "Restarting cm_webapp"
+	cm_webapp_stop
+	sleep 2
+	if [ $? -eq 0 ]; then
+		cm_webapp_start
+		return $?
+	else
+		return 1
+	fi
+}
+
 echo "argument is $1"
 case "$1" in
 	start)		cm_webapp_start
 			exit $?
 			;;
 	stop)		cm_webapp_stop
+			exit $?
+			;;
+	restart)	cm_webapp_restart
 			exit $?
 			;;
 	*)		echo "Usage: $0 start|stop"
