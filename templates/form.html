@@ -81,9 +81,14 @@
           {% endif %}
 
           {% if field.type_field == 'boolean' %}
-            <div class="d-flex gap-3 mb-3">
-              <label><input type="radio" name="{{ field.name }}" value="yes" {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}> Yes</label>
-              <label><input type="radio" name="{{ field.name }}" value="no" {% if prefill_values.get(field.name) == "no" %}checked{% endif %}> No</label>
+            <div class="btn-group mb-3" role="group" aria-label="Yes/No toggle">
+              <input type="radio" class="btn-check" name="{{ field.name }}" id="{{ field.name }}-yes" value="yes"
+                    {% if prefill_values.get(field.name) == "yes" %}checked{% endif %}>
+              <label class="btn btn-outline-success" for="{{ field.name }}-yes">Yes</label>
+
+              <input type="radio" class="btn-check" name="{{ field.name }}" id="{{ field.name }}-no" value="no"
+                    {% if prefill_values.get(field.name) == "no" %}checked{% endif %}>
+              <label class="btn btn-outline-danger" for="{{ field.name }}-no">No</label>
             </div>
 
           {% elif field.type_field == 'float' %}

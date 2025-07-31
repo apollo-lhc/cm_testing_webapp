@@ -4,6 +4,13 @@
 {% block content %}
 <h2>Form Editor</h2>
 
+<div class="text-end">
+  <div class="d-inline-flex flex-wrap gap-2">
+    <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+  </div>
+</div>
+
+
 {% for page in forms %}
   {% set page_idx = loop.index0 %}
   <h3 id="page-{{ page.name }}">Page {{ page_idx + 1 }} - {{ page.name }}</h3>

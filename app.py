@@ -24,8 +24,7 @@ import os
 import io
 import csv
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash
-from flask import send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash, send_from_directory, abort
 from sqlalchemy.orm.attributes import flag_modified #TODO include in the .yml and enviroment if needed later
 
 from models import db, User, TestEntry
@@ -61,8 +60,17 @@ with app.app_context():
 
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    """Route to serve uploaded files"""
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    """Safely serve uploaded files from nested folders like uploads/cm3021/..."""
+    # Block path traversal
+    if ".." in filename or filename.startswith("/"):
+        abort(400)
+
+    abs_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.isfile(abs_path):
+        directory = os.path.dirname(abs_path)
+        basename = os.path.basename(abs_path)
+        return send_from_directory(directory, basename)
+    abort(404)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -663,9 +671,11 @@ def retest_failed(entry_id):
     )
     if user.username not in (new_entry.contributors or []):
         new_entry.contributors = (new_entry.contributors or []) + [user.username]
+    db.session.add(new_entry)
+    db.session.commit()
 
     user.form_id = new_entry.id
-    db.session.add(new_entry)
+    print(f"new user you form_id: {user.form_id}")
     db.session.commit()
 
     session['form_data'] = retest_data.copy()

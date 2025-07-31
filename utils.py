@@ -121,16 +121,25 @@ def process_file_fields(fields, rq, upload_folder, data):
     """Save uploaded files and update the current data dict with filenames.
     appends uuid to each filename to prevent file overwrites"""
     updated_data = data.copy()
+
     for field in fields:
         if field.type_field == "file":
             file = rq.files.get(field.name)
+            cm_serial = data.get("CM_serial")
+            if not cm_serial:
+                raise ValueError("CM Serial number is required for file uploads.")
+
+            subfolder = f"CM{cm_serial}"
+            save_path = os.path.join(upload_folder, subfolder)
+            os.makedirs(save_path, exist_ok=True)
+
             if file and file.filename:
                 #save and update
                 timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
                 filename = f"{timestamp}_{secure_filename(file.filename)}"
-                filepath = os.path.join(upload_folder, filename)
+                filepath = os.path.join(save_path, filename)
                 file.save(filepath)
-                updated_data[field.name] = filename
+                updated_data[field.name] = os.path.join(subfolder, filename)
             else:
                 # keep old filename
                 if field.name in data:
