@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # Flask development server (default)
+  webapp-flask:
+    build: .
+    ports:
+      - "5001:5001"
+    environment:
+      - SERVER_TYPE=flask
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    
+  # Gunicorn production server
+  webapp-gunicorn:
+    build: .
+    ports:
+      - "5002:5001"  # Map to different host port to avoid conflicts
+    environment:
+      - SERVER_TYPE=gunicorn
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+
+  # Production-like setup matching run.sh configuration
+  webapp-production:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - SERVER_TYPE=gunicorn
+      - GUNICORN_BIND=0.0.0.0:8000
+      - GUNICORN_WORKERS=4
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./log:/app/log
