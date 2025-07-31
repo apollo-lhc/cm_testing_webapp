@@ -17,20 +17,25 @@ cm_webapp_start () {
 	mkdir -p ${LOG_DIR}/cm_webapp-status
 	nohup .venv/bin/python3 .venv/bin/gunicorn $SVC_OPTS app:app \
 		 >${LOG_DIR}/cm_webapp-status/startup.log 2>&1 &
+	echo $! > ${BASE_DIR}/cm_webapp/gunicorn.pid
 	return 0
 }
 
 cm_webapp_stop () {
 	echo "Stopping cm_webapp"
-	pid=$(ps ax | grep '[g]unicorn' | awk '{print $1}' | head -n 1)
-	if [ -n "$pid" ]; then
+	if [ -f ${BASE_DIR}/cm_webapp/gunicorn.pid ]; then
+		pid=$(cat ${BASE_DIR}/cm_webapp/gunicorn.pid)
 		if kill $pid; then
+			rm -f ${BASE_DIR}/cm_webapp/gunicorn.pid
 			return 0
 		else
+			echo "Failed to stop process with PID $pid"
 			return 1
 		fi
+	else
+		echo "PID file not found. Is the service running?"
+		return 1
 	fi
-	return 0
 }
 
 echo "argument is $1"
