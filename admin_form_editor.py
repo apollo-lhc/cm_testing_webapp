@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for
+import os
+from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, current_app
 from form_config import FORMS_NON_DICT, save_forms_to_file, reset_forms
 from models import FormField, FormPage
 
@@ -137,3 +138,9 @@ def reset_forms_route():
 @form_editor_bp.route("/help")
 def help_page():
     return render_template("admin/form_help.html", forms=FORMS_NON_DICT)
+
+@form_editor_bp.route("/download_config")
+def download_form_config():
+    file_dir = os.path.join(current_app.root_path, "data")
+    filename = "forms_config.json"
+    return send_from_directory(file_dir, filename, as_attachment=True)
