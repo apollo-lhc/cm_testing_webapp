@@ -63,14 +63,14 @@ def uploaded_file(filename):
     """Safely serve uploaded files from nested folders like uploads/cm3021/..."""
     # Block path traversal
     if ".." in filename or filename.startswith("/"):
-        abort(400)
+        return abort(400)
 
     abs_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.isfile(abs_path):
         directory = os.path.dirname(abs_path)
         basename = os.path.basename(abs_path)
         return send_from_directory(directory, basename)
-    abort(404)
+    return abort(404)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
