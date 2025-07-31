@@ -133,3 +133,7 @@ def preview_page(page_idx):
 def reset_forms_route():
     reset_forms()
     return render_template("admin/form_editor.html", forms=FORMS_NON_DICT)
+
+@form_editor_bp.route("/help")
+def help_page():
+    return render_template("admin/form_help.html", forms=FORMS_NON_DICT)
