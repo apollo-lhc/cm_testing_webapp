@@ -11,10 +11,13 @@ Constants:
 """
 
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 
 # Constants
 SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
 SERIAL_MAX = 3050
 SERIAL_MIN = SERIAL_OFFSET
-LOCK_TIMEOUT = timedelta(minutes=20)   # how long before a stale lock is considered free
+LOCK_TIMEOUT = timedelta(minutes=20)   # how long before a stale lock is considered free (not implemented)
+
+EASTERN_TZ = ZoneInfo("America/New_York")

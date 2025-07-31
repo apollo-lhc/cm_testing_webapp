@@ -8,16 +8,9 @@ Features:
 - CSV export of test results
 - File download for uploaded reports
 """
-
-#TODO fix prompt for login on trying to recieve lock after not being logged in in same session
-# TODO fix datetimes to all match cornell's timezone
-# TODO remove entryslot entirely (entryslot -> testentries)
-# TODO move resume entry and lock and other routes out of admin routes
-# TODO make test resume button to avoid constantly needing to unlock lock
 # TODO fix formatting of code and make constantly repeated code into helper functions
-# TODO block people using back button on forms
-#TODO get rid of lock and key system and only check if user holds something
-#TODO rewrite form route after one form per user gets done
+# TODO block people using back button on forms?
+# TODO rewrite form route after one form per user gets done
 # TODO have files visible in js for form.html
 
 import os
@@ -32,9 +25,7 @@ from form_config import FORMS_NON_DICT
 from admin_routes import admin_bp
 from admin_form_editor import form_editor_bp
 from utils import (validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock)
-
-
-
+from constants import EASTERN_TZ
 
 app = Flask(__name__)
 
@@ -74,7 +65,6 @@ def uploaded_file(filename):
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # TODO fix ui for this
     """User registration route"""
     if request.method == 'POST':
         username = request.form['username'].strip()
@@ -90,7 +80,6 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    #TODO fix ui for this
     """Login form route"""
     if request.method == 'POST':
         username = request.form['username'].strip()
@@ -150,12 +139,6 @@ def form():
 
     if request.method == 'POST':
 
-        #errors = {}
-        #if "CM_serial" in session['form_data'] and form_index > 0:
-            #form_data = request.form.copy()
-            #form_data["CM_serial"] = session["form_data"]["CM_serial"]
-
-
         # Step 1: update form_data with current inputs
         for field in current_form.fields:
             value = request.form.get(field.name)
@@ -212,11 +195,6 @@ def form():
                     name="Form"
                 )
 
-            # Look for an existing in‑progress TestEntry for this serial
-            # entry = TestEntry.query.filter(
-            #     TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
-            #     ).first()
-
             entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
 
             if not entry:
@@ -226,7 +204,7 @@ def form():
             # Merge new data; do NOT overwrite existing uploaded filenames if none chosen
             entry.data.update(session['form_data'])
             flag_modified(entry, "data")
-            entry.timestamp = datetime.utcnow()
+            entry.timestamp = datetime.now(EASTERN_TZ)
             entry.failure = False
             entry.fail_reason = None
             entry.fail_stored = False
@@ -308,11 +286,6 @@ def form():
                 session['form_data']
             )
 
-            # # Find existing in-progress entry to mark as failed
-            # entry = TestEntry.query.filter(
-            #     TestEntry.data["CM_serial"].as_string() == str(cm_serial), TestEntry.is_finished is False
-            # ).first()
-
             entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
 
             if entry:
@@ -329,7 +302,7 @@ def form():
             entry.fail_reason = reason
             entry.fail_stored = True
             entry.is_finished = False
-            entry.timestamp = datetime.utcnow()
+            entry.timestamp = datetime.now(EASTERN_TZ)
 
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
@@ -345,7 +318,6 @@ def form():
             return render_template('form_complete.html')
 
         # Final Submission & Next
-
         is_valid, errors = validate_form(current_form.fields, request, session.get('form_data'))
 
         if is_valid:
@@ -362,7 +334,7 @@ def form():
                 entry.data = session['form_data']
                 flag_modified(entry, "data")
 
-            entry.timestamp = datetime.utcnow()
+            entry.timestamp = datetime.now(EASTERN_TZ)
 
             if user.username not in (entry.contributors or []):
                 entry.contributors = (entry.contributors or []) + [user.username]
@@ -403,20 +375,6 @@ def form():
             form_label=current_form.label,
             name="Form"
         )
-
-    # GET request: load saved state if exists
-
-    #cm_serial = session.get('form_data', {}).get("CM_serial")
-    #if cm_serial and cm_serial.isdigit():
-        #cm_serial = int(cm_serial)
-        #if SERIAL_MIN <= cm_serial <= SERIAL_MAX:
-            #index = cm_serial - SERIAL_OFFSET
-            #saved = session['forms_per_serial'][index]
-
-            #if saved and not session['form_data']:
-                #entry = EntrySlot.from_dict(saved)
-                #session['form_data'] = entry.data.copy()
-
 
     return render_template(
         "form.html",
@@ -469,7 +427,7 @@ def history():
     else:
         entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
 
-    return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle, now=datetime.utcnow())
+    return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle, now=datetime.now(EASTERN_TZ))
 
 @app.route('/export_csv')
 def export_csv():
@@ -580,7 +538,7 @@ def dashboard():
         )
         e.is_locked = bool(e.lock_owner)
 
-    return render_template("dashboard.html", entries=entries, now=datetime.utcnow())
+    return render_template("dashboard.html", entries=entries, now=datetime.now(EASTERN_TZ))
 
 @app.route('/resume/<int:entry_id>', methods=['POST'])
 def resume_entry(entry_id):
@@ -634,7 +592,7 @@ def failed_tests():
         .all()
     )
 
-    return render_template('failed_tests.html', entries=entries, now=datetime.utcnow())
+    return render_template('failed_tests.html', entries=entries, now=datetime.now(EASTERN_TZ))
 
 @app.route('/retest_failed/<int:entry_id>', methods=['POST'])
 def retest_failed(entry_id):
@@ -663,7 +621,7 @@ def retest_failed(entry_id):
 
     new_entry = TestEntry(
         data=retest_data,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(EASTERN_TZ),
         is_finished=False,
         failure=False,
         is_saved=True,

@@ -26,7 +26,7 @@ from werkzeug.utils import secure_filename
 
 from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
-from constants import LOCK_TIMEOUT
+from constants import LOCK_TIMEOUT, EASTERN_TZ
 
 
 fishy_users = {}
@@ -89,7 +89,7 @@ def determine_step_from_data(data):
 
 def acquire_lock(entry_id, username):
     """Try to claim the lock; returns (success_flag, entry)."""
-    now = datetime.utcnow()
+    now = datetime.now(EASTERN_TZ)
 
     # ---- new WHERE clause (no imports needed) -----------------
     q = (

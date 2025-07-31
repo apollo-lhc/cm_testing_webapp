@@ -21,6 +21,13 @@
   }
 </style>
 
+<div class="d-inline-flex flex-wrap gap-2">
+    <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+    <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+    <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+</div>
+
 <div class="container my-4">
   <div class="card help-card shadow-sm p-4 border border-2">
     <h3 class="mb-3 text-primary">How to Edit Forms</h3>
