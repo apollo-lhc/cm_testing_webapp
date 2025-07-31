@@ -10,7 +10,6 @@ Features:
 """
 # TODO fix formatting of code and make constantly repeated code into helper functions
 # TODO block people using back button on forms?
-# TODO rewrite form route after one form per user gets done
 # TODO have files visible in js for form.html
 
 import os
@@ -123,13 +122,15 @@ def form():
         held_entry = db.session.get(TestEntry, user.form_id)
         if held_entry:
             last_step = held_entry.data.get("last_step", -1)
-            print(f"last step:{last_step}")
+            #DEBUG PRINT
+            #print(f"last step:{last_step}")
             if form_index != last_step:
                 session['form_data'] = held_entry.data.copy()
                 return redirect(url_for('form', step=last_step))
 
-    if user.form_id is None:
-        print("no user-id")
+    # #DEBUG PRINT
+    # if user.form_id is None:
+    #     print("no user-id")
 
     form_index = max(0, min(form_index, len(FORMS_NON_DICT) - 1))
     current_form = FORMS_NON_DICT[form_index]
@@ -198,7 +199,8 @@ def form():
             entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
 
             if not entry:
-                print(f"DEBUG Save - NEW ENTRY - no entry found for user {user.username} with form_id {user.form_id}")
+                #DEBUG PRINT
+                #print(f"DEBUG Save - NEW ENTRY - no entry found for user {user.username} with form_id {user.form_id}")
                 entry = TestEntry(data={})
 
             # Merge new data; do NOT overwrite existing uploaded filenames if none chosen
@@ -294,7 +296,8 @@ def form():
                 entry.is_saved = False  # not in progress anymore
 
             else:
-                print(f"DEBUG - Fail NEW ENTRY - no entry found for user {user.username} with form_id {user.form_id}")
+                #DEBUG PRINT
+                #print(f"DEBUG - Fail NEW ENTRY - no entry found for user {user.username} with form_id {user.form_id}")
                 entry = TestEntry(data=session['form_data'])
 
 
@@ -342,7 +345,9 @@ def form():
             entry.data['last_step'] = form_index + 1
             flag_modified(entry, "data")
             user.form_id = entry.id
-            print(f"assigned {user.username} id: {user.form_id}")
+
+            #DEBUG PRINT
+            #print(f"assigned {user.username} id: {user.form_id}")
 
             db.session.commit()
 
@@ -361,7 +366,6 @@ def form():
             release_lock(entry)
             session.pop('form_data', None)
             return render_template("form_complete.html")
-
 
         # Step 5: re-render form with inline errors
         if serial_error:
@@ -633,7 +637,8 @@ def retest_failed(entry_id):
     db.session.commit()
 
     user.form_id = new_entry.id
-    print(f"new user you form_id: {user.form_id}")
+    #DEBUG PRINT
+    #print(f"new user you form_id: {user.form_id}")
     db.session.commit()
 
     session['form_data'] = retest_data.copy()
