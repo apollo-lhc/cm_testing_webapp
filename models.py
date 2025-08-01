@@ -1,10 +1,23 @@
 """
-Database models for the test entry application.
+Database models and form field definitions for the Apollo CM Test Entry application.
 
-Includes:
-- User: authentication and password management
-- TestEntry: stores test data, file uploads, and user association
-- EntrySlot: need to add writeup when finished with it
+This module defines the core SQLAlchemy models and helper classes used to manage
+user authentication, test data submission, form progress, deleted entries, and contributor history.
+
+Models:
+- User: Handles authentication, password hashing, and admin status.
+- TestEntry: Stores all test data, file uploads, form status flags, contributor tracking, and locking info.
+- EntryHistory: (Not Implemented) Tracks incremental form submissions and contributor changes.
+- DeletedEntry: Archives entries deleted by administrators for recovery.
+
+Classes:
+- FormField: Represents an individual form field, with metadata, validation logic, and type support.
+- FormPage: Groups multiple FormFields into a logical page for multi-step form rendering.
+
+Notes:
+- Uses SQLite JSON columns for flexible field storage.
+- All models are bound to separate database engines using `__bind_key__`.
+- FormField and FormPage are used for dynamic form rendering and validation logic.
 """
 
 from datetime import datetime
@@ -56,16 +69,18 @@ class TestEntry(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False) #unused atm
 
 
-# -------------- NEW GLOBAL‑SAVE FIELDS --------------
-    is_saved         = db.Column(db.Boolean, default=False)
+    # ===============FORM MANAGEMENT FIELDS================ #
+
+    is_saved = db.Column(db.Boolean, default=False)
     is_finished = db.Column(db.Boolean, default=False)
-    contributors     = db.Column(JSON, default=list)                  # e.g. ["alice","bob"]
-    lock_owner       = db.Column(db.String(80), nullable=True)
+    contributors = db.Column(JSON, default=list)
+    lock_owner = db.Column(db.String(80), nullable=True)
     lock_acquired_at = db.Column(db.DateTime, nullable=True)
-# ----------------------------------------------------
+
 
 class EntryHistory(db.Model):
-    """Model to keep track of who added / changed what in a test entry."""
+    """Model to keep track of who added / changed what in a test entry.
+    Currently unimplemented, but can be used to track changes"""
 
     __bind_key__ = 'main'
     #TODO need to implement in save and exit logic
@@ -78,7 +93,7 @@ class EntryHistory(db.Model):
     changes = db.Column(JSON)  # Optional: record diff or snapshot of fields
 
 class DeletedEntry(db.Model):
-    """Model for admin deleted entries that are stored in the deleted entries table """
+    """Model for admin deleted entries that are stored in the admin deleted entries table """
 
     __bind_key__ = 'main'
     id = db.Column(db.Integer, primary_key=True)
@@ -90,30 +105,7 @@ class DeletedEntry(db.Model):
     contributors = db.Column(db.PickleType)     # list of contributors
     fail_reason = db.Column(db.Text)
     failure = db.Column(db.Boolean)
-    was_locked = db.Column(db.String(80))       # lock owner, if an
-
-class EntrySlot:
-    """Model for keeping track and saving in use forms per serial number"""
-    #TODO get rid of this entirely
-    def __init__(self, closed=False, data=None, test=False):
-        self.closed = closed
-        self.data = data or {}
-        self.test = test
-
-    def to_dict(self):
-        return {
-            'closed': self.closed,
-            'data': self.data,
-            'test': self.test
-        }
-
-    @staticmethod
-    def from_dict(d):
-        return EntrySlot(
-            closed=d.get('closed', False),
-            data=d.get('data', {}),
-            test=d.get('test', False)
-        )
+    was_locked = db.Column(db.String(80))       # lock owner at deletion, if any
 
 class FormField:
     def __init__(
@@ -266,8 +258,6 @@ class FormField:
             if not value and not (existing_data or {}).get(self.name):
                 return False, "File is required."
         return True, ""
-
-# In models.py
 
 class FormPage:
     def __init__(self, name, label, fields):

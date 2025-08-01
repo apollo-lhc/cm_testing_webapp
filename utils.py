@@ -1,23 +1,20 @@
 """
-utils.py
+Utility functions for the Apollo CM Test Entry app.
 
-Contains utility functions for form validation, file processing, user session handling,
-and lock management for test entries in the Flask web application.
+Provides core helpers for:
+- Validating individual fields and entire forms (`validate_field`, `validate_form`)
+- Tracking incomplete form steps (`determine_step_from_data`)
+- Managing locks on entries (`acquire_lock`, `release_lock`)
+- Handling file uploads with unique names (`process_file_fields`)
+- Retrieving the current user (`current_user`)
+- Verifying admin access and logging suspicious attempts (`authenticate_admin`)
 
-Functions:
-- validate_field: Validates individual form fields based on type and custom logic.
-- validate_form: Validates an entire form submission and returns error messages.
-- determine_step_from_data: Identifies the next incomplete step in a multi-step form.
-- acquire_lock: Attempts to lock a TestEntry for editing by a specific user.
-- release_lock: Releases a previously acquired TestEntry lock.
-- process_file_fields: Saves uploaded files with unique names and updates the form data.
-- current_user: Retrieves the currently logged-in user from the session.
-- authenticate_admin: Checks if the current user is an admin and logs suspicious access.
+Also defines:
+- `fishy_users`: Tracks users who attempt unauthorized admin access.
 
-Constants and external references:
-- fishy_users: Tracks users attempting unauthorized admin access.
-- FORMS_NON_DICT, LOCK_TIMEOUT: Imported for validation and lock control.
+Dependencies: Flask `session`, SQLAlchemy `User` and `TestEntry` models, `FORMS_NON_DICT`, `LOCK_TIMEOUT`.
 """
+
 
 import os
 from datetime import datetime
@@ -26,7 +23,7 @@ from werkzeug.utils import secure_filename
 
 from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
-from constants import LOCK_TIMEOUT
+from constants import LOCK_TIMEOUT, EASTERN_TZ
 
 
 fishy_users = {}
@@ -89,7 +86,7 @@ def determine_step_from_data(data):
 
 def acquire_lock(entry_id, username):
     """Try to claim the lock; returns (success_flag, entry)."""
-    now = datetime.utcnow()
+    now = datetime.now(EASTERN_TZ)
 
     # ---- new WHERE clause (no imports needed) -----------------
     q = (
@@ -121,16 +118,25 @@ def process_file_fields(fields, rq, upload_folder, data):
     """Save uploaded files and update the current data dict with filenames.
     appends uuid to each filename to prevent file overwrites"""
     updated_data = data.copy()
+
     for field in fields:
         if field.type_field == "file":
             file = rq.files.get(field.name)
+            cm_serial = data.get("CM_serial")
+            if not cm_serial:
+                raise ValueError("CM Serial number is required for file uploads.")
+
+            subfolder = f"CM{cm_serial}"
+            save_path = os.path.join(upload_folder, subfolder)
+            os.makedirs(save_path, exist_ok=True)
+
             if file and file.filename:
                 #save and update
                 timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
                 filename = f"{timestamp}_{secure_filename(file.filename)}"
-                filepath = os.path.join(upload_folder, filename)
+                filepath = os.path.join(save_path, filename)
                 file.save(filepath)
-                updated_data[field.name] = filename
+                updated_data[field.name] = os.path.join(subfolder, filename)
             else:
                 # keep old filename
                 if field.name in data:
