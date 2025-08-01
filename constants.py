@@ -8,6 +8,7 @@ Constants:
 - SERIAL_MIN: Minimum valid CM serial number (same as SERIAL_OFFSET).
 - SERIAL_MAX: Maximum valid CM serial number.
 - LOCK_TIMEOUT: Duration after which a form lock is considered expired and can be reassigned.
+- EASTERN_TZ: Timezone object for Eastern Time, used for date and time handling.
 """
 
 from datetime import timedelta

@@ -8,8 +8,8 @@ Features:
 - CSV export of test results
 - File download for uploaded reports
 """
-# TODO fix formatting of code and make constantly repeated code into helper functions
-# TODO block people using back button on forms?
+# TODO fix formatting of code and make constantly repeated code into helper functions?
+# TODO block using back button on forms?
 # TODO have files visible in js for form.html
 
 import os

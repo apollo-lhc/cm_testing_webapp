@@ -1,23 +1,20 @@
 """
-utils.py
+Utility functions for the Apollo CM Test Entry app.
 
-Contains utility functions for form validation, file processing, user session handling,
-and lock management for test entries in the Flask web application.
+Provides core helpers for:
+- Validating individual fields and entire forms (`validate_field`, `validate_form`)
+- Tracking incomplete form steps (`determine_step_from_data`)
+- Managing locks on entries (`acquire_lock`, `release_lock`)
+- Handling file uploads with unique names (`process_file_fields`)
+- Retrieving the current user (`current_user`)
+- Verifying admin access and logging suspicious attempts (`authenticate_admin`)
 
-Functions:
-- validate_field: Validates individual form fields based on type and custom logic.
-- validate_form: Validates an entire form submission and returns error messages.
-- determine_step_from_data: Identifies the next incomplete step in a multi-step form.
-- acquire_lock: Attempts to lock a TestEntry for editing by a specific user.
-- release_lock: Releases a previously acquired TestEntry lock.
-- process_file_fields: Saves uploaded files with unique names and updates the form data.
-- current_user: Retrieves the currently logged-in user from the session.
-- authenticate_admin: Checks if the current user is an admin and logs suspicious access.
+Also defines:
+- `fishy_users`: Tracks users who attempt unauthorized admin access.
 
-Constants and external references:
-- fishy_users: Tracks users attempting unauthorized admin access.
-- FORMS_NON_DICT, LOCK_TIMEOUT: Imported for validation and lock control.
+Dependencies: Flask `session`, SQLAlchemy `User` and `TestEntry` models, `FORMS_NON_DICT`, `LOCK_TIMEOUT`.
 """
+
 
 import os
 from datetime import datetime

@@ -46,10 +46,10 @@ from datetime import datetime
 from random import randint, uniform, choice
 from flask import render_template, request, redirect, url_for, session, current_app, Blueprint
 
-from models import db, TestEntry, EntrySlot, DeletedEntry, User
+from models import db, TestEntry, DeletedEntry, User
 from form_config import FORMS_NON_DICT
 from utils import (current_user, authenticate_admin)
-from constants import SERIAL_OFFSET, SERIAL_MIN, SERIAL_MAX
+from constants import SERIAL_MIN, SERIAL_MAX
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 

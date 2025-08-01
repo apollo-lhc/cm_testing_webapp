@@ -1,16 +1,63 @@
+"""
+Admin Form Editor Routes for Apollo CM Test Entry Application.
+
+This module provides administrative functionality for editing, previewing, and managing
+multi-step form definitions used in test data entry. These routes are restricted to admin users
+and allow dynamic editing of form structure without modifying backend code.
+
+Features:
+- List all form pages and fields
+- Add, delete, or reorder form pages
+- Add, delete, or reorder individual fields on any page (except Page 0)
+- Edit field properties such as label, name, type, help text, and visibility options
+- Preview any form page with dummy data
+- Download the current `forms_config.json` for backup or inspection
+- Reset the form configuration to its default state
+- View help documentation for editing form structure
+
+Blueprint:
+- URL Prefix: `/admin/forms`
+- Blueprint name: `form_editor`
+
+Dependencies:
+- `FORMS_NON_DICT`: The in-memory list of `FormPage` objects used for dynamic form rendering
+- `FormField` and `FormPage`: Classes representing individual form components
+- `save_forms_to_file()`: Persists changes to `forms_config.json`
+- `reset_forms()`: Reloads the default form configuration from disk
+
+Typical usage:
+- Used in the Admin UI to maintain and customize the multi-step form process.
+"""
+
+
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, current_app, session
 from form_config import FORMS_NON_DICT, save_forms_to_file, reset_forms
 from models import FormField, FormPage
+from utils import authenticate_admin
 
 form_editor_bp = Blueprint("form_editor", __name__, url_prefix="/admin/forms")
 
 @form_editor_bp.route("/")
 def list_forms():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
     return render_template("admin/form_editor.html", forms=FORMS_NON_DICT)
 
 @form_editor_bp.route("/edit/<int:page_idx>/<int:field_idx>", methods=["GET", "POST"])
 def edit_field(page_idx, field_idx):
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+
     if page_idx == 0:
         return "Editing Page 0 is restricted.", 403
 
@@ -39,6 +86,13 @@ def edit_field(page_idx, field_idx):
 
 @form_editor_bp.route("/add_field/<int:page_idx>", methods=["POST"])
 def add_field(page_idx):
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
     if page_idx == 0:
         return "Cannot add fields to Page 0.", 403
 
@@ -49,6 +103,14 @@ def add_field(page_idx):
 
 @form_editor_bp.route("/delete_field/<int:page_idx>/<int:field_idx>", methods=["POST"])
 def delete_field(page_idx, field_idx):
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+
     if page_idx == 0:
         return "Cannot delete fields from Page 0.", 403
 
@@ -61,6 +123,13 @@ def delete_field(page_idx, field_idx):
 
 @form_editor_bp.route("/add_page", methods=["POST"])
 def add_page():
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
     name = request.form.get("page_name")
     label = request.form.get("page_label")
 
@@ -74,6 +143,13 @@ def add_page():
 
 @form_editor_bp.route("/delete_page/<int:page_idx>", methods=["POST"])
 def delete_page(page_idx):
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
     if page_idx == 0:
         return "Cannot delete Page 0.", 403
 
@@ -85,6 +161,13 @@ def delete_page(page_idx):
 
 @form_editor_bp.route("/move_page/<int:page_idx>/<string:direction>", methods=["POST"])
 def move_page(page_idx, direction):
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
     if direction == "up" and page_idx > 1:
         FORMS_NON_DICT[page_idx - 1], FORMS_NON_DICT[page_idx] = (
             FORMS_NON_DICT[page_idx],
@@ -100,6 +183,13 @@ def move_page(page_idx, direction):
 
 @form_editor_bp.route("/move_field/<int:page_idx>/<int:field_idx>/<string:direction>", methods=["POST"])
 def move_field(page_idx, field_idx, direction):
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
     page = FORMS_NON_DICT[page_idx]
     fields = page.fields
 
@@ -113,6 +203,13 @@ def move_field(page_idx, field_idx, direction):
 
 @form_editor_bp.route("/preview/<int:page_idx>")
 def preview_page(page_idx):
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
     if not 0 <= page_idx < len(FORMS_NON_DICT):
         return "Invalid page index", 404
 
@@ -132,15 +229,37 @@ def preview_page(page_idx):
 
 @form_editor_bp.route("/reset_forms", methods=["POST"])
 def reset_forms_route():
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
     reset_forms()
     return render_template("admin/form_editor.html", forms=FORMS_NON_DICT)
 
 @form_editor_bp.route("/help")
 def help_page():
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+
     return render_template("admin/form_help.html", forms=FORMS_NON_DICT)
 
 @form_editor_bp.route("/download_config")
 def download_form_config():
+
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
     file_dir = os.path.join(current_app.root_path, "data")
     filename = "forms_config.json"
     return send_from_directory(file_dir, filename, as_attachment=True)
