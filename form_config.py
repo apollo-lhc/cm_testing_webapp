@@ -326,7 +326,7 @@ def load_forms_from_file(filepath=forms_config_path):
 FORMS_NON_DICT = load_forms_from_file()
 
 def reset_forms():
-    """"Restores the form configuration to its default state.
+    """Restores the form configuration to its default state.
     Should probably only be used in development or testing environments.
     TODO disable in production."""
     save_forms_to_file(FORMS_NON_DICT_DEFAULT, forms_config_path)
