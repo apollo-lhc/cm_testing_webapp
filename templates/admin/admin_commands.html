@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Admin Commands{% endblock %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2>Admin Command List</h2>
+    <ul class="list-group mt-3">
+      {% for route, description in commands.items() %}
+        <li class="list-group-item">
+          <code>{{ route }}</code>: {{ description }}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endblock %}

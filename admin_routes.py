@@ -41,17 +41,15 @@ Dummy data and cleanup routes are intended for development/debugging and may be 
 or removed in production environments.
 """
 
-
 import os
 from datetime import datetime
 from random import randint, uniform, choice
 from flask import render_template, request, redirect, url_for, session, current_app, Blueprint
 
-from models import db, TestEntry, EntrySlot, DeletedEntry, User
+from models import db, TestEntry, DeletedEntry, User
 from form_config import FORMS_NON_DICT
 from utils import (current_user, authenticate_admin)
-from constants import SERIAL_OFFSET, SERIAL_MIN, SERIAL_MAX
-
+from constants import SERIAL_MIN, SERIAL_MAX
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -102,8 +100,8 @@ def promote_user():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    # if not authenticate_admin():
-    #     return "Permission Denied"
+    if not authenticate_admin():
+        return "Permission Denied"
 
     if request.method == 'POST':
         username = request.form['username']
@@ -191,24 +189,23 @@ def list_admin_commands():
     if not authenticate_admin():
         return "Permission Denied"
 
-    # commented commands are currently not working or not implemented or not needed
+    # commented commands are not needed
 
     commands = {
         '/admin/create_admin': 'Create a new admin user.',
         '/admin/promote_user': 'Promote an existing user to admin.',
         '/admin/demote_user': 'Demote an admin to a regular user.',
+        '/admin/users': 'List all users, promote/demote or delete them.',
         '/admin/forms/': 'View and edit form fields, pages, and help page entries.',
+        '/admin/forms/help': 'View help documentation for form editing.',
         '/admin/list_fishy_users': 'View users flagged for suspicious admin access attempts.',
         '/admin/add_dummy_entry?count=#': 'Add dummy test entries to the database.',
-        # '/admin/add_dummy_saves': 'Add dummy form save data to the session.',
-         '/admin/clear_history': 'Delete all test history and uploaded files.',
-         '/admin/clear_dummy_history': 'Delete only test=True (dummy) history entries and files.',
-        # '/admin/check_dummy_count': 'Show the number of dummy entries in the database.',
-        # '/admin/clear_saves': 'Clear all of the current user’s saved progress.',
-        # '/admin/clear_dummy_saves': 'Clear only dummy (test=True) saves for the current user.',
+        #'/admin/clear_history': 'Delete all test history and uploaded files.',
+        '/admin/clear_dummy_history': 'Delete only test=True (dummy) history entries and files.',
+        '/admin/check_dummy_count': 'Show the number of dummy entries in the database.',
         '/admin/admin_dashboard': 'Admin dashboard for viewing in-progress forms.',
-        '/admin/clear_lock/<entry_id>': 'Clear the lock on a form so it can be edited.',
-        '/admin/delete_form/<entry_id>': 'Delete a form and archive it in DeletedEntry.',
+        #'/admin/clear_lock/<entry_id>': 'Clear the lock on a form so it can be edited.',
+        #'/admin/delete_form/<entry_id>': 'Delete a form and archive it in DeletedEntry.',
         '/admin/deleted_entries': 'View forms that have been deleted from the dashboard.',
     }
 
@@ -216,7 +213,6 @@ def list_admin_commands():
 
 
 # data generation commands - old as of 7/21 - not necessasary for time being
-#TODO remove these on actual website launch
 
 @admin_bp.route('/add_dummy_entry')
 def add_dummy_entry():
@@ -271,91 +267,17 @@ def add_dummy_entry():
     db.session.commit()
     return redirect(url_for('history'))
 
-@admin_bp.route('/add_dummy_saves')
-def add_dummy_saves():
-    # activate with http://localhost:5001/add_dummy_saves?entries=N for N entries
-    # http://localhost:5001/add_dummy_saves?entries adds one entry
-
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    try:
-        num_entries = int(request.args.get('entries', 1))
-    except ValueError:
-        num_entries = 5
-
-    if 'forms_per_serial' not in session:
-        session['forms_per_serial'] = [None] * 51
-
-    used_serials = {
-        SERIAL_OFFSET + i for i, val in enumerate(session['forms_per_serial']) if val is not None
-    }
-
-    for _ in range(num_entries):
-        cm_serial = randint(SERIAL_MIN, SERIAL_MAX)
-        attempts = 0
-        while cm_serial in used_serials and attempts < 20:
-            cm_serial = randint(SERIAL_MIN, SERIAL_MAX)
-            attempts += 1
-        if cm_serial in used_serials:
-            continue
-
-        used_serials.add(cm_serial)
-        index = cm_serial - SERIAL_OFFSET
-
-        entry_data = {
-            "CM_serial": cm_serial,
-            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        }
-
-        for form_iter in FORMS_NON_DICT:
-            for field in form_iter.fields:
-                if field.type_field == "boolean":
-                    entry_data[field.name] = choice(["yes", "no"])
-                elif field.type_field == "integer":
-                    entry_data[field.name] = str(randint(0, 1000))
-                elif field.type_field == "float":
-                    entry_data[field.name]= f"{uniform(0, 10):.2f}"
-                elif field.type_field == "text":
-                    entry_data[field.name] = "Lorem ipsum"
-
-        # Determine last step with missing fields3
-        for i, form_iter in enumerate(FORMS_NON_DICT):
-            for field in form_iter["fields"]:
-                if field.name not in entry_data:
-                    form_index = i
-                    break
-            else:
-                continue
-            break
-        else:
-            form_index = len(FORMS_NON_DICT) - 1
-
-        entry_data['last_step'] = form_index
-
-        session['forms_per_serial'][index] = EntrySlot(
-            closed=False,
-            data=entry_data,
-            test=True
-        ).to_dict()
-
-    session.modified = True  # pylint: disable=assigning-non-slot
-    return redirect(url_for('dashboard'))
-
 @admin_bp.route('/clear_history')
 def clear_history():
-    '''clears all entries from history to be TODO removed later'''
+    '''clears all entries from history to be TODO removed later (same as clear_dummy_history now)'''
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
     if not authenticate_admin():
         return "Permission Denied"
     with current_app.app_context():
-        db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
-        #db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
+        #db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
+        db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
         db.session.commit()
 
         upload_dir = current_app.config['UPLOAD_FOLDER']
@@ -403,40 +325,6 @@ def check_dummy_count():
 
     count = db.session.query(TestEntry).filter_by(test=True).count()
     return f"Dummy entries: {count}"
-
-#TODO fix or remove
-@admin_bp.route('/clear_saves')
-def clear_saves():
-    """clears all of current users saves to be removed later or made user friendly (non-admin)"""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    session['forms_per_serial'] = [None] * 51
-    session.pop('form_data', None)
-    session.modified = True  # pylint: disable=assigning-non-slot
-
-    return redirect(request.referrer or url_for('dashboard'))
-
-#TODO fix or remove
-@admin_bp.route('/clear_dummy_saves')
-def clear_dummy_saves():
-    """clears all current users saves with test=True (random generated entries)"""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
-    if not authenticate_admin():
-        return "Permission Denied"
-
-    if 'forms_per_serial' in session:
-        for i, save in enumerate(session['forms_per_serial']):
-            if save and save.get('test'):
-                session['forms_per_serial'][i] = None
-            session.modified = True  # pylint: disable=assigning-non-slot
-
-    return redirect(request.referrer or url_for('dashboard'))
 
 # for admin dashboard:
 @admin_bp.route('/admin_dashboard')
@@ -511,3 +399,32 @@ def deleted_entries():
 
     entries = DeletedEntry.query.order_by(DeletedEntry.deleted_at.desc()).all()
     return render_template('admin/deleted_entries.html', entries=entries)
+
+@admin_bp.route('/users', methods=['GET', 'POST'])
+def list_users():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        return "Permission Denied"
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        user_id = int(request.form.get('user_id'))
+        user = User.query.get(user_id)
+
+        if not user:
+            return f"User ID {user_id} not found.", 404
+
+        if action == 'promote':
+            user.administrator = True
+        elif action == 'demote':
+            user.administrator = False
+        elif action == 'delete':
+            db.session.delete(user)
+
+        db.session.commit()
+        return redirect(url_for('admin.list_users'))
+
+    users = User.query.all()
+    return render_template('admin/manage_users.html', users=users)

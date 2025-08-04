@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Form Editor Help{% endblock %}
+{% block page_title %}Editing Forms – Help Guide{% endblock %}
+
+{% block content %}
+
+<style>
+  /* Override global dark mode styles for the help card only */
+  .card.help-card {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #dee2e6 !important;
+  }
+
+  .card.help-card a {
+    color: #0d6efd !important;
+  }
+
+  .card.help-card a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<div class="d-inline-flex flex-wrap gap-2">
+    <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+    <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+    <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+</div>
+
+<div class="container my-4">
+  <div class="card help-card shadow-sm p-4 border border-2">
+    <h3 class="mb-3 text-primary">How to Edit Forms</h3>
+
+    <p>This guide explains how to update and manage the test entry forms using the built-in form editor. Only administrators can access form editing tools.</p>
+
+    <hr>
+
+    <h5 class="text-danger">🚧 Important Notes</h5>
+    <ul>
+      <li>Edits to live forms take effect immediately.</li>
+      <li>Only step pages after Page 0 are editable. Page 0 is reserved for metadata.</li>
+    </ul>
+
+    <hr>
+
+    <h5>✏️ Editing a Field</h5>
+    <ol>
+      <li>Go to <strong>Admin → Form Editor</strong>.</li>
+      <li>Use the dropdown to select a page and find the field you want to change.</li>
+      <li>Click the <strong>Edit</strong> button next to a field.</li>
+      <li>Update the label, internal field name, type, or help text as needed.</li>
+      <li>Click <strong>Save Changes</strong> to apply edits.</li>
+    </ol>
+
+    <h5 class="mt-4">📦 Field Types</h5>
+    <ul>
+      <li><code>text</code>: multi-line input</li>
+      <li><code>float</code>: decimal input</li>
+      <li><code>integer</code>: whole number input</li>
+      <li><code>boolean</code>: yes/no toggle</li>
+      <li><code>file</code>: file upload field</li>
+      <li><code>blank</code>: asthetic object for spacing forms</li>
+      <li><code>help object</code>: deticated help page entry not linked to specifc field</li>
+    </ul>
+
+    <h5 class="mt-4"> ⚠️ Help Entries & Help Page </h5>
+    <ol>
+      <p>Each form request field has three help attributes:</p>
+        <ul>
+          <li><strong>Help Text</strong>: Description shown to users from help page, designed for explanations of tests or in-depth instructions.</li>
+          <li><strong>Help Link</strong>: Link to forward the user to more in-depth explanation or the github where a function or process is defined.</li>
+          <li><strong>Help Lable</strong>: Title of help card shown on help page only.</li>
+          <li> <strong>Help Target</strong>: Help card for <strong>this</strong> entry to be linked to through the form (should be used with all help objects).</li>
+            <ul>
+              <li>Data request fields with help entries are automatically linked to their help cards if they exist, help targets can link tests without help cards to a seperate help card or help object.</li>
+            </ul>
+        </ul>
+
+
+    </ol>
+
+
+    <h5 class="mt-4">➕ Adding New Fields</h5>
+    <ol>
+      <li>Click <strong>Add Field</strong> at the bottom of a page.</li>
+      <li>Provide a unique name and label.</li>
+      <li>Select a type and add optional help text.</li>
+      <li>Click <strong>Save</strong> to add it to the form.</li>
+    </ol>
+
+    <h5 class="mt-4">🔀 Reordering Fields</h5>
+    <ul>
+      <li>Use the <strong>↑ / ↓</strong> buttons next to a field to move it up or down.</li>
+      <li>Changes are saved automatically.</li>
+    </ul>
+
+    <h5 class="mt-4">🔁 Resetting to Default</h5>
+    <p>If you need to revert all forms to their default configuration, use the <strong>Reset Forms</strong> button at the top of the editor. <strong>This will remove all custom changes and revert form back to preset in form_config.py.</strong></p>
+
+    <hr>
+    <p class="text-muted small">Need more help? <a href="https://apollo-lhc.gitlab.io/cornell-cm/Manual/" target="_blank">Official CM Manual</a>.</p>
+  </div>
+</div>
+{% endblock %}

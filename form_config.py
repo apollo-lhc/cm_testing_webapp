@@ -1,3 +1,49 @@
+"""
+Form Configuration Loader and Serializer for Apollo CM Test Entry Application.
+
+This module defines the dynamic structure and validation logic for the multi-step form system,
+used to collect test data during CM hardware evaluation. It provides tools to define default forms,
+validate field input, and persist changes to a JSON configuration file.
+
+Key Features:
+------------
+- `FORMS_NON_DICT_DEFAULT`: The default form layout, structured as a list of `FormPage` objects,
+  each containing a list of `FormField` objects. This defines the structure of all test entry pages.
+- `validate_serial()`: Custom validator for ensuring that serial numbers fall within an allowed range.
+- `get_validator()`: Returns the validator function associated with a given field name. (only returns validate_serial for now)
+- `save_forms_to_file(forms, filepath)`: Serializes the current form configuration to a JSON file.
+- `load_forms_from_file(filepath)`: Loads and reconstructs form pages and fields from a saved JSON file.
+- `reset_forms()`: Restores the form configuration to its default state.
+- `FORMS_NON_DICT`: The active in-memory form configuration, loaded from disk or defaulted if missing.
+
+File Structure:
+---------------
+- The form config JSON is saved at `data/forms_config.json`.
+- Each page has a `name`, `label`, and ordered list of fields.
+- Each field contains metadata such as type, display settings, help text, validation, and labels.
+
+Form Types Supported:
+---------------------
+- Text, Integer, Float, Boolean, File uploads
+- Helper and instruction-only fields (`null`, `help_instance`, `blank`)
+
+Assertions:
+-----------
+Two runtime assertions ensure that the first form page is always `serial_request` and contains
+exactly one serial input field. These prevent accidental misconfiguration of the form flow.
+
+Usage:
+------
+- Used throughout the admin form editor, form rendering logic, and test data entry pipeline.
+- Enables dynamic editing and persistent customization of test entry forms.
+
+Dependencies:
+-------------
+- `models.FormField`, `models.FormPage`
+- `constants.SERIAL_MIN`, `constants.SERIAL_MAX`
+- JSON for serialization; filesystem operations for persistence
+"""
+
 import os
 import json
 from models import FormField, FormPage
@@ -280,10 +326,12 @@ def load_forms_from_file(filepath=forms_config_path):
 FORMS_NON_DICT = load_forms_from_file()
 
 def reset_forms():
+    """Restores the form configuration to its default state.
+    Should probably only be used in development or testing environments.
+    TODO disable in production."""
     save_forms_to_file(FORMS_NON_DICT_DEFAULT, forms_config_path)
 
 first_form = FORMS_NON_DICT[0]
-
 
 #assertions to keep serial request first form
 assert first_form.name == "serial_request", "Config error: the first form page must be 'serial_request'."
