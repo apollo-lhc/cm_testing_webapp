@@ -17,6 +17,7 @@ Dependencies: Flask `session`, SQLAlchemy `User` and `TestEntry` models, `FORMS_
 
 
 import os
+import re
 from datetime import datetime
 from flask import session
 from werkzeug.utils import secure_filename
@@ -115,8 +116,9 @@ def release_lock(entry):
     db.session.commit()
 
 def process_file_fields(fields, rq, upload_folder, data):
-    """Save uploaded files and update the current data dict with filenames.
-    appends uuid to each filename to prevent file overwrites"""
+    """Safely saves uploaded files with timestamped names inside a CM-specific subfolder.
+    Ensures paths are safe and alphanumeric. Updates the data dictionary with relative paths."""
+
     updated_data = data.copy()
 
     for field in fields:
@@ -128,19 +130,29 @@ def process_file_fields(fields, rq, upload_folder, data):
             if not re.fullmatch(r"[A-Za-z0-9]+", cm_serial):
                 raise ValueError("Invalid CM Serial number: must be alphanumeric.")
 
-            subfolder = f"CM{cm_serial}"
-            save_path = os.path.join(upload_folder, subfolder)
-            os.makedirs(save_path, exist_ok=True)
+            # Safe subfolder name using alphanumeric check and prefix
+            subfolder_name = f"CM{cm_serial}"
+            subfolder_safe = secure_filename(subfolder_name)
+            save_dir = os.path.abspath(os.path.join(upload_folder, subfolder_safe))
+
+            # Ensure save_dir is within upload_folder
+            upload_folder_abs = os.path.abspath(upload_folder)
+            if not save_dir.startswith(upload_folder_abs):
+                raise ValueError("Unsafe file path detected.")
+
+            os.makedirs(save_dir, exist_ok=True)
 
             if file and file.filename:
-                #save and update
                 timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
-                filename = f"{timestamp}_{secure_filename(file.filename)}"
-                filepath = os.path.join(save_path, filename)
-                file.save(filepath)
-                updated_data[field.name] = os.path.join(subfolder, filename)
+                safe_filename = secure_filename(file.filename)
+                full_filename = f"{timestamp}_{safe_filename}"
+                file_path = os.path.join(save_dir, full_filename)
+                file.save(file_path)
+
+                # Store relative path from upload_folder
+                relative_path = os.path.join(subfolder_safe, full_filename)
+                updated_data[field.name] = relative_path
             else:
-                # keep old filename
                 if field.name in data:
                     updated_data[field.name] = data[field.name]
 
