@@ -125,6 +125,8 @@ def process_file_fields(fields, rq, upload_folder, data):
             cm_serial = data.get("CM_serial")
             if not cm_serial:
                 raise ValueError("CM Serial number is required for file uploads.")
+            if not re.fullmatch(r"[A-Za-z0-9]+", cm_serial):
+                raise ValueError("Invalid CM Serial number: must be alphanumeric.")
 
             subfolder = f"CM{cm_serial}"
             save_path = os.path.join(upload_folder, subfolder)
