@@ -67,15 +67,30 @@ def edit_field(page_idx, field_idx):
     field = page.fields[field_idx]
 
     if request.method == "POST":
-        field.label = request.form["label"]
-        field.name = request.form["name"]
-        field.type_field = request.form["type"]
-        field.help_text = request.form.get("help_text")
-        field.help_label = request.form.get("help_label")
-        field.help_link = request.form.get("help_link")
-        field.help_target = request.form.get("help_target")
-        field.display_form = "display_form" in request.form
-        field.display_history = "display_history" in request.form
+        field_type = request.form["type"]
+
+        if field_type == "blank":
+            field.name = "blank"
+            field.label = ""
+            field.type_field = None
+            field.validate = None
+            field.display_form = True
+            field.display_history = False
+            field.help_text = None
+            field.help_label = None
+            field.help_link = None
+            field.help_target = None
+        else:
+            field.label = request.form["label"]
+            field.name = request.form["name"]
+            field.type_field = field_type
+            field.help_text = request.form.get("help_text")
+            field.help_label = request.form.get("help_label")
+            field.help_link = request.form.get("help_link")
+            field.help_target = request.form.get("help_target")
+            field.display_form = "display_form" in request.form
+            field.display_history = "display_history" in request.form
+
         save_forms_to_file(FORMS_NON_DICT)
         return redirect(url_for("form_editor.list_forms", page_idx=page_idx, field_idx=field_idx))
 

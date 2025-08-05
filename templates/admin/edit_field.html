@@ -10,12 +10,12 @@
 <div style="font-size: 1rem;">
   <form method="post" action="{{ url_for('form_editor.edit_field', page_idx=page_idx, field_idx=field_idx) }}">
 
-  <div class="mb-3">
+  <div id='label-group' class="mb-3">
     <label class="form-label"><strong>Label</strong> (Required):</label>
     <textarea name="label" rows="2" required class="form-control">{{ field.label or '' }}</textarea>
   </div>
 
-  <div class="mb-3">
+  <div id='name-group' class="mb-3">
     <label class="form-label"><strong>Name</strong> (Required, unique page ID for linking help cards):</label>
     <input type="text" name="name" value="{{ field.name or '' }}" required class="form-control ">
   </div>
@@ -69,16 +69,24 @@
     const show = id => document.getElementById(id).style.display = "block";
     const hide = id => document.getElementById(id).style.display = "none";
 
-    ["help-text-group", "help-link-group", "help-label-group", "help-target-group", "display-form-group", "display-history-group"]
+    ["help-text-group", "help-link-group", "help-label-group", "help-target-group", "display-form-group", "display-history-group", "name-group", "label-group"]
       .forEach(show);
 
     if (type === "blank") {
-      hide("help-text-group");
-      hide("help-link-group");
-      hide("help-label-group");
-      hide("help-target-group");
-      hide("display-form-group");
-      hide("display-history-group");
+      ["name-group", "label-group", "help-text-group", "help-link-group", "help-label-group", "help-target-group", "display-history-group"]
+        .forEach(hide);
+
+      // Set required attributes
+      nameField.value = "blank";
+      labelField.value = "";
+
+      helpFields.forEach(f => f.value = "");
+      displayFormCheckbox.checked = true;
+      displayHistoryCheckbox.checked = false;
+
+      // Ensure inputs are not disabled — must submit
+      nameField.disabled = false;
+      labelField.disabled = false;
     }
 
     if (type === "help_instance") {
