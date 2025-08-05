@@ -31,7 +31,11 @@ app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 data_path = os.path.join(basedir, 'data')
 
-app.config['SECRET_KEY'] = 'testsecret'
+# set secret key from environment variable for session management (inside run.sh or before starting)
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
+if not app.config['SECRET_KEY']:
+    raise RuntimeError("FLASK_SECRET_KEY environment variable is not set")
+
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(data_path, 'test.db')}"
