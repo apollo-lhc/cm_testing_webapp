@@ -3,31 +3,30 @@
 <head>
     <title>{{ 'Create Admin' if is_admin_creation else 'Register' }}</title>
     <link rel="stylesheet" href="/static/style.css">
-    <script>
-        async function hashPassword() {
-            const visibleInput = document.getElementById("visible-password");
-            const hiddenInput = document.getElementById("hashed-password");
-            const password = visibleInput.value;
-
-            if (!password) return false;
-
-            const encoder = new TextEncoder();
-            const data = encoder.encode(password);
-            const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashed = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-            hiddenInput.value = hashed;
-            //visibleInput.value = '';  // Optional: clear plaintext for safety
-
-            return true;
-        }
-    </script>
 </head>
+
+<style>
+    .flash.error {
+        color: red;
+        background-color: #ffe6e6;
+        padding: 10px;
+        border: 1px solid #cc0000;
+        margin-bottom: 15px;
+        border-radius: 5px;
+    }
+</style>
+
 <body>
 <div class="container">
     <h2>{{ 'Create Admin' if is_admin_creation else 'Register' }}</h2>
-    <form method="POST" onsubmit="return hashPassword();">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form id="register-form" method="POST">
         Username: <input type="text" name="username" required><br><br>
 
         Password: <input type="password" id="visible-password" required><br><br>
@@ -42,5 +41,30 @@
         <p>Already have an account? <a href="/login">Login here</a></p>
     {% endif %}
 </div>
+
+<script>
+    document.getElementById("register-form").addEventListener("submit", async function(event) {
+        event.preventDefault(); // stop form from submitting immediately
+
+        const visibleInput = document.getElementById("visible-password");
+        const hiddenInput = document.getElementById("hashed-password");
+        const password = visibleInput.value;
+
+        if (!password) {
+            alert("Password is required.");
+            return;
+        }
+
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashed = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        hiddenInput.value = hashed;
+
+        this.submit(); // now submit with hashed password
+    });
+</script>
 </body>
 </html>

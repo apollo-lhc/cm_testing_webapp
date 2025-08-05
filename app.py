@@ -72,7 +72,8 @@ def register():
     if request.method == 'POST':
         username = request.form['username'].strip()
         if User.query.filter_by(username=username).first():
-            return 'Error: User already exists'
+            flash("User already exists.", "error")
+            return render_template('register.html')
 
         new_user = User(username=username)  # type: ignore
         new_user.set_password(request.form['password'])
@@ -83,14 +84,19 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Login form route"""
     if request.method == 'POST':
         username = request.form['username'].strip()
+        password = request.form['password']
+
         user = User.query.filter_by(username=username).first()
-        if user and user.check_password(request.form['password']):
+
+        if user and user.check_password(password):
             session['user_id'] = user.id
             return redirect(url_for('home'))
-        return 'Invalid credentials'
+
+        flash("Invalid username or password.", "error")
+        return render_template('login.html')
+
     return render_template('login.html')
 
 @app.route('/logout')
