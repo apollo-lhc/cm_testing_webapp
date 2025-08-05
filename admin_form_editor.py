@@ -275,3 +275,28 @@ def download_form_config():
     file_dir = os.path.join(current_app.root_path, "data")
     filename = "forms_config.json"
     return send_from_directory(file_dir, filename, as_attachment=True)
+
+@form_editor_bp.route("/rename_page/<int:page_idx>", methods=["POST"])
+def rename_page(page_idx):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if not authenticate_admin():
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
+
+    if not 0 <= page_idx < len(FORMS_NON_DICT):
+        return "Invalid page index", 400
+
+    new_name = request.form.get("new_page_name", "").strip()
+    new_label = request.form.get("new_page_label", "").strip()
+
+    if new_name and new_label:
+        FORMS_NON_DICT[page_idx].name = new_name
+        FORMS_NON_DICT[page_idx].label = new_label
+        save_forms_to_file(FORMS_NON_DICT)
+        flash("Page renamed successfully", "success")
+    else:
+        flash("Both name and label are required.", "error")
+
+    return redirect(url_for("form_editor.list_forms"))

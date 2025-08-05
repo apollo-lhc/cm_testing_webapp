@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Form Editor{% endblock %}
+{% block page_title %}Apollo CM Form Editor{% endblock %}
 
 {% block content %}
-<h2>Form Editor</h2>
 
 <div class="text-end mb-4">
   <div class="d-inline-flex flex-wrap gap-2 align-items-center">
@@ -21,7 +21,30 @@
 
 {% for page in forms %}
   {% set page_idx = loop.index0 %}
-  <h3 id="page-{{ page.name }}">Page {{ page_idx + 1 }} - {{ page.name }}</h3>
+  <h3 id="page-{{ page.name }}">
+    Page {{ page_idx + 1 }} – {{ page.name }}
+    {% if page_idx != 0 %}
+      <button type="button" onclick="toggleRenameForm({{ page_idx }})"
+              class="btn btn-sm btn-outline-secondary ms-2">
+        ✏️ Rename
+      </button>
+    {% endif %}
+  </h3>
+  <small class="text-muted ms-2">Label: {{ page.label }}</small>
+
+  {% if page_idx != 0 %}
+  <!-- Hidden rename form -->
+  <form method="post"
+        action="{{ url_for('form_editor.rename_page', page_idx=page_idx) }}"
+        id="rename-form-{{ page_idx }}"
+        style="display: none; margin-top: 0.5em; margin-bottom: 1em;">
+    <input type="text" name="new_page_name" placeholder="New name"
+          required class="form-control d-inline-block" style="width: 150px; margin-right: 0.5em;">
+    <input type="text" name="new_page_label" placeholder="New label"
+          required class="form-control d-inline-block" style="width: 180px; margin-right: 0.5em;">
+    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+  </form>
+  {% endif %}
   <ul>
     {% for field in page.fields %}
       {% set field_idx = loop.index0 %}
@@ -162,5 +185,13 @@
       });
     });
   });
+
+  function toggleRenameForm(pageIdx) {
+    const form = document.getElementById(`rename-form-${pageIdx}`);
+    if (form) {
+      form.style.display = form.style.display === "none" ? "block" : "none";
+    }
+  }
+
 </script>
 {% endblock %}
