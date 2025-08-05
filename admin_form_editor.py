@@ -31,7 +31,7 @@ Typical usage:
 
 
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, current_app, session
+from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, current_app, session, flash
 from form_config import FORMS_NON_DICT, save_forms_to_file, reset_forms
 from models import FormField, FormPage
 from utils import authenticate_admin
@@ -44,7 +44,8 @@ def list_forms():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     return render_template("admin/form_editor.html", forms=FORMS_NON_DICT)
 
@@ -55,7 +56,8 @@ def edit_field(page_idx, field_idx):
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
 
     if page_idx == 0:
@@ -91,7 +93,8 @@ def add_field(page_idx):
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     if page_idx == 0:
         return "Cannot add fields to Page 0.", 403
@@ -108,7 +111,8 @@ def delete_field(page_idx, field_idx):
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
 
     if page_idx == 0:
@@ -128,7 +132,8 @@ def add_page():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     name = request.form.get("page_name")
     label = request.form.get("page_label")
@@ -148,7 +153,8 @@ def delete_page(page_idx):
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     if page_idx == 0:
         return "Cannot delete Page 0.", 403
@@ -166,7 +172,8 @@ def move_page(page_idx, direction):
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     if direction == "up" and page_idx > 1:
         FORMS_NON_DICT[page_idx - 1], FORMS_NON_DICT[page_idx] = (
@@ -188,7 +195,8 @@ def move_field(page_idx, field_idx, direction):
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     page = FORMS_NON_DICT[page_idx]
     fields = page.fields
@@ -208,7 +216,8 @@ def preview_page(page_idx):
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     if not 0 <= page_idx < len(FORMS_NON_DICT):
         return "Invalid page index", 404
@@ -234,7 +243,8 @@ def reset_forms_route():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     reset_forms()
     return render_template("admin/form_editor.html", forms=FORMS_NON_DICT)
@@ -246,7 +256,8 @@ def help_page():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
 
     return render_template("admin/form_help.html", forms=FORMS_NON_DICT)
@@ -258,7 +269,8 @@ def download_form_config():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     file_dir = os.path.join(current_app.root_path, "data")
     filename = "forms_config.json"

@@ -22,6 +22,9 @@
 <div class="container">
   <h2 class="mb-4">Failed Test Submissions</h2>
 
+  {% block flash_messages %}
+  {% endblock %}
+  
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="mb-3">
