@@ -157,6 +157,10 @@
       <img src="{{ url_for('static', filename='images/astronaut.png') }}" alt="Astronaut" class="img-fluid" style="max-height: 240px;"> <!--here for height-->
     </div>
 
+    {% if session.get('user_id') %}
+      {% set user = current_user() %}
+    {% endif %}
+
     <!-- Center: Title + Buttons -->
     <div class="col-md-8 text-center">
 
@@ -169,6 +173,11 @@
           <a href="{{ url_for('history') }}" class="btn btn-outline-red btn-lg custom-btn">View History</a>
           <a href="/dashboard" class="btn btn-outline-red btn-lg custom-btn">Saved Tests</a>
           <a href="{{ url_for('failed_tests') }}" class="btn btn-outline-red btn-lg custom-btn">Failed Tests</a>
+          {% if user and user.administrator %}
+          <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red btn-lg custom-btn">Admin Dashboard</a>
+          <a href="{{ url_for('form_editor.list_forms') }}" class="btn btn-outline-red btn-lg custom-btn">Form Editor</a>
+          <a href="{{ url_for('admin.list_admin_commands') }}" class="btn btn-outline-red btn-lg custom-btn">Commands</a>
+          {% endif %}
           <a href="/help" class="btn btn-outline-red btn-lg custom-btn">Help</a>
           <a href="/logout" class="btn btn-outline-red btn-lg custom-btn">Logout</a>
         </div>
