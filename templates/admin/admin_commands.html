@@ -1,15 +1,63 @@
 {% extends "base.html" %}
+{% block page_title %}Admin • Commands{% endblock %}
 {% block title %}Admin Commands{% endblock %}
 
 {% block content %}
+<style>
+  .btn-white {
+    background-color: #B31B1B !important;
+    color: white !important;
+    border: 1px solid #ccc !important;
+  }
+  .btn-white:hover {
+    background-color: #00dd25ff !important;
+    color: white !important;
+    border-color: #999 !important;
+  }
+</style>
   <div class="container mt-4">
-    <h2>Admin Command List</h2>
-    <ul class="list-group mt-3">
-      {% for route, description in commands.items() %}
-        <li class="list-group-item">
-          <code>{{ route }}</code>: {{ description }}
-        </li>
-      {% endfor %}
-    </ul>
+    <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+      <h2 class="mb-0">Admin Command List</h2>
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+        {% if user and user.administrator %}
+          <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
+          <a href="{{ url_for('admin.deleted_entries') }}" class="btn btn-outline-red">View Deleted Forms</a>
+        {% endif %}
+        <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+      </div>
+    </div>
+      <ul class="list-group mt-3">
+        {% for route, description in commands.items() %}
+          <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+            <div class="mb-2 mb-sm-0">
+              <code class="me-2">{{ route }}</code> — {{ description }}
+            </div>
+
+            {% if route.startswith('/admin/add_dummy_entry') %}
+              <div class="input-group input-group-sm" style="max-width:240px;">
+                <input type="number" min="1" step="1" class="form-control" placeholder="count" aria-label="count">
+                <button class="btn btn-white" data-route="{{ route }}" onclick="runWithParam(this, 'count')">
+                  = GENERATE =
+                </button>
+              </div>
+            {% else %}
+              <a class="btn btn-white btn-sm" href="{{ route }}">=== RUN ===</a>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
   </div>
+
+  <script>
+    function runWithParam(btn, paramName) {
+      const base = (btn.dataset.route || '').split('?')[0];
+      const val = btn.previousElementSibling.value || '1';
+      const url = `${base}?${encodeURIComponent(paramName)}=${encodeURIComponent(val)}`;
+      window.location.href = url;
+    }
+  </script>
+
 {% endblock %}

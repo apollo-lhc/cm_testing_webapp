@@ -4,6 +4,7 @@ uploads/**
 data/*
 venv
 !data/.gitkeep
+flask_secret_key
 
 ## standard python stuff below here
 

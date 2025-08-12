@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block page_title %}Admin · Manage In-Progress Forms{% endblock %}
+{% block page_title %}Admin • Manage In-Progress Forms{% endblock %}
 {% block title %}Manage In-Progress Forms{% endblock %}
 
 {% block content %}
@@ -54,10 +54,11 @@
   {% endif %}
 
   <div class="mt-4">
-    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Dashboard</a>
     <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">Home</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Dashboard</a>
     <a href="{{ url_for('admin.deleted_entries') }}" class="btn btn-outline-dark mx-1">View Deleted Forms</a>
 
   </div>
+  <div style="height:7.5vh;"></div>
 </div>
 {% endblock %}

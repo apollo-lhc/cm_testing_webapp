@@ -31,7 +31,11 @@ app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 data_path = os.path.join(basedir, 'data')
 
-app.config['SECRET_KEY'] = 'testsecret'
+# set secret key from environment variable for session management (inside run.sh or before starting)
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
+if not app.config['SECRET_KEY']:
+    raise RuntimeError("FLASK_SECRET_KEY environment variable is not set")
+
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(data_path, 'test.db')}"
@@ -68,7 +72,8 @@ def register():
     if request.method == 'POST':
         username = request.form['username'].strip()
         if User.query.filter_by(username=username).first():
-            return 'Error: User already exists'
+            flash("User already exists.", "error")
+            return render_template('register.html')
 
         new_user = User(username=username)  # type: ignore
         new_user.set_password(request.form['password'])
@@ -79,15 +84,29 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Login form route"""
     if request.method == 'POST':
         username = request.form['username'].strip()
+        password = request.form['password']
+
         user = User.query.filter_by(username=username).first()
-        if user and user.check_password(request.form['password']):
+
+        if user and user.check_password(password):
             session['user_id'] = user.id
             return redirect(url_for('home'))
-        return 'Invalid credentials'
+
+        flash("Invalid username or password.", "error")
+        return render_template('login.html')
+
     return render_template('login.html')
+
+@app.route('/form_complete')
+def form_complete():
+    """Render form completion page"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    return render_template('form_complete.html')
+
 
 @app.route('/logout')
 def logout():

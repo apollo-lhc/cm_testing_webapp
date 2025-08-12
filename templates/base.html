@@ -99,6 +99,21 @@
         letter-spacing: 0.05em;
         }
 
+        .flash.error {
+            background-color: #ffe6e6;
+            border: 1px solid #cc0000;
+            color: #990000;
+            padding: 10px;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+            }
+
+            .flash.success {
+            background-color: #e6ffe6;
+            border: 1px solid #009900;
+            color: #006600;
+            }
+
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -122,6 +137,20 @@
             {% endif %}
         </div>
     </header>
+
+    {% block flash_messages %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+        {% endwith %}
+    {% endblock %}
+
+    <!--If you wnat to overwrite the premade error flash use a block like this:-->
+    <!--{ block flash_messages }{ endblock }-->
+    <!--Completely ignoring the flash message section above-->
 
     <!-- Main Content -->
     <main class="flex-fill">

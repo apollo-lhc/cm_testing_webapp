@@ -44,7 +44,7 @@ or removed in production environments.
 import os
 from datetime import datetime
 from random import randint, uniform, choice
-from flask import render_template, request, redirect, url_for, session, current_app, Blueprint
+from flask import render_template, request, redirect, url_for, session, current_app, Blueprint, flash
 
 from models import db, TestEntry, DeletedEntry, User
 from form_config import FORMS_NON_DICT
@@ -68,7 +68,8 @@ def create_admin():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     if request.method == 'POST':
         username = request.form['username']
@@ -100,8 +101,9 @@ def promote_user():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    if not authenticate_admin():
-        return "Permission Denied"
+    # if not authenticate_admin():
+    #     flash("Permission denied", "error")
+    #     return redirect(url_for('home'))
 
     if request.method == 'POST':
         username = request.form['username']
@@ -137,7 +139,8 @@ def demote_user():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     if request.method == 'POST':
         username = request.form['username']
@@ -167,7 +170,8 @@ def list_fishy_users():
     attempting to pass a authenticate_admin() check"""
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -187,7 +191,8 @@ def list_admin_commands():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     # commented commands are not needed
 
@@ -225,7 +230,8 @@ def add_dummy_entry():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     try:
         count = int(request.args.get('count', 1))
@@ -274,7 +280,8 @@ def clear_history():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
     with current_app.app_context():
         #db.session.query(TestEntry).delete() # uncomment this line to delete all history entries keep disabled for actual web app run
         db.session.query(TestEntry).filter_by(test=True).delete() # is now the same method as 'clear_dummy_history' - editing history is not allowed on full release
@@ -297,7 +304,8 @@ def clear_dummy_history():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     with current_app.app_context():
         db.session.query(TestEntry).filter_by(test=True).delete()
@@ -321,7 +329,8 @@ def check_dummy_count():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     count = db.session.query(TestEntry).filter_by(test=True).count()
     return f"Dummy entries: {count}"
@@ -333,7 +342,8 @@ def admin_dashboard():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     forms = (
         TestEntry.query
@@ -350,7 +360,8 @@ def clear_lock(entry_id):
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     entry = TestEntry.query.get(entry_id)
     if entry and entry.lock_owner:
@@ -365,7 +376,8 @@ def delete_form(entry_id):
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     entry = TestEntry.query.get(entry_id)
     user = current_user()
@@ -395,7 +407,8 @@ def deleted_entries():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     entries = DeletedEntry.query.order_by(DeletedEntry.deleted_at.desc()).all()
     return render_template('admin/deleted_entries.html', entries=entries)
@@ -406,7 +419,8 @@ def list_users():
         return redirect(url_for('login'))
 
     if not authenticate_admin():
-        return "Permission Denied"
+        flash("Permission denied", "error")
+        return redirect(url_for('home'))
 
     if request.method == 'POST':
         action = request.form.get('action')
