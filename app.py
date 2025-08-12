@@ -99,6 +99,15 @@ def login():
 
     return render_template('login.html')
 
+@app.route('/form_complete')
+def form_complete():
+    """Render form completion page"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    return render_template('form_complete.html')
+
+
 @app.route('/logout')
 def logout():
     """logout route"""
