@@ -9,12 +9,28 @@
 : "${BASE_DIR:=/nfs/cms/tracktrigger/cm_testing_webapp_run}"
 LOG_DIR="${BASE_DIR}/log"
 
+# set secret key file
+KEY_FILE="flask_secret_key"
+
+
 : "${IPADDR:="172.31.5.80"}"
 SVC_OPTS="--bind=${IPADDR}:5001 --disable-redirect-access-to-syslog --log-syslog"
 
-
 cm_webapp_start () {
 	echo "Starting cm_webapp"
+
+	# Generate 64-character hex key
+	SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+
+	# Write to file with secure permissions
+	echo "$SECRET_KEY" > ./data/"$KEY_FILE"
+	chmod 600 "$KEY_FILE"
+
+	# Export it to the current shell environment
+	export FLASK_SECRET_KEY="$SECRET_KEY"
+
+	echo "FLASK_SECRET_KEY has been generated, saved to ./data/$KEY_FILE, and exported."
+	
 	cd ${BASE_DIR}/cm_webapp
 	[ -d ${LOG_DIR}/cm_webapp-status ] || mkdir ${LOG_DIR}/cm_webapp-status
 	nohup .venv/bin/python3 .venv/bin/gunicorn $SVC_OPTS wsgi:app \
