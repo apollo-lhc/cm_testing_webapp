@@ -68,13 +68,15 @@ docker_start() {
     
     # Start new container
     docker run -d \
-        --name $CONTAINER_NAME \
-        -p $PORT:$PORT \
+        --name "$CONTAINER_NAME" \
+        -p "$PORT:$PORT" \
         $ENV_VARS \
+        -e FLASK_SECRET_KEY="$SECRET_KEY" \
+        -e SECRET_KEY="$SECRET_KEY" \
         -v "$(pwd)/data:/app/data" \
         -v "$(pwd)/uploads:/app/uploads" \
         -v "$(pwd)/log:/app/log" \
-        $IMAGE_NAME
+        "$IMAGE_NAME"
     
     if [ $? -eq 0 ]; then
         echo "Container started successfully"
