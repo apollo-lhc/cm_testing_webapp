@@ -17,13 +17,13 @@ import io
 import csv
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash, send_from_directory, abort
-from sqlalchemy.orm.attributes import flag_modified #TODO include in the .yml and enviroment if needed later
+from sqlalchemy.orm.attributes import flag_modified 
 
 from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
 from admin_routes import admin_bp
 from admin_form_editor import form_editor_bp
-from utils import (validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock)
+from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock
 from constants import EASTERN_TZ
 
 app = Flask(__name__)
