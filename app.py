@@ -17,7 +17,7 @@ import io
 import csv
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash, send_from_directory, abort
-from sqlalchemy.orm.attributes import flag_modified 
+from sqlalchemy.orm.attributes import flag_modified
 
 from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
