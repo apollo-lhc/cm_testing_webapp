@@ -15,7 +15,6 @@ Also defines:
 Dependencies: Flask `session`, SQLAlchemy `User` and `TestEntry` models, `FORMS_NON_DICT`, `LOCK_TIMEOUT`.
 """
 
-
 import os
 import re
 from datetime import datetime
@@ -25,7 +24,6 @@ from werkzeug.utils import secure_filename
 from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
 from constants import LOCK_TIMEOUT, EASTERN_TZ
-
 
 fishy_users = {}
 

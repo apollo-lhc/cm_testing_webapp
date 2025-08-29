@@ -1,38 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Login{% endblock %}
+{% block page_title %}Apollo CM Testing{% endblock %}
 {% block content %}
+
+<style>
+    .flash.error {
+        color: red;
+        background-color: #ffe6e6;
+        padding: 10px;
+        border: 1px solid #cc0000;
+        margin-bottom: 15px;
+        border-radius: 5px;
+    }
+</style>
+
 <!DOCTYPE html>
 <html>
 <head>
     <link rel="stylesheet" href="/static/style.css">
-    <script>
-        async function hashPassword() {
-            const visibleInput = document.getElementById("visible-password");
-            const hiddenInput = document.getElementById("hashed-password");
-            const password = visibleInput.value;
-
-            if (!password) return false;
-
-            const encoder = new TextEncoder();
-            const data = encoder.encode(password);
-            const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashed = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-            hiddenInput.value = hashed;
-           //` visibleInput.value = '';  // optional: clear plaintext from the field
-
-            return true; // allow form to submit
-        }
-    </script>
 </head>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+{% block flash_messages %}{% endblock %}
 <body>
 <div class="container">
     <h2>Login</h2>
-    <form method="POST" onsubmit="return hashPassword();">
+    <form id="login-form" method="POST">
         Username: <input type="text" name="username" required><br><br>
 
-        <!-- Plaintext visible password input (not submitted) -->
+        <!-- Plaintext visible password input -->
         Password: <input type="password" id="visible-password" required><br><br>
 
         <!-- Hidden field to carry the hashed password -->
@@ -42,6 +43,31 @@
     </form>
     <p>No account? <a href="/register">Register here</a></p>
 </div>
+
+<script>
+    document.getElementById("login-form").addEventListener("submit", async function(event) {
+        event.preventDefault(); // prevent immediate form submission
+
+        const visibleInput = document.getElementById("visible-password");
+        const hiddenInput = document.getElementById("hashed-password");
+        const password = visibleInput.value;
+
+        if (!password) {
+            alert("Password is required.");
+            return;
+        }
+
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashed = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        hiddenInput.value = hashed;
+
+        this.submit(); // manually submit form with hashed password now set
+    });
+</script>
 </body>
 </html>
 {% endblock %}

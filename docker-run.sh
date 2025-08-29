@@ -4,6 +4,10 @@
 
 CONTAINER_NAME="cm-testing-webapp"
 IMAGE_NAME="cm-testing-webapp"
+KEY_DIR="$(pwd)/data"
+KEY_FILE_NAME="flask_secret_key"
+KEY_PATH="${KEY_DIR}/${KEY_FILE_NAME}"
+
 
 # Default to gunicorn for production-like behavior
 SERVER_TYPE=${2:-gunicorn}
@@ -24,9 +28,34 @@ case "$SERVER_TYPE" in
         ;;
 esac
 
+ensure_secret_key() {
+  mkdir -p "${KEY_DIR}"
+
+  # Priority: explicit env var > existing file > generate new
+  if [[ -n "${FLASK_SECRET_KEY:-}" ]]; then
+    SECRET_KEY="$FLASK_SECRET_KEY"
+    if [[ ! -s "${KEY_PATH}" ]]; then
+      printf '%s' "$SECRET_KEY" > "${KEY_PATH}"
+      chmod 600 "${KEY_PATH}" || true
+    fi
+  elif [[ -s "${KEY_PATH}" ]]; then
+    SECRET_KEY="$(cat "${KEY_PATH}")"
+  else
+    # Generate 64-hex chars (32 bytes) and save
+    SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+    printf '%s' "$SECRET_KEY" > "${KEY_PATH}"
+    chmod 600 "${KEY_PATH}" || true
+  fi
+
+  export SECRET_KEY
+}
+
 docker_start() {
     echo "Starting $CONTAINER_NAME with $SERVER_TYPE server on port $PORT"
-    
+        
+    ensure_secret_key
+    echo "Using persistent Flask secret key at data/${KEY_FILE_NAME}"
+
     # Build the image if it doesn't exist
     if ! docker image inspect $IMAGE_NAME > /dev/null 2>&1; then
         echo "Building Docker image..."
@@ -39,13 +68,15 @@ docker_start() {
     
     # Start new container
     docker run -d \
-        --name $CONTAINER_NAME \
-        -p $PORT:$PORT \
+        --name "$CONTAINER_NAME" \
+        -p "$PORT:$PORT" \
         $ENV_VARS \
+        -e FLASK_SECRET_KEY="$SECRET_KEY" \
+        -e SECRET_KEY="$SECRET_KEY" \
         -v "$(pwd)/data:/app/data" \
         -v "$(pwd)/uploads:/app/uploads" \
         -v "$(pwd)/log:/app/log" \
-        $IMAGE_NAME
+        "$IMAGE_NAME"
     
     if [ $? -eq 0 ]; then
         echo "Container started successfully"

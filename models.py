@@ -37,13 +37,14 @@ class User(db.Model):
     administrator = db.Column(db.Boolean, default=False)
     form_id = db.Column(db.Integer, nullable=True)
 
-    def set_password(self, password):
-        """Hash and set the user's password."""
-        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
+    def set_password(self, sha256_hash):
+        """Accepts SHA-256 hash directly and stores it with pbkdf2."""
+        self.password_hash = generate_password_hash(sha256_hash, method='pbkdf2:sha256', salt_length=16)
 
-    def check_password(self, password):
-        """Check the user's password against the stored hash."""
-        return check_password_hash(self.password_hash, password)
+    def check_password(self, sha256_hash):
+        """Expects client-side SHA-256 hashed password."""
+        return check_password_hash(self.password_hash, sha256_hash)
+
 
     def get_username(self):
         """returns username for logging purposes"""
