@@ -24,7 +24,7 @@ cm_webapp_start () {
 
 	# Write to file with secure permissions
 	echo "$SECRET_KEY" > ./data/"$KEY_FILE"
-	chmod 600 "$KEY_FILE"
+	chmod 600 "./data/$KEY_FILE"
 
 	# Export it to the current shell environment
 	export FLASK_SECRET_KEY="$SECRET_KEY"
