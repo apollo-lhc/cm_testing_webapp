@@ -1,6 +1,6 @@
 #! /bin/sh
 # Makefile for Apollo CM testing Web app, with inspiration from chess-status
-# run with ./run.sh start|stop
+# run with ./run.sh start|stop !
 # Intended to be run _outside_ a Docker container, to start/stop the web app
 # Uses Gunicorn to run the Flask app, with a default configuration
 
