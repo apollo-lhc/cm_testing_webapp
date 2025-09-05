@@ -4,7 +4,6 @@
 # Intended to be run _outside_ a Docker container, to start/stop the web app
 # Uses Gunicorn to run the Flask app, with a default configuration
 
-
 # Set BASE_DIR to default if not already set
 : "${BASE_DIR:=/nfs/cms/tracktrigger/cm_testing_webapp_run}"
 LOG_DIR="${BASE_DIR}/log"
@@ -12,12 +11,16 @@ LOG_DIR="${BASE_DIR}/log"
 # set secret key file
 KEY_FILE="flask_secret_key"
 
-
 : "${IPADDR:="172.31.5.80"}"
 SVC_OPTS="--bind=${IPADDR}:5001 --disable-redirect-access-to-syslog --log-syslog"
 
 cm_webapp_start () {
 	echo "Starting cm_webapp"
+
+	# Ensure required directories exist (minimal changes)
+	mkdir -p ./data
+	mkdir -p "${BASE_DIR}/cm_webapp"
+	mkdir -p "${LOG_DIR}/cm_webapp-status"
 
 	# Generate 64-character hex key
 	SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
