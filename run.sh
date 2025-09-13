@@ -13,10 +13,22 @@ VENV_DIR="${BASE_DIR}/.venv"
 KEY_FILE="flask_secret_key"
 
 #switch ip after figuring out why it breaks
-#: "${IPADDR:="127.0.0.1"}"
-: "${IPADDR:="172.31.5.80"}"
+#: "${IPADDR:="127.0.0.1"}" # used to run on localhost
+#: "${IPADDR:="128.84.44.108"}"
 : "${PORT:="5001"}"
 SVC_OPTS="--bind=${IPADDR}:${PORT} --workers=${GUNICORN_WORKERS:-2} --threads=${GUNICORN_THREADS:-2} --timeout=${GUNICORN_TIMEOUT:-120} --graceful-timeout=${GUNICORN_GRACEFUL_TIMEOUT:-30}"
+
+check_bind_ip() {
+  if [ "$IPADDR" = "0.0.0.0" ] || [ "$IPADDR" = "127.0.0.1" ]; then return 0; fi
+  if ip -o -4 addr show | awk '{print $4}' | cut -d/ -f1 | grep -Fxq "$IPADDR"; then
+    return 0
+  else
+    echo "[$(date)] ERROR: $IPADDR not on any interface. Use one of:"
+    ip -o -4 addr show | awk '{print $4, $NF}' | sed 's:/[0-9]\+::'
+    exit 1
+  fi
+}
+
 
 ensure_venv () {
 	# If the prefix env doesn't exist, offer to create it with conda
@@ -76,6 +88,9 @@ cm_webapp_start () {
 
 	# Ensure venv exists (Conda prefix) and is valid
 	ensure_venv || return 1
+
+	# Check that the bind IP is valid on this host
+	check_bind_ip || return 1 # can remove || return 1 if you still want to try to run on given address
 
 	# Ensure required directories exist (minimal changes)
 	mkdir -p ./data
