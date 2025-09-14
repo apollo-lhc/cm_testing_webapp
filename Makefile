@@ -20,5 +20,6 @@ update:
 	.venv/bin/pip install -U -r requirements.txt
 
 # TODO: fix this for proper deployment
-#deploy: .venv
-#	rsync --delete -avz . chess_svc@chess15:/mnt/services/release/chess-status/chess-status-devel/
+deploy: .venv
+	rsync --delete -avz --exclude='.git/' --exclude='.github/' \
+	. /nfs/cms/tracktrigger/cm_testing_webapp_run
