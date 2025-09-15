@@ -13,7 +13,7 @@ LOG_DIR="${BASE_DIR}/log"
 KEY_FILE="flask_secret_key"
 
 
-: "${IPADDR:="172.31.5.80"}"
+: "${IPADDR:="0.0.0.0"}"
 SVC_OPTS="--bind=${IPADDR}:5001 --disable-redirect-access-to-syslog --log-syslog"
 
 cm_webapp_start () {
