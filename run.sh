@@ -56,7 +56,7 @@ create_conda_env() {
   conda env create -f "${ENV_YML}" -p "${VENV_DIR}"
 }
 
-# Compare current env against environment.yml (top-level specs)
+#f Compare current env against environment.yml (top-level specs)
 # Returns 0 if up-to-date, 1 if drift detected, 2 on error
 compare_env_to_yml() {
   if ! command -v conda >/dev/null 2>&1; then

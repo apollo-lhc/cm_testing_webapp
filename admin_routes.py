@@ -216,7 +216,6 @@ def list_admin_commands():
 
     return render_template('admin/admin_commands.html', commands=commands)
 
-
 # data generation commands - old as of 7/21 - not necessasary for time being
 
 @admin_bp.route('/add_dummy_entry')
