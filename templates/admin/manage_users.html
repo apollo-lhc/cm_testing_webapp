@@ -2,6 +2,19 @@
 {% block title %}Manage Users{% endblock %}
 {% block page_title %}Apollo CM • User Management{% endblock %}
 {% block content %}
+
+<div class="text-end mb-4">
+  <div class="d-inline-flex flex-wrap gap-2 align-items-center">
+    <a href="{{ url_for('home') }}" class="btn btn-outline-danger">
+      <i class="bi bi-house-door me-1"></i> Home
+    </a>
+    <a href="{{ url_for('admin.list_admin_commands') }}" class="btn btn-outline-danger">
+      <i class="bi bi-question-circle me-1"></i> Admin Commands
+    </a>
+  </div>
+</div>
+
+
 <div class="container mt-4">
   <h4>Registered Users</h4>
   <table class="table table-striped mt-3">
@@ -18,7 +31,7 @@
       <tr>
         <td>{{ user.id }}</td>
         <td>{{ user.username }}</td>
-        <td>{{ ":white_check_mark:" if user.administrator else ":x:" }}</td>
+        <td>{{ "✅" if user.administrator else "❌" }}</td>
         <td>
           <form method="post" style="display:inline-block">
             <input type="hidden" name="user_id" value="{{ user.id }}">
