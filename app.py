@@ -44,6 +44,11 @@ app.config['SQLALCHEMY_BINDS'] = {
     'users': f"sqlite:///{os.path.join(data_path, 'users.db')}"
 }
 
+app.config['SESSION_COOKIE_SECURE'] = False       # allow HTTP
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'     # 'None' on HTTP will be rejected
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+
 db.init_app(app)
 
 app.register_blueprint(admin_bp)
@@ -85,6 +90,11 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        print("DEBUG /login payload:",
+            "js_ready=", request.form.get('js_ready'),
+            "keys=", list(request.form.keys()),
+            "password.len=", len(request.form.get('password', "")))
+        # continue with your existing logic...
         username = request.form['username'].strip()
         password = request.form['password']
 

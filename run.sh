@@ -1,233 +1,290 @@
-#! /bin/sh
-# Makefile for Apollo CM testing Web app, with inspiration from chess-status
-# run with ./run.sh start|stop|restart
-# Intended to be run _outside_ a Docker container, to start/stop the web app
-# Uses Gunicorn to run the Flask app, with a default configuration
+#!/bin/sh
+# Run script for Apollo CM testing Web app (no conda)
+# Usage: ./run.sh start|stop|restart
+# Creates/checks a Python venv from environment.yml (or requirements.txt),
+# detects drift, and runs Gunicorn.
 
-# Set BASE_DIR to default if not already set
+set -eu
+
+# --------- Paths & defaults ----------
 : "${BASE_DIR:=/nfs/cms/tracktrigger/cm_testing_webapp_run}"
 LOG_DIR="${BASE_DIR}/log"
 VENV_DIR="${BASE_DIR}/.venv"
-
-# set secret key file
+SPEC_CACHE="${BASE_DIR}/.venv_spec.txt"          # cached pip-style spec generated from environment.yml
 KEY_FILE="flask_secret_key"
 
-#switch ip after figuring out why it breaks
-#: "${IPADDR:="127.0.0.1"}" # used to run on localhost
-#: "${IPADDR:="128.84.44.108"}"
-: "${PORT:="5001"}"
+# Network bind
+: "${IPADDR:=0.0.0.0}"
+: "${PORT:=5002}"
 SVC_OPTS="--bind=${IPADDR}:${PORT} --workers=${GUNICORN_WORKERS:-2} --threads=${GUNICORN_THREADS:-2} --timeout=${GUNICORN_TIMEOUT:-120} --graceful-timeout=${GUNICORN_GRACEFUL_TIMEOUT:-30}"
+
+# --------- Helpers ----------
+err() { echo "[$(date)] ERROR: $*" >&2; }
+info() { echo "[$(date)] $*"; }
 
 check_bind_ip() {
   if [ "$IPADDR" = "0.0.0.0" ] || [ "$IPADDR" = "127.0.0.1" ] || [ -z "$IPADDR" ]; then return 0; fi
   if ip -o -4 addr show | awk '{print $4}' | cut -d/ -f1 | grep -Fxq "$IPADDR"; then
     return 0
   else
-    echo "[$(date)] ERROR: $IPADDR not on any interface. Use one of:"
+    err "$IPADDR not on any interface. Use one of:"
     ip -o -4 addr show | awk '{print $4, $NF}' | sed 's:/[0-9]\+::'
     exit 1
   fi
 }
 
-# Locate environment.yml (prefer BASE_DIR)
 find_env_yml() {
-  if [ -f "${BASE_DIR}/environment.yml" ]; then
-    printf '%s' "${BASE_DIR}/environment.yml"
-    return 0
-  fi
-  if [ -f "./environment.yml" ]; then
-    printf '%s' "./environment.yml"
-    return 0
-  fi
+  if [ -f "${BASE_DIR}/environment.yml" ]; then printf '%s' "${BASE_DIR}/environment.yml"; return 0; fi
+  if [ -f "./environment.yml" ]; then printf '%s' "./environment.yml"; return 0; fi
   return 1
 }
 
-# Create env via conda at ${VENV_DIR}
-create_conda_env() {
-  if ! command -v conda >/dev/null 2>&1; then
-    echo "Error: 'conda' command not found. Please install Conda (or Mamba) and re-run."
-    return 1
-  fi
-  ENV_YML="$(find_env_yml)" || {
-    echo "Error: environment.yml not found in ${BASE_DIR} or current directory."
-    return 1
-  }
-  echo "Creating Conda env from ${ENV_YML} at prefix ${VENV_DIR} ..."
-  conda env create -f "${ENV_YML}" -p "${VENV_DIR}"
+find_requirements_txt() {
+  if [ -f "${BASE_DIR}/requirements.txt" ]; then printf '%s' "${BASE_DIR}/requirements.txt"; return 0; fi
+  if [ -f "./requirements.txt" ]; then printf '%s' "./requirements.txt"; return 0; fi
+  return 1
 }
 
-#f Compare current env against environment.yml (top-level specs)
-# Returns 0 if up-to-date, 1 if drift detected, 2 on error
-compare_env_to_yml() {
-  if ! command -v conda >/dev/null 2>&1; then
-    echo "Warning: cannot compare env to environment.yml because 'conda' is not available."
-    return 2
+# Parse environment.yml -> produce a pip-style spec in ${SPEC_CACHE}
+gen_spec_from_env_yml() {
+  ENV_YML="$1"
+  PY_PIN=""
+  : > "${SPEC_CACHE}"
+  awk '
+    BEGIN { deps=0 }
+    /^\s*dependencies\s*:\s*$/ { deps=1; next }
+    deps==1 && /^\s*-\s*/ {
+      line=$0
+      gsub(/^\s*-\s*/, "", line)
+      if (line ~ /^pip(\s*$|[[:space:]=].*$)/) next
+      gsub(/=/, "==", line)
+      print line
+    }
+  ' "${ENV_YML}" | sed '/^\s*$/d' > "${SPEC_CACHE}"
+
+  PY_PIN=$(awk -F'==' '/^python==/ {print $2; exit}' "${SPEC_CACHE}" || true)
+  sed -i.bak '/^python==/d' "${SPEC_CACHE}" 2>/dev/null || true
+  rm -f "${SPEC_CACHE}.bak"
+
+  if [ ! -s "${SPEC_CACHE}" ]; then
+    cat >> "${SPEC_CACHE}" <<'EOF'
+Flask==3.0.2
+Flask-SQLAlchemy==3.1.1
+Werkzeug==3.0.1
+gunicorn==23.0.0
+EOF
   fi
 
-  ENV_YML="$(find_env_yml)" || return 2
+  printf '%s' "${PY_PIN}"
+}
 
-  # Prepare temporary files for a stable diff (avoid bash process substitution)
-  : "${TMPDIR:=/tmp}"
-  CUR_SPEC="$(mktemp "${TMPDIR}/cur_env_XXXXXX")" || return 2
-  TGT_SPEC="$(mktemp "${TMPDIR}/tgt_env_XXXXXX")" || { rm -f "$CUR_SPEC"; return 2; }
-
-  # Export only explicitly-installed packages from the env; strip prefix line
-  if ! conda env export -p "${VENV_DIR}" --from-history > "${CUR_SPEC}.raw" 2>/dev/null; then
-    rm -f "${CUR_SPEC}" "${TGT_SPEC}" "${CUR_SPEC}.raw"
-    return 2
+# ------- UPDATED: pyenv-aware interpreter selection -------
+select_python() {
+  REQ="$1"  # e.g. "3.12" or ""
+  # 1) explicit override
+  if [ -n "${PYTHON_BIN:-}" ] && command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    v=$("$PYTHON_BIN" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null || echo "")
+    if [ -z "$REQ" ] || [ "$v" = "$REQ" ]; then printf '%s' "$PYTHON_BIN"; return 0; fi
   fi
-  # Normalize both files: remove 'prefix:' and 'name:' lines; trim trailing spaces
-  sed -E 's/^prefix:.*$//; s/^name:.*$//; s/[[:space:]]+$//' "${CUR_SPEC}.raw" > "${CUR_SPEC}"
 
-  # Copy target environment.yml and normalize similarly
-  sed -E 's/^prefix:.*$//; s/^name:.*$//; s/[[:space:]]+$//' "${ENV_YML}" > "${TGT_SPEC}"
+  # 2) pyenv exact match (e.g., 3.12.5) or any 3.12.*
+  if command -v pyenv >/dev/null 2>&1; then
+    if [ -n "$REQ" ]; then
+      # Try an exact 3.12.5 first if user has it (common on your box)
+      for pv in "${REQ}.5" "${REQ}.0" "$REQ"; do
+        if pyenv prefix "$pv" >/dev/null 2>&1; then
+          bin="$(pyenv prefix "$pv")/bin/python"
+          if [ -x "$bin" ]; then
+            v=$("$bin" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null || echo "")
+            if [ "$v" = "$REQ" ]; then printf '%s' "$bin"; return 0; fi
+          fi
+        fi
+      done
+      # Fallback: first pyenv version that starts with REQ (e.g., 3.12.5)
+      pv="$(pyenv versions --bare | awk -v r="^${REQ}" '$0 ~ r {print; exit}')"
+      if [ -n "$pv" ] && pyenv prefix "$pv" >/dev/null 2>&1; then
+        bin="$(pyenv prefix "$pv")/bin/python"
+        if [ -x "$bin" ]; then
+          v=$("$bin" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null || echo "")
+          if [ "$v" = "$REQ" ]; then printf '%s' "$bin"; return 0; fi
+        fi
+      fi
+      # As a last pyenv convenience, try the common path if it exists
+      if [ -x "$HOME/.pyenv/versions/${REQ}.5/bin/python" ]; then
+        bin="$HOME/.pyenv/versions/${REQ}.5/bin/python"
+        v=$("$bin" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null || echo "")
+        if [ "$v" = "$REQ" ]; then printf '%s' "$bin"; return 0; fi
+      fi
+    fi
+  fi
 
-  # Compare
-  if diff -q "${CUR_SPEC}" "${TGT_SPEC}" >/dev/null 2>&1; then
-    RES=0
+  # 3) system pythons
+  candidates=""
+  if [ -n "$REQ" ]; then candidates="python${REQ}"; fi
+  candidates="$candidates python3.12 python3 python"
+  for bin in $candidates; do
+    if command -v "$bin" >/dev/null 2>&1; then
+      v=$("$bin" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null || echo "")
+      if [ -z "$REQ" ] || [ "$v" = "$REQ" ]; then printf '%s' "$bin"; return 0; fi
+    fi
+  done
+
+  return 1
+}
+
+create_venv() {
+  PYBIN="$1"
+  info "Creating venv at ${VENV_DIR} with ${PYBIN}"
+  "$PYBIN" -m venv "${VENV_DIR}"
+  "${VENV_DIR}/bin/python" -m pip install --upgrade pip setuptools wheel >/dev/null
+}
+
+install_spec() {
+  if [ -s "${SPEC_CACHE}" ]; then
+    info "Installing from spec (${SPEC_CACHE})"
+    "${VENV_DIR}/bin/pip" install -r "${SPEC_CACHE}"
   else
-    RES=1
+    REQ_TXT="$(find_requirements_txt || true)"
+    if [ -n "${REQ_TXT}" ]; then
+      info "Installing from requirements (${REQ_TXT})"
+      "${VENV_DIR}/bin/pip" install -r "${REQ_TXT}"
+    else
+      err "No dependency spec found (neither SPEC_CACHE nor requirements.txt)."
+      return 1
+    fi
   fi
-
-  rm -f "${CUR_SPEC}" "${TGT_SPEC}" "${CUR_SPEC}.raw"
-  return $RES
 }
 
-ensure_venv () {
-  # 1) If the prefix env doesn't exist, offer to create it with conda
-  if [ ! -x "${VENV_DIR}/bin/python" ]; then
-    echo "Virtual environment (Conda prefix) not found at ${VENV_DIR}."
-    ENV_YML="$(find_env_yml)" || {
-      echo "Error: environment.yml not found in ${BASE_DIR} or current directory."
-      return 1
-    }
-    printf "Create Conda env from %s at prefix %s ? [Y/N]: " "$ENV_YML" "$VENV_DIR"
-    read -r ans
-    case "$ans" in
-      [yY]*)
-        create_conda_env || { echo "Failed to create Conda env at ${VENV_DIR}"; return 1; }
-        ;;
-      *)
-        echo "Aborting start: virtual environment is required."
-        return 1
-        ;;
-    esac
+compare_env_to_spec() {
+  if [ ! -x "${VENV_DIR}/bin/pip" ]; then return 2; fi
+  if [ ! -s "${SPEC_CACHE}" ]; then
+    REQ_TXT="$(find_requirements_txt || true)"
+    if [ -n "${REQ_TXT}" ]; then
+      SPEC_FILE="$REQ_TXT"
+    else
+      return 2
+    fi
+  else
+    SPEC_FILE="${SPEC_CACHE}"
   fi
 
-  # 2) Sanity: ensure Python can import zoneinfo (Python >= 3.9).
-  #    If it can't, PROMPT to recreate instead of hard-failing.
-  if ! "${VENV_DIR}/bin/python" -c "import zoneinfo" >/dev/null 2>&1; then
-    echo "Detected incompatible Python in ${VENV_DIR}: missing 'zoneinfo' (need Python >= 3.9)."
-    ENV_YML="$(find_env_yml)" || {
-      echo "Error: environment.yml not found in ${BASE_DIR} or current directory."
+  DRIFT=0
+  while IFS= read -r line; do
+    case "$line" in ""|\#*) continue ;; esac
+    pkg=$(printf '%s' "$line" | cut -d'=' -f1)
+    exp=$(printf '%s' "$line" | awk -F'==' '{print $2}')
+    if [ -z "$pkg" ] || [ -z "$exp" ]; then continue; fi
+    got=$("${VENV_DIR}/bin/python" -m pip show "$pkg" 2>/dev/null | awk -F': ' '/^Version:/{print $2; exit}' || true)
+    if [ -z "$got" ] || [ "$got" != "$exp" ]; then
+      echo "  - Drift: $pkg expected $exp, got ${got:-<not installed>}"
+      DRIFT=1
+    fi
+  done < "$SPEC_FILE"
+
+  return $DRIFT
+}
+
+ensure_secret_key() {
+  mkdir -p ./data
+  if [ -f "./data/$KEY_FILE" ]; then
+    SECRET_KEY=$(cat "./data/$KEY_FILE")
+  else
+    SECRET_KEY=$("${VENV_DIR}/bin/python" -c "import secrets; print(secrets.token_hex(32))")
+    echo "$SECRET_KEY" > "./data/$KEY_FILE"
+    chmod 600 "./data/$KEY_FILE"
+    info "Saved new FLASK_SECRET_KEY to ./data/$KEY_FILE"
+  fi
+  export FLASK_SECRET_KEY="$SECRET_KEY"
+}
+
+ensure_venv() {
+  ENV_YML="$(find_env_yml || true)"
+  PY_REQ=""
+  if [ -n "$ENV_YML" ]; then
+    PY_REQ="$(gen_spec_from_env_yml "$ENV_YML")"
+    [ -n "$PY_REQ" ] && info "Detected Python pin: ${PY_REQ}"
+  else
+    if ! find_requirements_txt >/dev/null 2>&1; then
+      err "No environment.yml or requirements.txt found."
       return 1
-    }
-    printf "Recreate the env now from %s at %s ? This will remove the current .venv. [Y/N]: " "$ENV_YML" "$VENV_DIR"
-    read -r ans
-    case "$ans" in
-      [yY]*)
-        echo "Removing existing env at ${VENV_DIR} ..."
-        rm -rf "${VENV_DIR}" || { echo "Failed to remove ${VENV_DIR}"; return 1; }
-        create_conda_env || { echo "Failed to create Conda env at ${VENV_DIR}"; return 1; }
-        ;;
-      *)
-        echo "Aborting start: environment is incompatible."
-        return 1
-        ;;
-    esac
+    fi
   fi
 
-  # 3) Drift check: compare env to environment.yml (explicit specs) and PROMPT to rebuild on mismatch
-  compare_env_to_yml
-  cmp_status=$?
-  if [ $cmp_status -eq 1 ]; then
-    echo "Detected drift between ${VENV_DIR} and environment.yml."
-    ENV_YML="$(find_env_yml)" || {
-      echo "Error: environment.yml not found in ${BASE_DIR} or current directory."
-      return 1
-    }
-    printf "Recreate the env now from %s? This will remove %s and rebuild. [Y/N]: " "$ENV_YML" "$VENV_DIR"
-    read -r ans
-    case "$ans" in
-      [yY]*)
-        echo "Removing existing env at ${VENV_DIR} ..."
-        rm -rf "${VENV_DIR}" || { echo "Failed to remove ${VENV_DIR}"; return 1; }
-        create_conda_env || { echo "Failed to create Conda env at ${VENV_DIR}"; return 1; }
-        ;;
-      *)
-        echo "Continuing with the existing env (not recommended)."
-        ;;
-    esac
-  elif [ $cmp_status -eq 2 ]; then
-    echo "Warning: Skipping env drift check (conda/env export unavailable)."
-  fi
-
-  # Ensure gunicorn is installed in the prefix (environment.yml should include it)
-  if [ ! -x "${VENV_DIR}/bin/gunicorn" ]; then
-    echo "Error: gunicorn not found in ${VENV_DIR}/bin. Add it to environment.yml and recreate the env."
+  PYBIN="$(select_python "$PY_REQ" || true)"
+  if [ -z "$PYBIN" ]; then
+    err "Could not find a python interpreter matching ${PY_REQ:-<any>}.
+Hint: set PYTHON_BIN=/home/lap284/.pyenv/versions/3.12.5/bin/python or install python${PY_REQ}."
     return 1
+  fi
+  info "Using Python: $("$PYBIN" -V)"
+
+  if [ ! -x "${VENV_DIR}/bin/python" ]; then
+    create_venv "$PYBIN"
+    # fail-fast guard in case wrong interpreter slipped in
+    VVER="$("${VENV_DIR}/bin/python" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')"
+    if [ -n "${PY_REQ:-}" ] && [ "$VVER" != "$PY_REQ" ]; then
+      err "Venv python ($VVER) does not match required ${PY_REQ}. Check PYTHON_BIN/pyenv."
+      return 1
+    fi
+    install_spec || return 1
+  else
+    if ! "${VENV_DIR}/bin/python" -c "import zoneinfo" >/dev/null 2>&1; then
+      err "Incompatible Python in ${VENV_DIR} (missing zoneinfo). Recreating."
+      rm -rf "${VENV_DIR}"
+      create_venv "$PYBIN"
+      install_spec || return 1
+    fi
+  fi
+
+  COMP_OK=2
+  if compare_env_to_spec; then
+    COMP_OK=0
+  else
+    COMP_OK=$?
+  fi
+
+  if [ $COMP_OK -eq 1 ]; then
+    echo "Detected drift between ${VENV_DIR} and spec."
+    printf "Reinstall to match spec? This will (re)install packages in %s. [Y/N]: " "$VENV_DIR"
+    read -r ans
+    case "$ans" in
+      [yY]*) install_spec || return 1 ;;
+      *)     echo "Continuing with existing env (not recommended)." ;;
+    esac
+  elif [ $COMP_OK -eq 2 ]; then
+    echo "Warning: Skipping env drift check (no spec found or pip unavailable)."
+  fi
+
+  if [ ! -x "${VENV_DIR}/bin/gunicorn" ]; then
+    err "gunicorn not found in venv; installing as per spec."
+    install_spec || return 1
+    [ -x "${VENV_DIR}/bin/gunicorn" ] || { err "gunicorn still missing."; return 1; }
   fi
 
   return 0
 }
 
+cm_webapp_start() {
+  info "Starting cm_webapp"
+  ensure_venv || exit 1
+  check_bind_ip || exit 1
 
-
-cm_webapp_start () {
-  echo "Starting cm_webapp"
-
-  # Ensure venv exists (Conda prefix) and is valid
-  ensure_venv || return 1
-
-  # Check that the bind IP is valid on this host
-  check_bind_ip || return 1 # can remove || return 1 if you still want to try to run on given address
-
-  # Ensure required directories exist (minimal changes)
-  mkdir -p ./data
   mkdir -p "${LOG_DIR}/cm_webapp-status"
-
-  # Generate 64-character hex key (reuse existing)
-  if [ -f "./data/$KEY_FILE" ]; then
-    SECRET_KEY=$(cat "./data/$KEY_FILE")
-  else
-    SECRET_KEY=$("${VENV_DIR}/bin/python" -c "import secrets; print(secrets.token_hex(32))") || {
-      echo "Failed to generate FLASK_SECRET_KEY"
-      return 1
-    }
-    echo "$SECRET_KEY" > "./data/$KEY_FILE"
-    chmod 600 "./data/$KEY_FILE"
-    echo "Saved new FLASK_SECRET_KEY to ./data/$KEY_FILE"
-  fi
-
-  export FLASK_SECRET_KEY="$SECRET_KEY"
-  
-  # Work from base directory (wsgi.py lives here)
-  cd "${BASE_DIR}" || { echo "Directory ${BASE_DIR} not found"; return 1; }
-
-  # Make sure Python can import the app module(s) from BASE_DIR
-  export PYTHONPATH="${BASE_DIR}:${PYTHONPATH}"
-  # Prefer the env's bin on PATH for consistency
+  cd "${BASE_DIR}" || { err "Directory ${BASE_DIR} not found"; exit 1; }
+  export PYTHONPATH="${BASE_DIR}:${PYTHONPATH:-}"
   export PATH="${VENV_DIR}/bin:${PATH}"
+  ensure_secret_key
 
-  # Verify gunicorn exists in prefix
-  if [ ! -x "${VENV_DIR}/bin/gunicorn" ]; then
-    echo "Gunicorn not found at ${VENV_DIR}/bin/gunicorn."
-    return 1
-  fi
-
-  # Prepare log files and PID path (all under BASE_DIR now)
   ACCESS_LOG="${LOG_DIR}/cm_webapp-status/access.log"
   ERROR_LOG="${LOG_DIR}/cm_webapp-status/error.log"
   STARTUP_LOG="${LOG_DIR}/cm_webapp-status/startup.log"
   PID_FILE="${BASE_DIR}/gunicorn.pid"
 
-  # If a stale PID file exists, remove it
   if [ -f "$PID_FILE" ] && ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-    echo "Removing stale PID file at $PID_FILE"
+    info "Removing stale PID file at $PID_FILE"
     rm -f "$PID_FILE"
   fi
 
-  # Launch gunicorn (daemonized via nohup); let gunicorn write its own PID file
   nohup "${VENV_DIR}/bin/gunicorn" $SVC_OPTS \
     --pid "$PID_FILE" \
     --access-logfile "$ACCESS_LOG" \
@@ -236,32 +293,24 @@ cm_webapp_start () {
     wsgi:app \
     >"$STARTUP_LOG" 2>&1 &
 
-  # Confirm start
   sleep 1
   if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-    echo "cm_webapp started (PID $(cat "$PID_FILE")). Logs: $STARTUP_LOG"
+    info "cm_webapp started (PID $(cat "$PID_FILE")). Logs: $STARTUP_LOG"
     return 0
   else
-    echo "Failed to start cm_webapp. Check $STARTUP_LOG and $ERROR_LOG"
+    err "Failed to start cm_webapp. Check $STARTUP_LOG and $ERROR_LOG"
     return 1
   fi
 }
 
-cm_webapp_stop () {
-  echo "Stopping cm_webapp"
+cm_webapp_stop() {
+  info "Stopping cm_webapp"
   PID_FILE="${BASE_DIR}/gunicorn.pid"
   if [ -f "$PID_FILE" ]; then
     pid=$(cat "$PID_FILE")
     if kill -TERM "$pid" 2>/dev/null; then
-      # Wait up to ~10s for graceful shutdown
       for i in 1 2 3 4 5 6 7 8 9 10; do
-        if kill -0 "$pid" 2>/dev/null; then
-          sleep 1
-        else
-          rm -f "$PID_FILE"
-          echo "cm_webapp stopped"
-          return 0
-        fi
+        if kill -0 "$pid" 2>/dev/null; then sleep 1; else rm -f "$PID_FILE"; info "cm_webapp stopped"; return 0; fi
       done
       echo "Process did not exit gracefully; sending KILL"
       kill -KILL "$pid" 2>/dev/null || true
@@ -278,20 +327,14 @@ cm_webapp_stop () {
   fi
 }
 
-cm_webapp_restart () {
-  echo "Restarting cm_webapp"
-  cm_webapp_stop
+cm_webapp_restart() {
+  info "Restarting cm_webapp"
+  cm_webapp_stop || true
   sleep 2
-  if [ $? -eq 0 ]; then
-    cm_webapp_start
-    return $?
-  else
-    return 1
-  fi
+  cm_webapp_start
 }
 
-echo "argument is $1"
-case "$1" in
+case "${1:-}" in
   start)   cm_webapp_start ; exit $? ;;
   stop)    cm_webapp_stop  ; exit $? ;;
   restart) cm_webapp_restart ; exit $? ;;
