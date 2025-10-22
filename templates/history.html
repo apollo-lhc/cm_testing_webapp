@@ -131,7 +131,7 @@
     background-color: #f8f9fa !important;
   }
 
-    .truncated-cell {
+  .truncated-cell {
     max-width: 200px;
     white-space: nowrap;
     overflow: hidden;
@@ -140,9 +140,23 @@
   }
 
   .expanded-cell {
-    white-space: normal;
-    max-width: none;
+    /* wrap text and break long tokens */
+    white-space: normal !important;
     word-break: break-word;
+    line-height: 1.25;
+
+    /* bound the box size; scroll if bigger */
+    min-width: 400px;           /* ensures it's noticeably wider */
+    max-width: clamp(600px, 70vw, 1200px); /* allow it to expand within viewport */
+    max-height: 50vh;
+    overflow: auto;
+
+    /* optional: light visual affordance */
+    padding: 6px 8px;
+    background: #ffffff;
+    border: 1px solid #e7e7e7;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.02);
+    border-radius: 4px;
   }
 
   .logo-box {
