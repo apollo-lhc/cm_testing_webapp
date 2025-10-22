@@ -459,14 +459,46 @@
     cell.classList.toggle("expanded-cell");
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".truncated-cell").forEach(cell => {
-      cell.addEventListener("click", function () {
-        toggleCellExpansion(this);
-      });
-    });
+// Track which columns are expanded
+const expandedCols = new Set();
+
+// Expand or collapse all truncated cells in a column
+function setColumnExpanded(dt, colIdx, expanded) {
+  const tds = dt.column(colIdx, { page: 'current' }).nodes();
+  tds.each(function (td) {
+    if (td.classList.contains('truncated-cell')) {
+      td.classList.toggle('expanded-cell', expanded);
+    }
+  });
+  if (expanded) expandedCols.add(colIdx);
+  else expandedCols.delete(colIdx);
+}
+
+  // Click handler — toggles all cells in the same column
+  document.addEventListener('click', function (e) {
+    const cellEl = e.target.closest('.truncated-cell');
+    if (!cellEl) return;
+
+    const tableEl = document.getElementById('data-table');
+    if (!tableEl || !tableEl.contains(cellEl)) return;
+
+    const dt = $('#data-table').DataTable();
+    const idx = dt.cell(cellEl).index();
+    if (!idx) return;
+
+    const colIdx = idx.column;
+    const isExpanded = expandedCols.has(colIdx);
+    setColumnExpanded(dt, colIdx, !isExpanded);
   });
 
+  // Reapply expanded columns after table redraws
+  $(document).ready(function () {
+    const dt = $('#data-table').DataTable();
+    dt.on('draw', function () {
+      expandedCols.forEach(colIdx => setColumnExpanded(dt, colIdx, true));
+    });
+  });
+  
   const refreshButton = document.getElementById("toggle-refresh");
   let refreshInterval;
 
