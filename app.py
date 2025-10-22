@@ -117,13 +117,11 @@ def form_complete():
 
     return render_template('form_complete.html')
 
-
 @app.route('/logout')
 def logout():
     """logout route"""
     session.pop('user_id', None)
     return redirect(url_for('login'))
-
 
 @app.route('/')
 def home():
@@ -533,7 +531,6 @@ def help_button():
                 grouped_help_fields[section].append(field)
 
     return render_template("help.html", grouped_help_fields=grouped_help_fields)
-
 
 @app.route('/prod_test_doc')
 def prod_test_doc():
