@@ -499,7 +499,7 @@ def export_csv():
         entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
 
     output = io.StringIO()
-    writer = csv.writer(output)
+    writer = csv.writer(output, delimiter=';')
     writer.writerow(['Time', 'User'] + [f.label for f in all_fields] + ['File', "Test Aborted", "Reason Aborted"])
 
     for e in entries:
