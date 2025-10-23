@@ -185,26 +185,6 @@
     background-color: #B31B1B !important;
   }
 
-  /* Sticky left column for CM Serial */
-  #data-table th.sticky-col,
-  #data-table td.sticky-col {
-    position: sticky;
-    left: 0;                 /* stick to the left edge inside the scroll container */
-    z-index: 3;              /* above normal cells */
-    background: #fff;        /* ensure text stays readable over rows */
-    box-shadow: 2px 0 0 rgba(0,0,0,0.06); /* subtle divider when scrolling */
-  }
-
-  /* Make the header sit above sticky body cells */
-  #data-table thead th.sticky-col {
-    z-index: 4;
-  }
-
-  /* If you’re using row background colors, keep sticky cell readable */
-  #data-table tbody tr td.sticky-col {
-    background-clip: padding-box;
-  }
-
 
 </style>
 
@@ -252,85 +232,81 @@
       <table id="data-table" class="table table-bordered ">
         <thead>
           <tr>
-            <th class="sticky-col">CM Serial</th>
+            <th class="sticky-col">CM Serial</th>  {# sticky, left-most #}
             <th>Time</th>
             <th>Users</th>
-
-            {% if fields|length > 0 %}
-              <th>{{ fields[0].label }}</th>
-            {% endif %}
-
             <th>Status</th>
 
-            {% for field in fields[1:] %}
-              <th>{{ field.label }}</th>
+            {# render ALL other fields except CM_serial #}
+            {% for field in fields %}
+              {% if field.name != 'CM_serial' %}
+                <th>{{ field.label }}</th>
+              {% endif %}
             {% endfor %}
 
             <th>Test Aborted</th>
             <th>Reason Aborted</th>
           </tr>
         </thead>
+
         <tbody>
-        {% for e in entries %}
-        <tr
-          {% set step = e.data.get('last_step', 0) %}
-          {% set total = fields|length - 1 %}
-          {% set progress = (step / total) if step is not none and total > 0 else 0 %}
-          {% set status = (
-            'failed' if e.failure else
-            'saved' if e.is_saved else
-            'finished' if e.is_finished else
-            'inprogress'
-          ) %}
-          data-status="{{ status }}"
-          data-progress="{{ progress|round(2) }}"
-        >
-          {# NEW: first cell = sticky CM Serial #}
-          <td class="sticky-col truncated-cell">
-            {{ e.data.get('CM_serial', '') }}
-          </td>
+          {% for e in entries %}
+          <tr
+            {% set step = e.data.get('last_step', 0) %}
+            {% set total = fields|length - 1 %}
+            {% set progress = (step / total) if step is not none and total > 0 else 0 %}
+            {% set status = (
+              'failed' if e.failure else
+              'saved' if e.is_saved else
+              'finished' if e.is_finished else
+              'inprogress'
+            ) %}
+            data-status="{{ status }}"
+            data-progress="{{ progress|round(2) }}"
+          >
+            {# sticky CM Serial first #}
+            <td class="sticky-col truncated-cell">{{ e.data.get('CM_serial', '') }}</td>
 
-          <td>{{ e.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
-          <td>{{ ", ".join(e.contributors) if e.contributors else "None" }}</td>
+            <td>{{ e.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+            <td>{{ ", ".join(e.contributors) if e.contributors else "None" }}</td>
+            <td>{{ status }}</td>
 
-          {% if fields|length > 0 %}
-            {% set value = e.data.get(fields[0].name, '') %}
-            {% if fields[0].type_field == 'file' %}
-              <td class="truncated-cell">
-                {% if value %}
-                  <a href="{{ url_for('uploaded_file', filename=value) }}" target="_blank">{{ value }}</a>
-                {% else %}-{% endif %}
-              </td>
-            {% else %}
-              <td class="truncated-cell">{{ value }}</td>
-            {% endif %}
-          {% endif %}
+            {# all other fields EXCEPT CM_serial #}
+            {% for field in fields %}
+              {% if field.name != 'CM_serial' %}
+                {% set value = e.data.get(field.name, '') %}
+                {% if field.type_field == 'file' %}
+                  <td class="truncated-cell">
+                    {% if value %}
+                      <a href="{{ url_for('uploaded_file', filename=value) }}" target="_blank">{{ value }}</a>
+                    {% else %}-{% endif %}
+                  </td>
+                {% else %}
+                  <td class="truncated-cell">{{ value }}</td>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
 
-          <td>{{ status }}</td>
-
-          {% for field in fields[1:] %}
-            {% set value = e.data.get(field.name, '') %}
-            {% if field.type_field == 'file' %}
-              <td class="truncated-cell">
-                {% if value %}
-                  <a href="{{ url_for('uploaded_file', filename=value) }}" target="_blank">{{ value }}</a>
-                {% else %}-{% endif %}
-              </td>
-            {% else %}
-              <td class="truncated-cell">{{ value }}</td>
-            {% endif %}
+            <td>{{ "yes" if e.failure else "no" }}</td>
+            <td class="truncated-cell">{{ e.fail_reason or "-" }}</td>
+          </tr>
           {% endfor %}
+        </tbody>
 
-          <td>{{ "yes" if e.failure else "no" }}</td>
-          <td class="truncated-cell">{{ e.fail_reason or "-" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
 
       </table>
     </div>
   </div>
 </div>
+
+
+<link rel="stylesheet"
+  href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.dataTables.min.css">
+<link rel="stylesheet"
+  href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css">
+<script src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
+<script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
+
 
 <script>
   $(document).ready(function () {
@@ -360,11 +336,17 @@
           scroller: true,
           deferRender: true,
           pageLength: -1,
-          order: [[timeIdx, 'desc']],  // keep sorting by Time
+          order: [[timeIdx, 'desc']],
           scrollX: true,
           autoWidth: false,
           columnDefs: [{ targets: "_all", defaultContent: "-" }],
-          drawCallback: function() { applyRowColors(); }
+          drawCallback: function() { applyRowColors(); },
+
+          // 👇 new additions
+          fixedHeader: true,
+          fixedColumns: {
+            leftColumns: 1
+          }
         });
       }
     }
