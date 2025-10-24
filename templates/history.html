@@ -185,6 +185,59 @@
     background-color: #B31B1B !important;
   }
 
+  /* --- solid sticky column (header + body) --- */
+  .sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 5 !important;
+    background-color: #ffffff !important; /* always solid */
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.15);
+  }
+
+  /* header cell for sticky column */
+  thead th.sticky-col {
+    background-color: #f2f2f2 !important; /* light gray header */
+    color: #000 !important;
+    z-index: 6 !important; /* keep above rows */
+  }
+
+  /* fallback for non-colored rows */
+  tbody td.sticky-col {
+    background-color: #ffffff !important;
+  }
+  /* ----- Ensure solid non-transparent sticky column across DataTables layers ----- */
+
+  /* main table */
+  table.dataTable td.sticky-col,
+  table.dataTable th.sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 5 !important;
+    background-color: #f7f7f7 !important; /* Color for CM Serial column */
+    box-shadow: 2px 0 6px rgba(0,0,0,0.15);
+  }
+
+  /* header styling */
+  table.dataTable thead th.sticky-col {
+    background-color: #ffffff !important; /* Color for Header CM Serial column */
+    color: #000 !important;
+    z-index: 6 !important;
+  }
+
+  /* DataTables FixedColumns cloned layers */
+  div.DTFC_LeftWrapper table.dataTable td,
+  div.DTFC_LeftWrapper table.dataTable th {
+    background-color: #ffffff !important; /* body */
+    color: #000 !important;
+  }
+
+  div.DTFC_LeftWrapper table.dataTable thead th {
+    background-color: #f2f2f2 !important; /* header */
+    font-weight: 600 !important;
+  }
+
+
+
 
 </style>
 
@@ -226,6 +279,13 @@
         <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('all')">Show All</button>
         <button class="btn btn-outline-dark btn-sm" onclick="toggleColoring()">Toggle Row Coloring</button>
       </div>
+    </div>
+
+    <div class="mb-3">
+      <label><strong>Visible Columns:</strong></label>
+      <select id="columnFilter" multiple class="form-select" style="max-width: 400px; display: inline-block;">
+      </select>
+      <button id="resetColumns" class="btn btn-outline-dark btn-sm ms-2">Reset Columns</button>
     </div>
 
     <div class="table-responsive">
@@ -309,6 +369,8 @@
 
 
 <script>
+
+
   $(document).ready(function () {
     const tableElement = $('#data-table');
     let table;
@@ -445,6 +507,17 @@
       }
 
       $(this).css('background-color', bgColor);
+      if (bgColor) {
+        // Apply same color to both main and cloned sticky cells
+        const color = bgColor || '#ffffff';
+        $(this).find('.sticky-col').css('background-color', color);
+        const rowIndex = $(this).index();
+        $(`.DTFC_LeftWrapper tbody tr:eq(${rowIndex}) td`).css('background-color', color);
+
+      } else {
+        $(this).find('.sticky-col').css('background-color', '#ffffff');
+      }
+
     });
   }
 
