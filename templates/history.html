@@ -3,6 +3,7 @@
 {% block page_title %}Apollo CM Testing • Data{% endblock %}
 
 {% block content %}
+
 <style>
   header.bg-primary {
     background: #B31B1B !important;
@@ -140,18 +141,13 @@
   }
 
   .expanded-cell {
-    /* wrap text and break long tokens */
     white-space: normal !important;
     word-break: break-word;
     line-height: 1.25;
-
-    /* bound the box size; scroll if bigger */
-    min-width: 400px;           /* ensures it's noticeably wider */
-    max-width: clamp(600px, 70vw, 1200px); /* allow it to expand within viewport */
+    min-width: 400px;
+    max-width: clamp(600px, 70vw, 1200px);
     max-height: 50vh;
     overflow: auto;
-
-    /* optional: light visual affordance */
     padding: 6px 8px;
     background: #ffffff;
     border: 1px solid #e7e7e7;
@@ -170,7 +166,7 @@
     overflow: hidden;
     margin: 0;
     position: relative;
-    top: 3px; /* adjust as needed */
+    top: 3px;
   }
 
   header .text-end small,
@@ -184,62 +180,45 @@
     border-bottom: 2px solid #8e1414;
     background-color: #B31B1B !important;
   }
-
-  /* --- solid sticky column (header + body) --- */
+  /* --- Sticky column unified styling --- */
   .sticky-col {
-    position: sticky;
-    left: 0;
+    position: sticky !important;
+    left: 0 !important;
     z-index: 5 !important;
-    background-color: #ffffff !important; /* always solid */
     box-shadow: 2px 0 6px rgba(0, 0, 0, 0.15);
   }
 
-  /* header cell for sticky column */
-  thead th.sticky-col {
-    background-color: #f2f2f2 !important; /* light gray header */
+  /* Force solid white header for sticky column and its cloned copies */
+  thead th.sticky-col,
+  div.DTFC_LeftHeadWrapper table thead th,
+  div.DTFC_LeftHeadWrapper table thead th.sticky-col {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 7 !important;
+    background-color: #ffffff !important;  /* solid white header */
     color: #000 !important;
-    z-index: 6 !important; /* keep above rows */
+    font-weight: 600 !important;
+    border-right: 1px solid #dee2e6 !important;
   }
 
-  /* fallback for non-colored rows */
-  tbody td.sticky-col {
+  /* Keep sticky body cells matching their row color */
+  div.DTFC_LeftBodyWrapper table tbody td,
+  div.DTFC_LeftBodyWrapper table tbody th {
+    background-color: inherit !important;
+    color: inherit !important;
+  }
+
+  /* Prevent transparency or inherited blankness from DataTables’ inline styles */
+  div.DTFC_LeftWrapper table.dataTable td[style*="background-color: transparent"],
+  div.DTFC_LeftWrapper table.dataTable th[style*="background-color: transparent"] {
     background-color: #ffffff !important;
   }
-  /* ----- Ensure solid non-transparent sticky column across DataTables layers ----- */
 
-  /* main table */
-  table.dataTable td.sticky-col,
-  table.dataTable th.sticky-col {
-    position: sticky;
-    left: 0;
-    z-index: 5 !important;
-    background-color: #f7f7f7 !important; /* Color for CM Serial column */
-    box-shadow: 2px 0 6px rgba(0,0,0,0.15);
-  }
-
-  /* header styling */
-  table.dataTable thead th.sticky-col {
-    background-color: #ffffff !important; /* Color for Header CM Serial column */
-    color: #000 !important;
-    z-index: 6 !important;
-  }
-
-  /* DataTables FixedColumns cloned layers */
-  div.DTFC_LeftWrapper table.dataTable td,
-  div.DTFC_LeftWrapper table.dataTable th {
-    background-color: #ffffff !important; /* body */
-    color: #000 !important;
-  }
-
-  div.DTFC_LeftWrapper table.dataTable thead th {
-    background-color: #f2f2f2 !important; /* header */
-    font-weight: 600 !important;
-  }
-
-
+  div.DTFC_LeftHeadWrapper table thead th { background: yellow !important; }
 
 
 </style>
+
 
 <div class="full-width-container history-container">
   <div class="mb-4 d-flex flex-wrap justify-content-between align-items-center">
@@ -264,7 +243,7 @@
       <strong>Last updated:</strong> <span id="last-updated">{{ now.strftime('%Y-%m-%d %H:%M:%S') }}</span>
     </div>
     <div>
-      <button id="toggle-refresh" class="btn btn-outline-primary btn-sm">Enable Auto-Refresh</button>
+ Auto-Refresh</button>
     </div>
   </div>
 
@@ -359,7 +338,6 @@
   href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css">
 <script src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
 <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
-
 
 <script>
 
@@ -474,45 +452,44 @@
 
   let colorEnabled = true;
 
-  function applyRowColors() {
-    $('#data-table tbody tr').each(function () {
-      const status = $(this).data('status');
-      const progress = parseFloat($(this).data('progress')) || 0;
+ function applyRowColors() {
+  const $mainBodyRows = $('#data-table tbody tr');
+  const $cloneBodyRows = $('.DTFC_LeftBodyWrapper tbody tr'); // real cloned table rows
 
-      let bgColor = '';
+  $mainBodyRows.each(function (rowIdx) {
+    const $row = $(this);
+    const status = $row.data('status');
+    const progress = parseFloat($row.data('progress')) || 0;
+    let finalColor = '';
 
-      if (!colorEnabled) {
-        $(this).css('background-color', '');
-        return;
-      }
-
-      if (status === 'failed') {
-        bgColor = '#e45762'; // red
-      } else if (status === 'saved') {
-        bgColor = '#65e1f7'; // blue
-      } else if (status === 'finished') {
-        bgColor = '#3ef168'; // green
-      } else if (status === 'inprogress') {
+    if (!colorEnabled) {
+      finalColor = rowIdx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    } else {
+      if (status === 'failed') finalColor = '#e45762';
+      else if (status === 'saved') finalColor = '#65e1f7';
+      else if (status === 'finished') finalColor = '#3ef168';
+      else if (status === 'inprogress') {
         const r = Math.round(255 + (62 - 255) * progress);
         const g = Math.round(255 + (241 - 255) * progress);
         const b = Math.round(100 + (104 - 100) * progress);
-        bgColor = `rgb(${r}, ${g}, ${b})`;
-      }
-
-      $(this).css('background-color', bgColor);
-      if (bgColor) {
-        // Apply same color to both main and cloned sticky cells
-        const color = bgColor || '#ffffff';
-        $(this).find('.sticky-col').css('background-color', color);
-        const rowIndex = $(this).index();
-        $(`.DTFC_LeftWrapper tbody tr:eq(${rowIndex}) td`).css('background-color', color);
-
+        finalColor = `rgb(${r}, ${g}, ${b})`;
       } else {
-        $(this).find('.sticky-col').css('background-color', '#ffffff');
+        finalColor = rowIdx % 2 === 0 ? '#ffffff' : '#f8f9fa';
       }
+    }
 
-    });
-  }
+    // Paint main table row + sticky cell
+    $row.css('background-color', finalColor);
+    $row.find('.sticky-col').css('background-color', finalColor);
+
+    // Paint clone table row (FixedColumns body)
+    const $cloneRow = $cloneBodyRows.eq(rowIdx);
+    $cloneRow.find('td, th').css('background-color', finalColor);
+  });
+}
+
+
+
 
   function toggleColoring() {
     colorEnabled = !colorEnabled;
@@ -604,7 +581,6 @@ function setColumnExpanded(dt, colIdx, expanded) {
       startAutoRefresh();
     }
   });
-
 
 </script>
 {% endblock %}
