@@ -218,38 +218,75 @@
 
   /* --- Column Visibility Popup Menu --- */
 
+  /* --- Centered Column Selector Popup --- */
   .col-menu-popup {
     display: none;
-    position: absolute;
-    background: #ffffff;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    padding: 12px 16px;
-    z-index: 9999;
-    min-width: 250px;
-    max-height: 300px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px 18px;
+    z-index: 2000;
+    width: 320px;
+    max-height: 70vh;
     overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    border: 1px solid #e2e2e2;
+    animation: fadeIn 0.15s ease-in-out;
+  }
+
+  /* Optional: subtle dimmed overlay behind popup */
+  .col-menu-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 1999;
+  }
+
+  .col-menu-header {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    padding-bottom: 6px;
+    z-index: 10;
+  }
+
+  .checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .checkbox-list label {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.5rem;
     font-size: 0.9rem;
     cursor: pointer;
-    margin-bottom: 4px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+  }
+
+  .checkbox-list label:hover {
+    background: #f5f5f5;
   }
 
   .checkbox-list input {
-    transform: scale(1.1);
+    transform: scale(1.15);
   }
 
-  .col-menu-popup h6 {
-    font-size: 1rem;
-    margin-bottom: 8px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 4px;
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translate(-50%, -48%); }
+    to   { opacity: 1; transform: translate(-50%, -50%); }
   }
+
 
 
 </style>
@@ -314,12 +351,17 @@
       </div>
     </div>
 
-    <!-- Popup menu -->
-    <div id="col-menu" class="col-menu-popup shadow">
-      <h6><strong>Select Columns to Show</strong></h6>
+    <!-- Improved Column Selector Popup -->
+    <div id="col-menu" class="col-menu-popup shadow-lg border">
+      <div class="col-menu-header d-flex justify-content-between align-items-center">
+        <h6 class="m-0"><strong>Select Columns</strong></h6>
+        <button class="btn btn-sm btn-primary fw-semibold" onclick="applyColumnVisibility()">Apply</button>
+      </div>
+      <hr class="my-2">
       <div id="col-checkboxes" class="checkbox-list"></div>
-      <button class="btn btn-sm btn-primary mt-2 w-100" onclick="applyColumnVisibility()">Apply</button>
     </div>
+
+    <div class="col-menu-overlay" id="col-menu-overlay"></div>
 
 
 
@@ -452,14 +494,17 @@
     applyRowColors();
     $(window).on('resize', initOrUpdateTable);
   });
-  // === Column Visibility Popup ===
+
+
   function initColumnVisibilityMenu() {
     const dt = $('#data-table').DataTable();
     const menu = document.getElementById('col-menu');
+    const overlay = document.getElementById('col-menu-overlay');
     const checkboxContainer = document.getElementById('col-checkboxes');
+    const toggleBtn = document.getElementById('toggle-col-menu');
     checkboxContainer.innerHTML = '';
 
-    // Create checkboxes for each column (except fixed ones)
+    // --- Build checkboxes for each visible column (skip CM Serial + Time)
     dt.columns().every(function (index) {
       const header = this.header();
       const name = header ? header.textContent.trim() : '';
@@ -475,7 +520,7 @@
       checkboxContainer.appendChild(label);
     });
 
-    // Load saved state
+    // --- Load saved column visibility state from localStorage
     const saved = localStorage.getItem('visibleColumns');
     if (saved) {
       const visibleCols = JSON.parse(saved);
@@ -485,23 +530,36 @@
       });
     }
 
-    // Button toggles popup visibility
-    const toggleBtn = document.getElementById('toggle-col-menu');
+    // --- Open / close the centered popup
     toggleBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      const rect = toggleBtn.getBoundingClientRect();
-      menu.style.top = rect.bottom + window.scrollY + 'px';
-      menu.style.left = rect.left + 'px';
-      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+      const isVisible = menu.style.display === 'block';
+      if (isVisible) {
+        menu.style.display = 'none';
+        overlay.style.display = 'none';
+      } else {
+        menu.style.display = 'block';
+        overlay.style.display = 'block';
+      }
     });
 
-    // Hide popup when clicking outside
+    // --- Hide when clicking outside the popup
     document.addEventListener('click', function (e) {
       if (!menu.contains(e.target) && e.target.id !== 'toggle-col-menu') {
         menu.style.display = 'none';
+        overlay.style.display = 'none';
+      }
+    });
+
+    // --- Hide when pressing Escape key
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        menu.style.display = 'none';
+        overlay.style.display = 'none';
       }
     });
   }
+
 
   function applyColumnVisibility() {
     const dt = $('#data-table').DataTable();
