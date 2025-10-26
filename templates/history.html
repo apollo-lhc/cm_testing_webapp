@@ -218,7 +218,7 @@
 
   /* --- Column Visibility Popup Menu --- */
 
-  /* --- Centered Column Selector Popup --- */
+  /* --- Centered Column Selector Popup (clean top edge) --- */
   .col-menu-popup {
     display: none;
     position: fixed;
@@ -227,40 +227,34 @@
     transform: translate(-50%, -50%);
     background: #fff;
     border-radius: 10px;
-    padding: 14px 18px;
+    padding: 0;                        /* remove padding so header aligns flush */
     z-index: 2000;
     width: 320px;
     max-height: 70vh;
-    overflow-y: auto;
+    overflow: hidden;                  /* hide any scroll bleed */
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
     border: 1px solid #e2e2e2;
     animation: fadeIn 0.15s ease-in-out;
   }
 
-  /* Optional: subtle dimmed overlay behind popup */
-  .col-menu-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.25);
-    z-index: 1999;
-  }
-
+  /* Sticky header stays fixed and covers the top */
   .col-menu-header {
     position: sticky;
     top: 0;
     background: #fff;
-    padding-bottom: 6px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e5e5;
     z-index: 10;
   }
 
+  /* Scroll area starts directly below the header */
   .checkbox-list {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    padding: 10px 16px 16px 16px;
+    overflow-y: auto;
+    max-height: calc(70vh - 60px); /* account for header height */
   }
 
   .checkbox-list label {
@@ -281,6 +275,7 @@
   .checkbox-list input {
     transform: scale(1.15);
   }
+
 
   @keyframes fadeIn {
     from { opacity: 0; transform: translate(-50%, -48%); }
