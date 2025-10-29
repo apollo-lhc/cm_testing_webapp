@@ -11,6 +11,7 @@ Features:
 # TODO fix formatting of code and make constantly repeated code into helper functions?
 # TODO block using back button on forms?
 # TODO have files visible in js for form.html
+# TODO make a @loginrequired
 
 import os
 import io
@@ -459,6 +460,35 @@ def history():
         entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
 
     return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle, now=datetime.now(EASTERN_TZ))
+
+@app.route('/entry/<serial>')
+def entry_detail(serial):
+    """Expanded view of entry."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    entry = (
+        TestEntry.query
+        .filter(db.func.json_extract(TestEntry.data, '$.CM_serial') == serial)
+        .order_by(TestEntry.timestamp.desc())
+        .first()
+    )
+
+    if not entry:
+        flash(f"No entry found for CM Serial {serial}.", "warning")
+        return redirect(url_for('history'))
+
+    # collect all visible fields (like in /history)
+    all_fields = []
+    for form_page in FORMS_NON_DICT:
+        all_fields.extend([f for f in form_page.fields if getattr(f, "display_history", True)])
+
+    return render_template(
+        "entry_detail.html",
+        entry=entry,
+        fields=all_fields,
+    )
+
 
 @app.route('/export_csv')
 def export_csv():

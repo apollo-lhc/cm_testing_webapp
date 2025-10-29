@@ -188,6 +188,17 @@
     box-shadow: 2px 0 6px rgba(0, 0, 0, 0.15);
   }
 
+    #data-table td.sticky-col {
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: underline;
+    color: #B31B1B;
+  }
+  #data-table td.sticky-col:hover {
+    background: #ffeaea !important;
+  }
+
+
   /* Force solid white header for sticky column and its cloned copies */
   thead th.sticky-col,
   div.DTFC_LeftHeadWrapper table thead th,
@@ -723,6 +734,9 @@ function setColumnExpanded(dt, colIdx, expanded) {
     const cellEl = e.target.closest('.truncated-cell');
     if (!cellEl) return;
 
+    // ✅ Skip clicks on the sticky serial column
+    if (cellEl.classList.contains('sticky-col')) return;
+
     const tableEl = document.getElementById('data-table');
     if (!tableEl || !tableEl.contains(cellEl)) return;
 
@@ -734,6 +748,17 @@ function setColumnExpanded(dt, colIdx, expanded) {
     const isExpanded = expandedCols.has(colIdx);
     setColumnExpanded(dt, colIdx, !isExpanded);
   });
+
+  // ✅ Redirect only when clicking the sticky serial number cell
+  $(document).on('click', '#data-table td.sticky-col', function (e) {
+    e.stopPropagation(); // prevent expansion logic
+    const serial = $(this).text().trim();
+    if (serial) {
+      window.location.href = `/entry/${encodeURIComponent(serial)}`;
+    }
+  });
+
+
 
   // Reapply expanded columns and initialize column visibility
   $(document).ready(function () {
@@ -783,6 +808,17 @@ function setColumnExpanded(dt, colIdx, expanded) {
       startAutoRefresh();
     }
   });
+
+  // Redirect only when clicking the sticky serial number cell
+  $(document).on('click', '#data-table td.sticky-col', function (e) {
+    e.stopPropagation(); // prevent triggering expansion
+    const serial = $(this).text().trim();
+    if (serial) {
+      window.location.href = `/entry/${encodeURIComponent(serial)}`;
+    }
+  });
+
+
 
 </script>
 {% endblock %}
