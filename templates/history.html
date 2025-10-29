@@ -321,7 +321,9 @@
       <strong>Last updated:</strong> <span id="last-updated">{{ now.strftime('%Y-%m-%d %H:%M:%S') }}</span>
     </div>
     <div>
-       Auto-Refresh</button>
+      <button id="toggle-refresh" class="btn btn-outline-dark btn-sm">
+        Enable Auto-Refresh
+      </button>
     </div>
   </div>
 
@@ -783,7 +785,7 @@ function setColumnExpanded(dt, colIdx, expanded) {
     refreshButton.textContent = "Disable Auto-Refresh";
     refreshInterval = setInterval(() => {
       window.location.reload();
-    }, 10000); // 10 seconds
+    }, 10000); // refresh every 10s
   }
 
   function stopAutoRefresh() {
@@ -791,23 +793,24 @@ function setColumnExpanded(dt, colIdx, expanded) {
     clearInterval(refreshInterval);
   }
 
-  // On load
-  if (localStorage.getItem("autoRefresh") === "true") {
-    startAutoRefresh();
-  } else {
-    stopAutoRefresh();
+  // Initialize only if the button exists
+  if (refreshButton) {
+    const enabled = localStorage.getItem("autoRefresh") === "true";
+    if (enabled) startAutoRefresh();
+    else stopAutoRefresh();
+
+    refreshButton.addEventListener("click", () => {
+      const enabled = localStorage.getItem("autoRefresh") === "true";
+      if (enabled) {
+        localStorage.setItem("autoRefresh", "false");
+        stopAutoRefresh();
+      } else {
+        localStorage.setItem("autoRefresh", "true");
+        startAutoRefresh();
+      }
+    });
   }
 
-  refreshButton.addEventListener("click", () => {
-    const enabled = localStorage.getItem("autoRefresh") === "true";
-    if (enabled) {
-      localStorage.setItem("autoRefresh", "false");
-      stopAutoRefresh();
-    } else {
-      localStorage.setItem("autoRefresh", "true");
-      startAutoRefresh();
-    }
-  });
 
   // Redirect only when clicking the sticky serial number cell
   $(document).on('click', '#data-table td.sticky-col', function (e) {
