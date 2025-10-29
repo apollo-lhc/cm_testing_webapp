@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Entry {{ entry.data.get('CM_serial') }}{% endblock %}
+{% block page_title %}Apollo CM Testing • Data Entry {{ entry.data.get('CM_serial') }} • ID: {{ entry.id }}{% endblock %}
+
+{% block content %}
+<main class="container py-5">
+  <a href="{{ url_for('history') }}" class="btn btn-outline-dark mb-4 fw-semibold">&larr; Back to History</a>
+
+  {% set status = (
+      'failed' if entry.failure else
+      'finished' if entry.is_finished else
+      'saved' if entry.is_saved else
+      'inprogress'
+  ) %}
+  {% set header_color = {
+      'failed': '#e45762',
+      'finished': '#3ef168',
+      'saved': '#65e1f7',
+      'inprogress': '#ffd966'
+  }[status] %}
+
+  <div class="entry-container mx-auto">
+    <div class="entry-header text-white fw-bold fs-5 px-4 py-3"
+         style="background-color: {{ header_color }};">
+      <i class="bi bi-cpu"></i>
+      CM{{ entry.data.get('CM_serial', '-') }} • {{ status|capitalize }}
+    </div>
+
+    <div class="entry-body p-4">
+      <section class="mb-4">
+        <h4 class="section-title">General Information</h4>
+        <div class="row">
+          <div class="col-md-6 mb-2"><strong>Status:</strong> {{ status|capitalize }}</div>
+          <div class="col-md-6 mb-2"><strong>Contributors:</strong> {{ ', '.join(entry.contributors) if entry.contributors else 'None' }}</div>
+          <div class="col-md-6 mb-2"><strong>Timestamp:</strong> {{ entry.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+          {% if entry.failure %}
+            <div class="col-md-6 mb-2 text-danger"><strong>Failure Reason:</strong> {{ entry.fail_reason or '—' }}</div>
+          {% endif %}
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <section>
+        <h4 class="section-title">Test Data</h4>
+        <div class="table-wrapper">
+          <table class="table align-middle">
+            <thead>
+              <tr class="text-secondary small">
+                <th style="width: 35%">Field</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for field in fields %}
+                {% if field.name != 'CM_serial' %}
+                  {% set v = entry.data.get(field.name) %}
+                  <tr>
+                    <td class="fw-semibold">{{ field.label }}</td>
+                    <td>
+                      {% set v_str = v|string %}
+                      {% if v_str and (
+                          v_str.lower().endswith('.png') or
+                          v_str.lower().endswith('.jpg') or
+                          v_str.lower().endswith('.jpeg') or
+                          v_str.lower().endswith('.pdf')
+                      ) %}
+                        <a href="{{ url_for('uploaded_file', filename=v_str) }}" target="_blank">{{ v_str }}</a>
+                      {% elif v is boolean %}
+                        {{ 'Yes' if v else 'No' }}
+                      {% elif v is number %}
+                        {{ v }}
+                      {% elif v is none %}
+                        —
+                      {% else %}
+                        {{ v_str }}
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+
+<style>
+  main.container {
+    max-width: 950px;
+  }
+
+  .entry-container {
+    background: #ffffff;
+    border-radius: 1rem;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.07);
+    overflow: hidden;
+  }
+
+  .entry-header {
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+    letter-spacing: 0.3px;
+  }
+
+  .entry-body {
+    background: #ffffff;
+    color: #212529;
+  }
+
+  .section-title {
+    color: #B31B1B;
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+
+  /* --- Soft table design --- */
+  .table-wrapper {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.96rem;
+  }
+
+  .table thead th {
+    background: #fafafa;
+    border-bottom: 2px solid #efefef;
+    font-weight: 600;
+    color: #000000;
+  }
+
+  .table tbody tr {
+    background: #fff;
+    border-bottom: 1px solid #f1f1f1;
+    transition: background 0.15s ease;
+  }
+
+  .table tbody tr:nth-child(odd) {
+    background: #fcfcfc;
+  }
+
+  .table tbody tr:hover {
+    background: #f7f9fa;
+  }
+
+  .table td, .table th {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+  }
+
+  .divider {
+    border: none;
+    border-top: 2px solid #f1f1f1;
+    margin: 2rem 0;
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  a {
+    color: #B31B1B;
+    text-decoration: underline;
+    font-weight: 500;
+  }
+
+  a:hover {
+    color: #8e1414;
+  }
+
+  /* --- Back button styling --- */
+  .btn-outline-dark {
+    border-radius: 0.6rem;
+    font-weight: 600;
+    padding: 0.4rem 1rem;
+    transition: all 0.2s ease-in-out;
+    border-color: #B31B1B !important;
+    color: #B31B1B !important;
+  }
+
+  .btn-outline-dark:hover,
+  .btn-outline-dark:focus,
+  .btn-outline-dark:active {
+    background-color: #B31B1B !important;
+    color: white !important;
+    border-color: #B31B1B !important;
+    box-shadow: 0 0 6px rgba(179, 27, 27, 0.4);
+  }
+
+  /* --- Column divider customization --- */
+    .table th + th,
+    .table td + td {
+    border-left: 1px solid #c9c9c9; /* medium gray vertical divider */
+    }
+
+    .table thead th {
+    border-bottom: 2px solid #d6d6d6; /* slightly darker header bottom */
+    }
+
+    .table tbody td {
+    border-bottom: 1px solid #e2e2e2; /* softer horizontal divider */
+    }
+
+
+
+
+
+</style>
+
+{% endblock %}
