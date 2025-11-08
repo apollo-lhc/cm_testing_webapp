@@ -489,56 +489,101 @@ def entry_detail(serial):
         fields=all_fields,
     )
 
-
 @app.route('/export_csv')
 def export_csv():
-    """Export all test entries to CSV."""
+    """Export only visible (display_history=True) fields to CSV."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
+    import io, csv, json, re
+    from datetime import datetime
+    from sqlalchemy import and_
+
     unique_toggle = request.args.get('unique') == "true"
 
-    # Combine all fields from all forms for CSV export
-    all_fields = []
-    for single_form in FORMS_NON_DICT:
-        all_fields.extend(single_form.fields)
+    # ---------- 1) Only include visible fields ----------
+    visible_fields = []
+    for page in FORMS_NON_DICT:
+        for field in getattr(page, "fields", []) or []:
+            if getattr(field, "display_history", False):
+                visible_fields.append(field)
 
+    # ---------- 2) Prepare serializer to clean up text ----------
+    clean_ws = re.compile(r"[\r\n\t]+")
+    def safe(val):
+        if val is None:
+            return ""
+        if isinstance(val, datetime):
+            return val.replace(microsecond=0).isoformat(sep=" ")
+        if isinstance(val, bool):
+            return "yes" if val else "no"
+        if isinstance(val, (dict, list)):
+            return json.dumps(val, ensure_ascii=False, separators=(",", ":"))
+        return clean_ws.sub(" ", str(val)).strip()
 
+    # ---------- 3) Query entries ----------
     if unique_toggle:
-        subquery = (
+        subq = (
             db.session.query(
                 TestEntry.data["CM_serial"].as_integer().label("cm_serial"),
                 db.func.max(TestEntry.timestamp).label("latest")
             )
+            .filter(TestEntry.data["CM_serial"].isnot(None))
             .group_by(TestEntry.data["CM_serial"].as_integer())
             .subquery()
         )
-
         entries = (
             db.session.query(TestEntry)
-            .join(subquery, db.and_(
-                TestEntry.data["CM_serial"].as_integer() == subquery.c.cm_serial,
-                TestEntry.timestamp == subquery.c.latest
-            ))
+            .join(
+                subq,
+                and_(
+                    TestEntry.data["CM_serial"].as_integer() == subq.c.cm_serial,
+                    TestEntry.timestamp == subq.c.latest
+                )
+            )
             .order_by(TestEntry.timestamp.desc())
             .all()
         )
     else:
         entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
 
-    output = io.StringIO()
-    writer = csv.writer(output, delimiter=';')
-    writer.writerow(['Time', 'User'] + [f.label for f in all_fields] + ['File', "Test Aborted", "Reason Aborted"])
+    # ---------- 4) Write CSV ----------
+    output = io.StringIO(newline='')
+    writer = csv.writer(output, delimiter=',', lineterminator='\n', quoting=csv.QUOTE_MINIMAL)
+
+    headers = (
+        ["Time", "User"]
+        + [safe(getattr(f, "label", None) or f.name) for f in visible_fields]
+        + ["File", "Test Aborted", "Reason Aborted"]
+    )
+    writer.writerow(headers)
+
+    def username_for(entry):
+        u = getattr(entry, "user", None)
+        if u and getattr(u, "username", None):
+            return u.username
+        if isinstance(entry.contributors, list) and entry.contributors:
+            return str(entry.contributors[-1])
+        return ""
 
     for e in entries:
-        row = [e.timestamp, e.user.username]
-        row += [e.data.get(f.name) for f in all_fields]
-        row += [e.file_name, "yes" if e.failure else "no", e.fail_reason or ""]
+        data = e.data or {}
+        row = [safe(e.timestamp), safe(username_for(e))]
+        for f in visible_fields:
+            row.append(safe(data.get(f.name)))
+        row += [safe(e.file_name), "yes" if e.failure else "no", safe(e.fail_reason)]
         writer.writerow(row)
 
-    output.seek(0)
-    return send_file(io.BytesIO(output.read().encode()), mimetype='text/csv',
-                     as_attachment=True, download_name='test_results.csv')
+    csv_bytes = ("\ufeff" + output.getvalue()).encode("utf-8")
+    return send_file(
+        io.BytesIO(csv_bytes),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='test_results.csv'
+    )
+
+
+
 
 @app.route('/help')
 def help_button():

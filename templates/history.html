@@ -310,7 +310,7 @@
     </div>
     <div class="button-group">
       <a class="btn btn-outline-red custom-btn" href="/">Home</a>
-      <a class="btn btn-outline-red custom-btn" href="#" onclick="downloadFilteredCSV()">Download CSV</a>
+      <a class="btn btn-outline-red custom-btn" href="/export_csv">Download CSV</a>
       <a class="btn btn-outline-red custom-btn" href="/form">Back to Form</a>
       <a class="btn btn-outline-red custom-btn" href="/logout">Logout</a>
       <a class="btn btn-outline-red custom-btn" href="/help">Help</a>
@@ -595,46 +595,6 @@
     });
     localStorage.removeItem('visibleColumns');
     window.location.reload()
-  }
-
-
-  function downloadFilteredCSV() {
-    const table = $('#data-table').DataTable();
-    const visibleData = table.rows({ search: 'applied' }).data();
-
-    if (!visibleData || visibleData.length === 0) {
-      alert('No visible data to export.');
-      return;
-    }
-
-    let csv = [];
-    const headerCells = $('#data-table thead tr th');
-    const headers = Array.from(headerCells).map(th => th.innerText.trim());
-    csv.push(headers.join(','));
-
-    visibleData.each(function(row) {
-      let rowData = [];
-      for (let i = 0; i < row.length; i++) {
-        let cell = String(row[i]).replace(/"/g, '""');
-        if (cell.includes(',') || cell.includes('"')) {
-          cell = `"${cell}"`;
-        }
-        rowData.push(cell);
-      }
-      csv.push(rowData.join(','));
-    });
-
-    const csvContent = csv.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "test_results.csv");
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   }
 
   function filterByStatus(status) {
