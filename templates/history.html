@@ -399,6 +399,7 @@
         <tbody>
           {% for e in entries %}
           <tr
+            data-entry-id="{{ e.id }}"
             {% set step = e.data.get('last_step', 0) %}
             {% set total = fields|length - 1 %}
             {% set progress = (step / total) if step is not none and total > 0 else 0 %}
@@ -713,17 +714,6 @@ function setColumnExpanded(dt, colIdx, expanded) {
     setColumnExpanded(dt, colIdx, !isExpanded);
   });
 
-  // ✅ Redirect only when clicking the sticky serial number cell
-  $(document).on('click', '#data-table td.sticky-col', function (e) {
-    e.stopPropagation(); // prevent expansion logic
-    const serial = $(this).text().trim();
-    if (serial) {
-      window.location.href = `/entry/${encodeURIComponent(serial)}`;
-    }
-  });
-
-
-
   // Reapply expanded columns and initialize column visibility
   $(document).ready(function () {
     const dt = $('#data-table').DataTable();
@@ -773,14 +763,13 @@ function setColumnExpanded(dt, colIdx, expanded) {
     });
   }
 
-
-  // Redirect only when clicking the sticky serial number cell
+  // Per Test ID expansion link Redirect only when clicking the sticky serial number cell
   $(document).on('click', '#data-table td.sticky-col', function (e) {
-    e.stopPropagation(); // prevent triggering expansion
-    const serial = $(this).text().trim();
-    if (serial) {
-      window.location.href = `/entry/${encodeURIComponent(serial)}`;
-    }
+      e.stopPropagation(); // don’t trigger column expansion
+      const id = $(this).closest("tr").data("entry-id");
+      if (id) {
+          window.location.href = `/entry/${id}`;
+      }
   });
 
 

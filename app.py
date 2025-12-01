@@ -16,9 +16,13 @@ Features:
 import os
 import io
 import csv
+import json
+import re
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash, send_from_directory, abort
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy import and_
+
 
 from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
@@ -461,21 +465,16 @@ def history():
 
     return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle, now=datetime.now(EASTERN_TZ))
 
-@app.route('/entry/<serial>')
-def entry_detail(serial):
+@app.route('/entry/<int:entry_id>')
+def entry_detail(entry_id):
     """Expanded view of entry."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    entry = (
-        TestEntry.query
-        .filter(db.func.json_extract(TestEntry.data, '$.CM_serial') == serial)
-        .order_by(TestEntry.timestamp.desc())
-        .first()
-    )
+    entry = db.session.get(TestEntry, entry_id)
 
     if not entry:
-        flash(f"No entry found for CM Serial {serial}.", "warning")
+        flash(f"No entry found with ID{entry_id}.", "warning")
         return redirect(url_for('history'))
 
     # collect all visible fields (like in /history)
@@ -495,9 +494,7 @@ def export_csv():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    import io, csv, json, re
-    from datetime import datetime
-    from sqlalchemy import and_
+
 
     unique_toggle = request.args.get('unique') == "true"
 
