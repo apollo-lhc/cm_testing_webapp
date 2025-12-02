@@ -466,6 +466,7 @@
 
 <script>
 let tab;  // GLOBAL
+window.colorEnabled = true;
 </script>
 
 
@@ -484,6 +485,8 @@ const tableData = [
       'finished' if e.is_finished else
       'inprogress'
     )|tojson }},
+    progress: {{ (e.data.get('last_step',0) / (fields|length - 1))|round(2) }},
+
 
     {% for field in fields %}
       {% if field.name != 'CM_serial' %}
@@ -500,6 +503,7 @@ const tableData = [
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+
   tab = new Tabulator("#tabulator-table", {
 
     data: tableData,
@@ -522,6 +526,37 @@ document.addEventListener("DOMContentLoaded", function () {
 
       { title: "Reason Aborted", field: "failure" },
     ],
+
+    // ---- Row Coloring ----
+    rowFormatter: function (row) {
+      const data = row.getData();
+      const status = data.status;
+      const progress = parseFloat(data.progress || 0);
+
+      let finalColor = "";
+
+      if (!window.colorEnabled) {
+          // basic striping (fallback)
+          const pos = row.getPosition();
+          const rowIndex = (typeof pos === "number") ? pos : 0;
+          finalColor = rowIndex % 2 === 0 ? "#ffffff" : "#f8f9fa";
+      } else {
+          if (status === "failed") finalColor = "#e45762";
+          else if (status === "saved") finalColor = "#65e1f7";
+          else if (status === "finished") finalColor = "#3ef168";
+          else if (status === "inprogress") {
+              const r = Math.round(255 + (62 - 255) * progress);
+              const g = Math.round(255 + (241 - 255) * progress);
+              const b = Math.round(100 + (104 - 100) * progress);
+              finalColor = `rgb(${r}, ${g}, ${b})`;
+          } else {
+              finalColor = "#ffffff";
+          }
+      }
+
+      row.getElement().style.backgroundColor = finalColor;
+    },
+
   });
 
 });
@@ -530,6 +565,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <!--New Tabulator JS funcitons-->
 <script>
+// Tabulator Filter
 function filterByStatus(status) {
     if (status === "all") {
         tab.clearFilter();
@@ -537,6 +573,13 @@ function filterByStatus(status) {
         tab.setFilter("status", "=", status);
     }
 }
+
+// Toggle Row Coloring
+function toggleColoring() {
+    window.colorEnabled = !window.colorEnabled;
+    tab.redraw(true);  // force all rows to re-render
+}
+
 </script>
 
 
