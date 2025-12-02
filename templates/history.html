@@ -342,7 +342,12 @@
           <button class="btn btn-outline-primary btn-sm" onclick="filterByStatus('saved')">Saved</button>
           <button class="btn btn-outline-warning btn-sm" onclick="filterByStatus('inprogress')">In Progress</button>
           <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('all')">Show All</button>
-          <button class="btn btn-outline-dark btn-sm" onclick="toggleColoring()">Toggle Row Coloring</button>
+          
+          <button id="toggle-coloring" class="btn btn-outline-dark btn-sm" onclick="toggleColoring()">
+            Disable Row Coloring
+          </button>
+
+          
         </div>
       </div>
 
@@ -577,8 +582,23 @@ function filterByStatus(status) {
 // Toggle Row Coloring
 function toggleColoring() {
     window.colorEnabled = !window.colorEnabled;
-    tab.redraw(true);  // force all rows to re-render
+
+    const btn = document.getElementById("toggle-coloring");
+
+    // Update button text
+    if (window.colorEnabled) {
+        btn.textContent = "Disable Row Coloring";
+    } else {
+        btn.textContent = "Enable Row Coloring";
+    }
+
+    // Re-run formatter on every row
+    tab.getRows().forEach(row => {
+        tab.options.rowFormatter(row);
+    });
 }
+  
+
 
 </script>
 
@@ -788,19 +808,19 @@ function toggleColoring() {
 
 
 
-  function toggleColoring() {
-    colorEnabled = !colorEnabled;
+  // function toggleColoring() {
+  //   colorEnabled = !colorEnabled;
 
-    const table = document.getElementById("data-table");
+  //   const table = document.getElementById("data-table");
 
-    if (colorEnabled) {
-      table.classList.remove("table-striped");  // Remove Bootstrap striping
-    } else {
-      table.classList.add("table-striped");     // Restore Bootstrap striping
-    }
+  //   if (colorEnabled) {
+  //     table.classList.remove("table-striped");  // Remove Bootstrap striping
+  //   } else {
+  //     table.classList.add("table-striped");     // Restore Bootstrap striping
+  //   }
 
-    applyRowColors();
-  }
+  //   applyRowColors();
+  // }
 
   function toggleCellExpansion(cell) {
     cell.classList.toggle("expanded-cell");
