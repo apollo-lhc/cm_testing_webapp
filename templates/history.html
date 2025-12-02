@@ -342,7 +342,6 @@
           <button class="btn btn-outline-primary btn-sm" onclick="filterByStatus('saved')">Saved</button>
           <button class="btn btn-outline-warning btn-sm" onclick="filterByStatus('inprogress')">In Progress</button>
           <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('all')">Show All</button>
-          
           <button id="toggle-coloring" class="btn btn-outline-dark btn-sm" onclick="toggleColoring()">
             Disable Row Coloring
           </button>
@@ -352,10 +351,11 @@
       </div>
 
       <!-- Middle: Search box -->
-      <!-- <div class="d-flex align-items-center">
+      <div class="d-flex align-items-center">
         <input id="table-search" type="text" class="form-control form-control-sm"
               placeholder="Search all columns..." style="min-width: 220px;">
-      </div>-->
+      </div>
+
       
 
       <!-- Right: Column visibility controls -->
@@ -518,7 +518,21 @@ document.addEventListener("DOMContentLoaded", function () {
     index: "id",
 
     columns: [
-      { title: "CM Serial", field: "serial", frozen: true },
+      {
+        title: "CM Serial",
+        field: "serial",
+        frozen: true,
+        formatter: "plaintext",
+        cellClick: function (e, cell) {
+            const row = cell.getRow();
+            const id = row.getData().id;
+            if (id) {
+                window.location.href = `/entry/${id}`;
+            }
+        },
+        headerSort: true
+      },
+
       { title: "Time", field: "time" },
       { title: "Users", field: "users" },
       { title: "Status", field: "status" },
@@ -597,7 +611,36 @@ function toggleColoring() {
         tab.options.rowFormatter(row);
     });
 }
-  
+
+// Global Search Input
+document.getElementById("table-search").addEventListener("input", function () {
+    const query = this.value.trim();
+
+    if (query === "") {
+        tab.clearFilter();
+        return;
+    }
+
+    // Global OR-search across all fields
+    tab.setFilter([
+        [
+            {field:"serial", type:"like", value:query},
+            {field:"time", type:"like", value:query},
+            {field:"users", type:"like", value:query},
+            {field:"status", type:"like", value:query},
+            {field:"failure", type:"like", value:query},
+
+            // dynamically add all form fields
+            {% for field in fields %}
+                {% if field.name != 'CM_serial' %}
+                    {field:"{{ field.name }}", type:"like", value:query},
+                {% endif %}
+            {% endfor %}
+        ]
+    ]);
+});
+
+
 
 
 </script>
@@ -910,14 +953,14 @@ function setColumnExpanded(dt, colIdx, expanded) {
     });
   }
 
-  // Per Test ID expansion link Redirect only when clicking the sticky serial number cell
-  $(document).on('click', '#data-table td.sticky-col', function (e) {
-      e.stopPropagation(); // don’t trigger column expansion
-      const id = $(this).closest("tr").data("entry-id");
-      if (id) {
-          window.location.href = `/entry/${id}`;
-      }
-  });
+  // // Per Test ID expansion link Redirect only when clicking the sticky serial number cell
+  // $(document).on('click', '#data-table td.sticky-col', function (e) {
+  //     e.stopPropagation(); // don’t trigger column expansion
+  //     const id = $(this).closest("tr").data("entry-id");
+  //     if (id) {
+  //         window.location.href = `/entry/${id}`;
+  //     }
+  // });
 
 
 
