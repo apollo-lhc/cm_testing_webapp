@@ -382,76 +382,7 @@
   
     <div id="tabulator-table" style="margin-bottom: 2rem;"></div>
 
-    <div class="table-responsive">
 
-      <table id="data-table" class="table table-bordered ">
-        <thead>
-          <tr>
-            <th class="sticky-col">CM Serial</th>  {# sticky, left-most #}
-            <th>Time</th>
-            <th>Users</th>
-            <th>Status</th>
-
-            {# render ALL other fields except CM_serial #}
-            {% for field in fields %}
-              {% if field.name != 'CM_serial' %}
-                {# "{{ field.name }}": {{ e.data.get(field.name, '')|tojson }}, #}
-              {% endif %}
-            {% endfor %}
-
-            <th>Test Aborted</th>
-            <th>Reason Aborted</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {% for e in entries %}
-          <tr
-            data-entry-id="{{ e.id }}"
-            {% set step = e.data.get('last_step', 0) %}
-            {% set total = fields|length - 1 %}
-            {% set progress = (step / total) if step is not none and total > 0 else 0 %}
-            {% set status = (
-              'failed' if e.failure else
-              'saved' if e.is_saved else
-              'finished' if e.is_finished else
-              'inprogress'
-            ) %}
-            data-status="{{ status }}"
-            data-progress="{{ progress|round(2) }}"
-          >
-            {# sticky CM Serial first #}
-            <td class="sticky-col truncated-cell">{{ e.data.get('CM_serial', '') }}</td>
-
-            <td>{{ e.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
-            <td>{{ ", ".join(e.contributors) if e.contributors else "None" }}</td>
-            <td>{{ status }}</td>
-
-            {# all other fields EXCEPT CM_serial #}
-            {% for field in fields %}
-              {% if field.name != 'CM_serial' %}
-                {% set value = e.data.get(field.name, '') %}
-                {% if field.type_field == 'file' %}
-                  <td class="truncated-cell">
-                    {% if value %}
-                      <a href="{{ url_for('uploaded_file', filename=value) }}" target="_blank">{{ value }}</a>
-                    {% else %}-{% endif %}
-                  </td>
-                {% else %}
-                  <td class="truncated-cell">{{ value }}</td>
-                {% endif %}
-              {% endif %}
-            {% endfor %}
-
-            <td>{{ "yes" if e.failure else "no" }}</td>
-            <td class="truncated-cell">{{ e.fail_reason or "-" }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-
-
-      </table>
-    </div>
   </div>
 </div>
 
@@ -459,23 +390,13 @@
 <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
 <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
 
-
-<!--Datatables-->
-<link rel="stylesheet"
-  href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.dataTables.min.css">
-<link rel="stylesheet"
-  href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css">
-<script src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
-<script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
-
-
 <script>
 let tab;  // GLOBAL
 window.colorEnabled = true;
 </script>
 
 
-<!--Tabulator Init-->
+<!--convert to json for tabulator to use-->
 <script>
 const tableData = [
   {% for e in entries %}
@@ -499,7 +420,9 @@ const tableData = [
       {% endif %}
     {% endfor %}
 
-    failure: {{ (e.fail_reason or '-')|tojson }}
+    failure: {{ (e.fail_reason or '-')|tojson }},
+    aborted: {{ ("yes" if e.failure else "no")|tojson }}
+
   },
   {% endfor %}
 ];
@@ -507,6 +430,8 @@ const tableData = [
 
 
 <script>
+
+// Tabulator Initialization
 document.addEventListener("DOMContentLoaded", function () {
 
   tab = new Tabulator("#tabulator-table", {
@@ -542,7 +467,8 @@ document.addEventListener("DOMContentLoaded", function () {
           { title: "{{ field.label }}", field: "{{ field.name }}" },
         {% endif %}
       {% endfor %}
-
+      
+      { title: "Test Aborted", field: "aborted" },
       { title: "Reason Aborted", field: "failure" },
     ],
 
@@ -574,6 +500,12 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       row.getElement().style.backgroundColor = finalColor;
+    },
+
+
+    tableBuilt: function () {
+        console.log("Tabulator built — initializing column visibility menu");
+        initColumnVisibilityMenu();
     },
 
   });
@@ -641,6 +573,68 @@ document.getElementById("table-search").addEventListener("input", function () {
 });
 
 
+// ---------------- Column Visibility for Tabulator  ----------------
+
+function initColumnVisibilityMenu() {
+    const menu = document.getElementById("col-menu");
+    const overlay = document.getElementById("col-menu-overlay");
+    const checkboxContainer = document.getElementById("col-checkboxes");
+    const toggleBtn = document.getElementById("toggle-col-menu");
+
+    checkboxContainer.innerHTML = "";
+
+    // Build list from Tabulator columns
+    tab.getColumns().forEach(col => {
+        const field = col.getField();
+        const title = col.getDefinition().title;
+
+        if (!field) return;
+
+        const label = document.createElement("label");
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.value = field;
+        box.checked = col.isVisible();
+
+        label.appendChild(box);
+        label.append(" " + title);
+        checkboxContainer.appendChild(label);
+    });
+
+    // Toggle popup
+    toggleBtn.onclick = (e) => {
+        e.stopPropagation();
+        const open = menu.style.display === "block";
+        menu.style.display = open ? "none" : "block";
+        overlay.style.display = open ? "none" : "block";
+    };
+
+    // Close when clicking outside
+    overlay.onclick = () => {
+        menu.style.display = "none";
+        overlay.style.display = "none";
+    };
+}
+
+function applyColumnVisibility() {
+    const checks = document.querySelectorAll("#col-checkboxes input");
+
+    checks.forEach(cb => {
+        if (cb.checked) tab.showColumn(cb.value);
+        else tab.hideColumn(cb.value);
+    });
+
+    document.getElementById("col-menu").style.display = "none";
+    document.getElementById("col-menu-overlay").style.display = "none";
+}
+
+function resetColumnVisibility() {
+    tab.getColumns().forEach(col => col.show());
+    initColumnVisibilityMenu();
+}
+
+
+
 
 
 </script>
@@ -648,277 +642,7 @@ document.getElementById("table-search").addEventListener("input", function () {
 
 
 <script>
-  $(document).ready(function () {
-    const tableElement = $('#data-table');
-    let table;
-
-    function calculateAvailableHeight() {
-      const offset = 300;
-      return window.innerHeight - offset;
-    }
-
-    function initOrUpdateTable() {
-      const height = calculateAvailableHeight();
-      if (table) {
-        $('.dataTables_scrollBody').css('max-height', `${height}px`);
-        table.draw(false);
-        applyRowColors();
-      } else {
-        // Find the "Time" column index by header text (case-insensitive)
-        const headers = Array.from(document.querySelectorAll('#data-table thead th'))
-          .map(th => th.textContent.trim().toLowerCase());
-        const timeIdx = Math.max(0, headers.indexOf('time')); // fallback to 0 if not found
-
-        table = tableElement.DataTable({
-          scrollY: height,
-          scrollCollapse: true,
-          scroller: true,
-          deferRender: true,
-          pageLength: -1,
-          order: [[timeIdx, 'desc']],
-          scrollX: true,
-          autoWidth: false,
-          columnDefs: [{ targets: "_all", defaultContent: "-" }],
-          drawCallback: function() { applyRowColors(); },
-
-          // 👇 new additions
-          fixedHeader: true,
-          fixedColumns: {
-            leftColumns: 1
-          }
-        });
-      }
-    }
-
-    initOrUpdateTable();
-    applyRowColors();
-    $(window).on('resize', initOrUpdateTable);
-  });
-
-
-  function initColumnVisibilityMenu() {
-    const dt = $('#data-table').DataTable();
-    const menu = document.getElementById('col-menu');
-    const overlay = document.getElementById('col-menu-overlay');
-    const checkboxContainer = document.getElementById('col-checkboxes');
-    const toggleBtn = document.getElementById('toggle-col-menu');
-    checkboxContainer.innerHTML = '';
-
-    // --- Build checkboxes for each visible column (skip CM Serial + Time)
-    dt.columns().every(function (index) {
-      const header = this.header();
-      const name = header ? header.textContent.trim() : '';
-      if (!name || ['cm serial', 'time'].includes(name.toLowerCase())) return;
-
-      const label = document.createElement('label');
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.value = index;
-      input.checked = this.visible();
-      label.appendChild(input);
-      label.appendChild(document.createTextNode(' ' + name));
-      checkboxContainer.appendChild(label);
-    });
-
-    // --- Load saved column visibility state from localStorage
-    const saved = localStorage.getItem('visibleColumns');
-    if (saved) {
-      const visibleCols = JSON.parse(saved);
-      checkboxContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-        cb.checked = visibleCols.includes(parseInt(cb.value));
-        dt.column(parseInt(cb.value)).visible(cb.checked);
-      });
-    }
-
-    // --- Open / close the centered popup
-    toggleBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      const isVisible = menu.style.display === 'block';
-      if (isVisible) {
-        menu.style.display = 'none';
-        overlay.style.display = 'none';
-      } else {
-        menu.style.display = 'block';
-        overlay.style.display = 'block';
-      }
-    });
-
-    // --- Hide when clicking outside the popup
-    document.addEventListener('click', function (e) {
-      if (!menu.contains(e.target) && e.target.id !== 'toggle-col-menu') {
-        menu.style.display = 'none';
-        overlay.style.display = 'none';
-      }
-    });
-
-    // --- Hide when pressing Escape key
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') {
-        menu.style.display = 'none';
-        overlay.style.display = 'none';
-      }
-    });
-  }
-
-
-  function applyColumnVisibility() {
-    const dt = $('#data-table').DataTable();
-    const checkboxes = document.querySelectorAll('#col-checkboxes input[type="checkbox"]');
-    const visibleCols = [];
-
-    checkboxes.forEach(cb => {
-      const colIdx = parseInt(cb.value);
-      const visible = cb.checked;
-      dt.column(colIdx).visible(visible);
-      if (visible) visibleCols.push(colIdx);
-    });
-
-    localStorage.setItem('visibleColumns', JSON.stringify(visibleCols));
-    document.getElementById('col-menu').style.display = 'none';
-  }
-
-  function resetColumnVisibility() {
-    const dt = $('#data-table').DataTable();
-    const checkboxes = document.querySelectorAll('#col-checkboxes input[type="checkbox"]');
-    checkboxes.forEach(cb => {
-      cb.checked = true;
-      dt.column(parseInt(cb.value)).visible(true);
-    });
-    localStorage.removeItem('visibleColumns');
-    window.location.reload()
-  }
-
-  // function filterByStatus(status) {
-  //   const table = $('#data-table').DataTable();
-
-  //   // Find the column index where the header is 'Status'
-  //   const statusColIndex = $('#data-table thead th')
-  //     .toArray()
-  //     .findIndex(th => th.textContent.trim().toLowerCase() === 'status');
-
-  //   if (statusColIndex === -1) {
-  //     console.error("Status column not found!");
-  //     return;
-  //   }
-
-  //   if (status === 'all') {
-  //     table.column(statusColIndex).search('').draw();  // Clear filter
-  //   } else {
-  //     table.column(statusColIndex).search(status, true, false).draw();  // Exact match
-  //   }
-  // }
-
-
-
-  let colorEnabled = true;
-
- function applyRowColors() {
-  const $mainBodyRows = $('#data-table tbody tr');
-  const $cloneBodyRows = $('.DTFC_LeftBodyWrapper tbody tr'); // real cloned table rows
-
-  $mainBodyRows.each(function (rowIdx) {
-    const $row = $(this);
-    const status = $row.data('status');
-    const progress = parseFloat($row.data('progress')) || 0;
-    let finalColor = '';
-
-    if (!colorEnabled) {
-      finalColor = rowIdx % 2 === 0 ? '#ffffff' : '#f8f9fa';
-    } else {
-      if (status === 'failed') finalColor = '#e45762';
-      else if (status === 'saved') finalColor = '#65e1f7';
-      else if (status === 'finished') finalColor = '#3ef168';
-      else if (status === 'inprogress') {
-        const r = Math.round(255 + (62 - 255) * progress);
-        const g = Math.round(255 + (241 - 255) * progress);
-        const b = Math.round(100 + (104 - 100) * progress);
-        finalColor = `rgb(${r}, ${g}, ${b})`;
-      } else {
-        finalColor = rowIdx % 2 === 0 ? '#ffffff' : '#f8f9fa';
-      }
-    }
-
-    // Paint main table row + sticky cell
-    $row.css('background-color', finalColor);
-    $row.find('.sticky-col').css('background-color', finalColor);
-
-    // Paint clone table row (FixedColumns body)
-    const $cloneRow = $cloneBodyRows.eq(rowIdx);
-    $cloneRow.find('td, th').css('background-color', finalColor);
-  });
-}
-
-
-
-
-  // function toggleColoring() {
-  //   colorEnabled = !colorEnabled;
-
-  //   const table = document.getElementById("data-table");
-
-  //   if (colorEnabled) {
-  //     table.classList.remove("table-striped");  // Remove Bootstrap striping
-  //   } else {
-  //     table.classList.add("table-striped");     // Restore Bootstrap striping
-  //   }
-
-  //   applyRowColors();
-  // }
-
-  function toggleCellExpansion(cell) {
-    cell.classList.toggle("expanded-cell");
-  }
-
-// Track which columns are expanded
-const expandedCols = new Set();
-
-// Expand or collapse all truncated cells in a column
-function setColumnExpanded(dt, colIdx, expanded) {
-  const tds = dt.column(colIdx, { page: 'current' }).nodes();
-  tds.each(function (td) {
-    if (td.classList.contains('truncated-cell')) {
-      td.classList.toggle('expanded-cell', expanded);
-    }
-  });
-  if (expanded) expandedCols.add(colIdx);
-  else expandedCols.delete(colIdx);
-}
-
-  // Click handler — toggles all cells in the same column
-  document.addEventListener('click', function (e) {
-    const cellEl = e.target.closest('.truncated-cell');
-    if (!cellEl) return;
-
-    // ✅ Skip clicks on the sticky serial column
-    if (cellEl.classList.contains('sticky-col')) return;
-
-    const tableEl = document.getElementById('data-table');
-    if (!tableEl || !tableEl.contains(cellEl)) return;
-
-    const dt = $('#data-table').DataTable();
-    const idx = dt.cell(cellEl).index();
-    if (!idx) return;
-
-    const colIdx = idx.column;
-    const isExpanded = expandedCols.has(colIdx);
-    setColumnExpanded(dt, colIdx, !isExpanded);
-  });
-
-  // Reapply expanded columns and initialize column visibility
-  $(document).ready(function () {
-    const dt = $('#data-table').DataTable();
-
-    // When the table redraws (sorting, filtering, resizing)
-    dt.on('draw', function () {
-      // Reapply expanded columns
-      expandedCols.forEach(colIdx => setColumnExpanded(dt, colIdx, true));
-    });
-
-    // Initialize the column visibility dropdown after the table is ready
-    initColumnVisibilityMenu();
-
-  });
-
+  // Auto-Refresh Toggle
 
   const refreshButton = document.getElementById("toggle-refresh");
   let refreshInterval;
@@ -952,20 +676,6 @@ function setColumnExpanded(dt, colIdx, expanded) {
       }
     });
   }
-
-  // // Per Test ID expansion link Redirect only when clicking the sticky serial number cell
-  // $(document).on('click', '#data-table td.sticky-col', function (e) {
-  //     e.stopPropagation(); // don’t trigger column expansion
-  //     const id = $(this).closest("tr").data("entry-id");
-  //     if (id) {
-  //         window.location.href = `/entry/${id}`;
-  //     }
-  // });
-
-
-
-
-
 
 </script>
 {% endblock %}
