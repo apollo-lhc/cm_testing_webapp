@@ -374,8 +374,11 @@
 
 
 
+  
+    <div id="tabulator-table" style="margin-bottom: 2rem;"></div>
 
     <div class="table-responsive">
+
       <table id="data-table" class="table table-bordered ">
         <thead>
           <tr>
@@ -387,7 +390,7 @@
             {# render ALL other fields except CM_serial #}
             {% for field in fields %}
               {% if field.name != 'CM_serial' %}
-                <th>{{ field.label }}</th>
+                {# "{{ field.name }}": {{ e.data.get(field.name, '')|tojson }}, #}
               {% endif %}
             {% endfor %}
 
@@ -447,7 +450,12 @@
   </div>
 </div>
 
+<!-- Tabulator (Free MIT License) -->
+<link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
+<script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
 
+
+<!--Datatables-->
 <link rel="stylesheet"
   href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.dataTables.min.css">
 <link rel="stylesheet"
@@ -455,9 +463,69 @@
 <script src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
 <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
 
+
+<!--New JS Functions-->
 <script>
+const tableData = [
+  {% for e in entries %}
+  {
+    id: {{ e.id }},
+    serial: {{ e.data.get('CM_serial','')|tojson }},
+    time: {{ e.timestamp.strftime('%Y-%m-%d %H:%M:%S')|tojson }},
+    users: {{ (', '.join(e.contributors) if e.contributors else 'None')|tojson }},
+    status: {{ (
+      'failed' if e.failure else
+      'saved' if e.is_saved else
+      'finished' if e.is_finished else
+      'inprogress'
+    )|tojson }},
+
+    {% for field in fields %}
+      {% if field.name != 'CM_serial' %}
+        "{{ field.name }}": {{ e.data.get(field.name, '')|tojson }},
+      {% endif %}
+    {% endfor %}
+
+    failure: {{ (e.fail_reason or '-')|tojson }}
+  },
+  {% endfor %}
+];
+</script>
 
 
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  const tab = new Tabulator("#tabulator-table", {
+    data: tableData,
+    layout: "fitDataStretch",
+    height: "600px",
+    movableColumns: true,
+    index: "id",
+
+    columns: [
+      { title: "CM Serial", field: "serial", frozen: true },
+      { title: "Time", field: "time" },
+      { title: "Users", field: "users" },
+      { title: "Status", field: "status" },
+
+      {% for field in fields %}
+        {% if field.name != 'CM_serial' %}
+          { title: "{{ field.label }}", field: "{{ field.name }}" },
+        {% endif %}
+      {% endfor %}
+
+      { title: "Reason Aborted", field: "failure" },
+    ],
+  });
+
+});
+</script>
+
+
+
+
+<script>
   $(document).ready(function () {
     const tableElement = $('#data-table');
     let table;
@@ -771,6 +839,9 @@ function setColumnExpanded(dt, colIdx, expanded) {
           window.location.href = `/entry/${id}`;
       }
   });
+
+
+
 
 
 
