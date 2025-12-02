@@ -464,7 +464,12 @@
 <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
 
 
-<!--New JS Functions-->
+<script>
+let tab;  // GLOBAL
+</script>
+
+
+<!--Tabulator Init-->
 <script>
 const tableData = [
   {% for e in entries %}
@@ -495,8 +500,8 @@ const tableData = [
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+  tab = new Tabulator("#tabulator-table", {
 
-  const tab = new Tabulator("#tabulator-table", {
     data: tableData,
     layout: "fitDataStretch",
     height: "600px",
@@ -522,6 +527,17 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
+
+<!--New Tabulator JS funcitons-->
+<script>
+function filterByStatus(status) {
+    if (status === "all") {
+        tab.clearFilter();
+    } else {
+        tab.setFilter("status", "=", status);
+    }
+}
+</script>
 
 
 
@@ -666,25 +682,25 @@ document.addEventListener("DOMContentLoaded", function () {
     window.location.reload()
   }
 
-  function filterByStatus(status) {
-    const table = $('#data-table').DataTable();
+  // function filterByStatus(status) {
+  //   const table = $('#data-table').DataTable();
 
-    // Find the column index where the header is 'Status'
-    const statusColIndex = $('#data-table thead th')
-      .toArray()
-      .findIndex(th => th.textContent.trim().toLowerCase() === 'status');
+  //   // Find the column index where the header is 'Status'
+  //   const statusColIndex = $('#data-table thead th')
+  //     .toArray()
+  //     .findIndex(th => th.textContent.trim().toLowerCase() === 'status');
 
-    if (statusColIndex === -1) {
-      console.error("Status column not found!");
-      return;
-    }
+  //   if (statusColIndex === -1) {
+  //     console.error("Status column not found!");
+  //     return;
+  //   }
 
-    if (status === 'all') {
-      table.column(statusColIndex).search('').draw();  // Clear filter
-    } else {
-      table.column(statusColIndex).search(status, true, false).draw();  // Exact match
-    }
-  }
+  //   if (status === 'all') {
+  //     table.column(statusColIndex).search('').draw();  // Clear filter
+  //   } else {
+  //     table.column(statusColIndex).search(status, true, false).draw();  // Exact match
+  //   }
+  // }
 
 
 
