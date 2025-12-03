@@ -434,6 +434,7 @@ const tableData = [
 // Tabulator Initialization
 document.addEventListener("DOMContentLoaded", function () {
 
+  console.log("Start Tabulator initialization...");
   tab = new Tabulator("#tabulator-table", {
 
     data: tableData,
@@ -504,11 +505,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     tableBuilt: function () {
-        console.log("Tabulator built — initializing column visibility menu");
+        console.log("THIS!!! Tabulator built — initializing column visibility menu");
         initColumnVisibilityMenu();
     },
 
   });
+
+  console.log("Tabulator initialized.");
+  initColumnVisibilityMenu();
 
 });
 </script>
@@ -576,6 +580,7 @@ document.getElementById("table-search").addEventListener("input", function () {
 // ---------------- Column Visibility for Tabulator  ----------------
 
 function initColumnVisibilityMenu() {
+    console.log("Calling init column visibility menu ...");
     const menu = document.getElementById("col-menu");
     const overlay = document.getElementById("col-menu-overlay");
     const checkboxContainer = document.getElementById("col-checkboxes");
@@ -617,6 +622,8 @@ function initColumnVisibilityMenu() {
 }
 
 function applyColumnVisibility() {
+    console.log("calling apply column visibility ...");
+
     const checks = document.querySelectorAll("#col-checkboxes input");
 
     checks.forEach(cb => {
@@ -629,6 +636,7 @@ function applyColumnVisibility() {
 }
 
 function resetColumnVisibility() {
+    console.log("calling reset column visibility ...");
     tab.getColumns().forEach(col => col.show());
     initColumnVisibilityMenu();
 }
