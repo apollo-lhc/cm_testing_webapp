@@ -430,92 +430,84 @@ const tableData = [
 
 
 <script>
+window.colorEnabled = true;
 
-// Tabulator Initialization
 document.addEventListener("DOMContentLoaded", function () {
 
-  console.log("Start Tabulator initialization...");
-  tab = new Tabulator("#tabulator-table", {
+    console.log("Start Tabulator initialization...");
 
-    data: tableData,
-    layout: "fitDataStretch",
-    height: "600px",
-    movableColumns: true,
-    index: "id",
+    tab = new Tabulator("#tabulator-table", {
+        data: tableData,
+        layout: "fitDataStretch",
+        height: "600px",
+        movableColumns: true,
+        index: "id",
 
-    columns: [
-      {
-        title: "CM Serial",
-        field: "serial",
-        frozen: true,
-        formatter: "plaintext",
-        cellClick: function (e, cell) {
-            const row = cell.getRow();
-            const id = row.getData().id;
-            if (id) {
-                window.location.href = `/entry/${id}`;
+        columns: [
+            {
+                title: "CM Serial",
+                field: "serial",
+                frozen: true,
+                formatter: "plaintext",
+                cellClick: function (e, cell) {
+                    const id = cell.getRow().getData().id;
+                    if (id) window.location.href = `/entry/${id}`;
+                },
+                headerSort: true
+            },
+
+            { title: "Time", field: "time" },
+            { title: "Users", field: "users" },
+            { title: "Status", field: "status" },
+
+            {% for field in fields %}
+            {% if field.name != 'CM_serial' %}
+            { title: "{{ field.label }}", field: "{{ field.name }}" },
+            {% endif %}
+            {% endfor %}
+
+            { title: "Test Aborted", field: "aborted" },
+            { title: "Reason Aborted", field: "failure" },
+        ],
+
+        rowFormatter: function (row) {
+            const data = row.getData();
+            const status = data.status;
+            const progress = parseFloat(data.progress || 0);
+
+            let finalColor = "";
+
+            if (!window.colorEnabled) {
+                const pos = row.getPosition();
+                const rowIndex = (typeof pos === "number") ? pos : 0;
+                finalColor = rowIndex % 2 === 0 ? "#ffffff" : "#f8f9fa";
+            } else {
+                if (status === "failed") finalColor = "#e45762";
+                else if (status === "saved") finalColor = "#65e1f7";
+                else if (status === "finished") finalColor = "#3ef168";
+                else if (status === "inprogress") {
+                    const r = Math.round(255 + (62 - 255) * progress);
+                    const g = Math.round(255 + (241 - 255) * progress);
+                    const b = Math.round(100 + (104 - 100) * progress);
+                    finalColor = `rgb(${r},${g},${b})`;
+                } else {
+                    finalColor = "#ffffff";
+                }
             }
+
+            row.getElement().style.backgroundColor = finalColor;
         },
-        headerSort: true
-      },
+    });
 
-      { title: "Time", field: "time" },
-      { title: "Users", field: "users" },
-      { title: "Status", field: "status" },
-
-      {% for field in fields %}
-        {% if field.name != 'CM_serial' %}
-          { title: "{{ field.label }}", field: "{{ field.name }}" },
-        {% endif %}
-      {% endfor %}
-      
-      { title: "Test Aborted", field: "aborted" },
-      { title: "Reason Aborted", field: "failure" },
-    ],
-
-    // ---- Row Coloring ----
-    rowFormatter: function (row) {
-      const data = row.getData();
-      const status = data.status;
-      const progress = parseFloat(data.progress || 0);
-
-      let finalColor = "";
-
-      if (!window.colorEnabled) {
-          // basic striping (fallback)
-          const pos = row.getPosition();
-          const rowIndex = (typeof pos === "number") ? pos : 0;
-          finalColor = rowIndex % 2 === 0 ? "#ffffff" : "#f8f9fa";
-      } else {
-          if (status === "failed") finalColor = "#e45762";
-          else if (status === "saved") finalColor = "#65e1f7";
-          else if (status === "finished") finalColor = "#3ef168";
-          else if (status === "inprogress") {
-              const r = Math.round(255 + (62 - 255) * progress);
-              const g = Math.round(255 + (241 - 255) * progress);
-              const b = Math.round(100 + (104 - 100) * progress);
-              finalColor = `rgb(${r}, ${g}, ${b})`;
-          } else {
-              finalColor = "#ffffff";
-          }
-      }
-
-      row.getElement().style.backgroundColor = finalColor;
-    },
-
-
-    tableBuilt: function () {
-        console.log("THIS!!! Tabulator built — initializing column visibility menu");
+    // --- FIXED: Proper tableBuilt event hook ---
+    tab.on("tableBuilt", function () {
+        console.log("TABLE BUILT — initializing column visibility menu");
         initColumnVisibilityMenu();
-    },
-
-  });
-
-  console.log("Tabulator initialized.");
-  initColumnVisibilityMenu();
+    });
 
 });
 </script>
+
 
 
 <!--New Tabulator JS funcitons-->
