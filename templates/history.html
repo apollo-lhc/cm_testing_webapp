@@ -505,6 +505,68 @@ document.addEventListener("DOMContentLoaded", function () {
         initColumnVisibilityMenu();
     });
 
+    //------------------------------------------------------------
+    // RESTORE USER SETTINGS ON PAGE LOAD
+    //------------------------------------------------------------
+    function restoreUserSettings() {
+        console.log("Restoring user settings...");
+
+        // --- Restore search query ---
+        const savedSearch = localStorage.getItem("history_search") || "";
+        document.getElementById("table-search").value = savedSearch;
+        if (savedSearch.trim() !== "") {
+            tab.setFilter([
+                [
+                    {field:"serial", type:"like", value:savedSearch},
+                    {field:"time", type:"like", value:savedSearch},
+                    {field:"users", type:"like", value:savedSearch},
+                    {field:"status", type:"like", value:savedSearch},
+                    {field:"failure", type:"like", value:savedSearch},
+                    // dynamic fields
+                    {% for field in fields %}
+                        {% if field.name != 'CM_serial' %}
+                            {field:"{{ field.name }}", type:"like", value:savedSearch},
+                        {% endif %}
+                    {% endfor %}
+                ]
+            ]);
+        }
+
+        // --- Restore status filter ---
+        const savedStatus = localStorage.getItem("history_status_filter") || "all";
+        if (savedStatus !== "all") {
+            tab.setFilter("status", "=", savedStatus);
+        }
+
+        // --- Restore row coloring ---
+        const savedColoring = localStorage.getItem("history_coloring_enabled");
+        if (savedColoring !== null) {
+            window.colorEnabled = savedColoring === "true";
+            document.getElementById("toggle-coloring").textContent =
+                window.colorEnabled ? "Disable Row Coloring" : "Enable Row Coloring";
+
+            tab.getRows().forEach(row => tab.options.rowFormatter(row));
+        }
+
+        // --- Restore column visibility ---
+        const savedVisibility = JSON.parse(localStorage.getItem("history_col_visibility") || "{}");
+
+        tab.getColumns().forEach(col => {
+            const field = col.getField();
+            if (!field) return;
+
+            if (field in savedVisibility) {
+                if (savedVisibility[field]) col.show();
+                else col.hide();
+            }
+        });
+    }
+
+    // Call this after the table is fully built
+    tab.on("tableBuilt", function () {
+        restoreUserSettings();
+    });
+
 });
 </script>
 
@@ -514,6 +576,9 @@ document.addEventListener("DOMContentLoaded", function () {
 <script>
 // Tabulator Filter
 function filterByStatus(status) {
+
+    localStorage.setItem("history_status_filter", status);
+
     if (status === "all") {
         tab.clearFilter();
     } else {
@@ -524,6 +589,8 @@ function filterByStatus(status) {
 // Toggle Row Coloring
 function toggleColoring() {
     window.colorEnabled = !window.colorEnabled;
+
+    localStorage.setItem("history_coloring_enabled", window.colorEnabled);
 
     const btn = document.getElementById("toggle-coloring");
 
@@ -618,6 +685,15 @@ function applyColumnVisibility() {
 
     const checks = document.querySelectorAll("#col-checkboxes input");
 
+    let vis = {};
+
+    checks.forEach(cb => {
+        vis[cb.value] = cb.checked;
+    });
+
+    localStorage.setItem("history_col_visibility", JSON.stringify(vis));
+
+
     checks.forEach(cb => {
         if (cb.checked) tab.showColumn(cb.value);
         else tab.hideColumn(cb.value);
@@ -630,6 +706,7 @@ function applyColumnVisibility() {
 function resetColumnVisibility() {
     console.log("calling reset column visibility ...");
     tab.getColumns().forEach(col => col.show());
+    localStorage.removeItem("history_col_visibility");
     initColumnVisibilityMenu();
 }
 
