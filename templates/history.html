@@ -514,6 +514,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // --- Restore search query ---
         const savedSearch = localStorage.getItem("history_search") || "";
         document.getElementById("table-search").value = savedSearch;
+        
         if (savedSearch.trim() !== "") {
             tab.setFilter([
                 [
@@ -610,6 +611,8 @@ function toggleColoring() {
 // Global Search Input
 document.getElementById("table-search").addEventListener("input", function () {
     const query = this.value.trim();
+
+    localStorage.setItem("history_search", query);
 
     if (query === "") {
         tab.clearFilter();
