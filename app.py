@@ -579,9 +579,6 @@ def export_csv():
         download_name='test_results.csv'
     )
 
-
-
-
 @app.route('/help')
 def help_button():
     """Render help page grouped by form section, showing only fields with help_text, help_link, or help_label."""

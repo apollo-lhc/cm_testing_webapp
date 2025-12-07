@@ -462,9 +462,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
             {% for field in fields %}
             {% if field.name != 'CM_serial' %}
-            { title: "{{ field.label }}", field: "{{ field.name }}" },
+                {% if field.type_field == "file" %}
+                    {
+                        title: "{{ field.label }}",
+                        field: "{{ field.name }}",
+                        formatter: fileDownloadFormatter,
+                        hozAlign: "left"
+                    },
+                {% else %}
+                    {
+                        title: "{{ field.label }}",
+                        field: "{{ field.name }}"
+                    },
+                {% endif %}
             {% endif %}
             {% endfor %}
+
 
             { title: "Test Aborted", field: "aborted" },
             { title: "Reason Aborted", field: "failure" },
@@ -713,6 +726,23 @@ function resetColumnVisibility() {
     initColumnVisibilityMenu();
 }
 
+// File Download Formatter
+function fileDownloadFormatter(cell) {
+    const value = cell.getValue();
+
+    if (!value || value === "" || value === "-") {
+        return "";
+    }
+
+    // value is something like: "cm3021/file123.png"
+    // can change color of download link here in the color:XXXXXXX part
+    return `
+        <a href="/uploads/${value}"
+           style="color:#A40000; font-weight:600; text-decoration:underline;"
+           target="_blank">
+            ${value}
+        </a>`;
+}
 
 
 
