@@ -294,9 +294,44 @@
     to   { opacity: 1; transform: translate(-50%, -50%); }
   }
 
+  /* --- Standardized column width + truncation --- */
+
+
+  /* Expanded popup box */
+  #cell-expand-popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 3000;
+      display: none;
+      max-width: 70vw;
+      max-height: 60vh;
+      background: white;
+      border: 2px solid #B31B1B;
+      border-radius: 10px;
+      padding: 1rem;
+      overflow: auto;
+      font-size: 1rem;
+      line-height: 1.35;
+      box-shadow: 0 0 20px rgba(0,0,0,0.25);
+      white-space: normal !important;
+  }
+
+  #cell-expand-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      display: none;
+      z-index: 2999;
+  }
 
 
 </style>
+
+<div id="cell-expand-overlay"></div>
+<div id="cell-expand-popup"></div>
+
 
 
 <div class="full-width-container history-container">
@@ -432,6 +467,7 @@ const tableData = [
 <script>
 window.colorEnabled = true;
 
+/// tabulator initialization
 document.addEventListener("DOMContentLoaded", function () {
 
     console.log("Start Tabulator initialization...");
@@ -442,6 +478,11 @@ document.addEventListener("DOMContentLoaded", function () {
         height: "600px",
         movableColumns: true,
         index: "id",
+
+        columnDefaults: {
+          formatter: truncateFormatter,
+          formatterParams: { maxWidth: 180 },
+        },
 
         columns: [
             {
@@ -518,6 +559,15 @@ document.addEventListener("DOMContentLoaded", function () {
         initColumnVisibilityMenu();
     });
 
+    // Truncate Formatter Function
+    function truncateFormatter(cell, formatterParams) {
+      const max = formatterParams.maxWidth || 180;
+      const str = String(cell.getValue() || "");
+      if (str.length > max / 7) return str.substring(0, max / 7) + "…";
+      return str;
+    }
+
+
     //------------------------------------------------------------
     // RESTORE USER SETTINGS ON PAGE LOAD
     //------------------------------------------------------------
@@ -581,6 +631,40 @@ document.addEventListener("DOMContentLoaded", function () {
         restoreUserSettings();
     });
 
+});
+</script>
+
+<script>
+  // GLOBAL cell expansion popup
+document.addEventListener("DOMContentLoaded", () => {
+    const overlay = document.getElementById("cell-expand-overlay");
+    const popup = document.getElementById("cell-expand-popup");
+
+    function openPopup(text) {
+        popup.innerText = text || "(empty)";
+        popup.style.display = "block";
+        overlay.style.display = "block";
+    }
+
+    function closePopup() {
+        popup.style.display = "none";
+        overlay.style.display = "none";
+    }
+
+    overlay.onclick = closePopup;
+
+    // Attach to Tabulator cell click
+    tab.on("cellClick", function (e, cell) {
+        const col = cell.getColumn().getField();
+        const val = cell.getValue();
+
+        // Do NOT override file links or serial entry links
+        if (col === "serial") return;
+        if (cell.getColumn().getDefinition().formatter === fileDownloadFormatter) return;
+
+        // Open popup
+        openPopup(val);
+    });
 });
 </script>
 
@@ -743,6 +827,9 @@ function fileDownloadFormatter(cell) {
             ${value}
         </a>`;
 }
+
+
+
 
 
 
