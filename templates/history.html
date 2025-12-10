@@ -848,7 +848,7 @@ function fileDownloadFormatter(cell) {
     refreshButton.textContent = "Disable Auto-Refresh";
     refreshInterval = setInterval(() => {
       window.location.reload();
-    }, 10000); // refresh every 10s
+    }, 3000); // refresh every 10s: 10000 (ms)
   }
 
   function stopAutoRefresh() {
