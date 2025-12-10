@@ -188,8 +188,11 @@ def form():
     form_index = request.args.get('step')
     form_index = int(form_index or 0)
 
+    # passed by the form home menu to ignore autoresume of last step
+    force = request.args.get("force") == "true"
+
     # always current user in progress form on correct step
-    if request.method == 'GET' and user.form_id is not None:
+    if(request.method == 'GET' and user.form_id is not None and not force):
         held_entry = db.session.get(TestEntry, user.form_id)
         if held_entry:
             last_step = held_entry.data.get("last_step", -1)
