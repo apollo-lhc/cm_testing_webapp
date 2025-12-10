@@ -28,7 +28,7 @@ from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
 from admin_routes import admin_bp
 from admin_form_editor import form_editor_bp
-from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock
+from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock, page_is_complete
 from constants import EASTERN_TZ
 
 app = Flask(__name__)
@@ -137,42 +137,28 @@ def home():
 
 @app.route("/entry/<int:entry_id>/form_home")
 def form_home(entry_id):
-    """Hub page showing all sections and their completion status."""
-
     if "user_id" not in session:
         return redirect(url_for("login"))
 
     entry = TestEntry.query.get_or_404(entry_id)
-
     data = entry.data or {}
 
+    # Page 0 = serial entry page, so skip it
     pages = FORMS_NON_DICT[1:]
-    completion = {}
 
-    for i, page in enumerate(pages):
-        # the FIRST PAGE (serial page) should never show
-        if i == 0:
-            continue
-
-        done = True
-        for field in page.fields:
-            if not field.display_form:
-                continue
-
-            val = data.get(field.name)
-
-            if val in (None, "", []):
-                done = False
-                break
-
-        completion[page.name] = done
+    completion = {
+        page.name: page_is_complete(page, data)
+        for page in pages
+    }
 
     return render_template(
         "form_home.html",
         entry=entry,
         pages=pages,
-        completion=completion
+        completion=completion,
     )
+
+
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
