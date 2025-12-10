@@ -47,6 +47,21 @@
     </div>
   </div>
 
+    
+  <!--Button group -->
+  <div class="d-flex flex-wrap gap-2">
+    <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+    <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-red">In-Progress Forms</a>
+    {% if user and user.administrator %}
+      <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
+    {% endif %}
+    <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-start mt-4 flex-wrap">
+
   {% if entries %}
   <table class="table table-striped table-bordered align-middle">
     <thead class="table-red">
@@ -95,27 +110,38 @@
     {% set user = current_user() %}
   {% endif %}
 
-  <div class="d-flex justify-content-between align-items-start mt-4 flex-wrap">
-    <!-- Left: Button group -->
-    <div class="d-flex flex-wrap gap-2">
-      <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
-      <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
-      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-red">In-Progress Forms</a>
-      {% if user and user.administrator %}
-        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
-      {% endif %}
-      <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
-      <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+  <div class="d-flex align-items-start mt-4 flex-wrap w-100">
+    <!-- Left: Rocket + (optional buttons) -->
+    <div class="d-flex flex-column flex-wrap gap-2">
+      <!-- Rocket on the left -->
+      <img src="{{ url_for('static', filename='images/rocket.png') }}"
+          alt="Rocket"
+          class="img-fluid"
+          style="max-height: 180px; opacity: 0.95;">
+
+      <!-- Left: Button group (kept commented for later) -->
+      <div class="d-flex flex-wrap gap-2">
+        <!-- <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-red">In-Progress Forms</a>
+        {% if user and user.administrator %}
+          <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
+        {% endif %}
+        <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a> -->
+      </div>
     </div>
 
-    <!-- Right: Astronaut -->
-    <div class="ms-3">
-      <img src="{{ url_for('static', filename='images/rocket.png') }}"
-          alt="Astronaut"
+    <!-- Right: Accelerator -->
+    <div class="ms-auto">
+      <img src="{{ url_for('static', filename='images/accelerator.png') }}"
+          alt="Accelerator"
           class="img-fluid"
           style="max-height: 180px; opacity: 0.95;">
     </div>
   </div>
+
+
 
 </div>
 
