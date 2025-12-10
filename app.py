@@ -28,7 +28,7 @@ from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
 from admin_routes import admin_bp
 from admin_form_editor import form_editor_bp
-from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock, get_page_map
+from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock
 from constants import EASTERN_TZ
 
 app = Flask(__name__)
@@ -138,7 +138,7 @@ def home():
 @app.route("/entry/<int:entry_id>/form_home")
 def form_home(entry_id):
     """Hub page showing all sections and their completion status."""
-    
+
     if "user_id" not in session:
         return redirect(url_for("login"))
 
@@ -153,7 +153,7 @@ def form_home(entry_id):
         # the FIRST PAGE (serial page) should never show
         if i == 0:
             continue
-        
+
         done = True
         for field in page.fields:
             if not field.display_form:
@@ -173,335 +173,6 @@ def form_home(entry_id):
         pages=pages,
         completion=completion
     )
-
-
-
-if 1 == 9:
-        
-    print("hey")
-    # @app.route("/entry/<int:entry_id>/form/<page_name>", methods=["GET", "POST"])
-    # def form_page(entry_id, page_name):
-    #     if "user_id" not in session:
-    #         return redirect(url_for("login"))
-
-    #     user = current_user()
-    #     entry = TestEntry.query.get_or_404(entry_id)
-
-    #     # Lock check
-    #     if entry.lock_owner and entry.lock_owner != user.username:
-    #         return "This form is currently being edited by another user."
-
-    #     page_map = get_page_map()
-    #     page = page_map.get(page_name)
-    #     if page is None:
-    #         abort(404)
-
-    #     data = entry.data or {}
-
-    #     # =================================================================
-    #     # POST handling
-    #     # =================================================================
-    #     if request.method == "POST":
-
-    #         # Update this page’s fields only
-    #         for field in page.fields:
-    #             if not field.display_form:
-    #                 continue
-    #             value = field.get_value(request)
-    #             if value is not None:
-    #                 data[field.name] = value
-
-    #         # File upload processing
-    #         data.update(
-    #             process_file_fields(
-    #                 page.fields, request, app.config["UPLOAD_FOLDER"], data
-    #             )
-    #         )
-
-    #         entry.data = data
-    #         flag_modified(entry, "data")
-
-    #         cm_serial = data.get("CM_serial")
-
-    #         # =====================================================================
-    #         # 1) SAVE & RETURN HOME — MUST SHORT-CIRCUIT EARLY AND MUST NOT VALIDATE
-    #         # =====================================================================
-    #         if request.form.get("save_home") == "true":
-    #             print("[DEBUG] Save & Return HOME triggered.")
-    #             if not cm_serial:
-    #                 return render_template(
-    #                     "form.html",
-    #                     fields=page.fields,
-    #                     prefill_values=data,
-    #                     errors={"CM_serial": "Submit Serial Number Before Saving"},
-    #                     form_label=page.label,
-    #                     entry_id=entry.id
-    #                 )
-
-                
-                
-    #             entry.timestamp = datetime.now(EASTERN_TZ)
-    #             entry.is_saved = True  # Partial save
-
-    #             if user.username not in (entry.contributors or []):
-    #                 entry.contributors = entry.contributors + [user.username]
-
-    #             db.session.commit()
-
-    #             print("[DEBUG] Save & Return HOME executed. No Next. No validation.")
-
-    #             # CRITICAL: RETURN IMMEDIATELY
-    #             return redirect(url_for("form_home", entry_id=entry.id))
-
-    #         # =====================================================================
-    #         # 2) SAVE & EXIT (same as old)
-    #         # =====================================================================
-    #         if request.form.get("save_exit") == "true":
-    #             if not cm_serial:
-    #                 return render_template(
-    #                     "form.html",
-    #                     fields=page.fields,
-    #                     prefill_values=data,
-    #                     errors={"CM_serial": "Submit Serial Number Before Saving"},
-    #                     form_label=page.label,
-    #                     entry_id=entry.id,
-    #                 )
-
-    #             entry.timestamp = datetime.now(EASTERN_TZ)
-    #             entry.is_saved = True
-    #             entry.failure = False
-    #             entry.fail_reason = None
-    #             entry.fail_stored = False
-
-    #             if user.username not in entry.contributors:
-    #                 entry.contributors.append(user.username)
-
-    #             db.session.commit()
-    #             release_lock(entry)
-    #             user.form_id = None
-    #             db.session.commit()
-
-    #             return redirect(url_for("dashboard"))
-
-    #         # =====================================================================
-    #         # 3) FAIL TEST START
-    #         # =====================================================================
-    #         if request.form.get("fail_test_start") == "true":
-    #             print("[DEBUG] Fail Test START triggered.")
-    #             if not cm_serial:
-    #                 return render_template(
-    #                     "form.html",
-    #                     fields=page.fields,
-    #                     prefill_values=data,
-    #                     errors={"CM_serial": "Submit Serial Number Before Submitting Test as Failure"},
-    #                     form_label=page.label,
-    #                     entry_id=entry.id,
-    #                     trigger_fail_prompt=False
-    #                 )
-    #             return render_template(
-    #                 "form.html",
-    #                 fields=page.fields,
-    #                 prefill_values=data,
-    #                 errors={},
-    #                 form_label=page.label,
-    #                 entry_id=entry.id,
-    #                 trigger_fail_prompt=True
-    #             )
-
-    #         # =====================================================================
-    #         # 4) FAIL TEST FINAL
-    #         # =====================================================================
-    #         if request.form.get("fail_test") == "true":
-    #             print("[DEBUG] Fail Test FINAL triggered.")
-    #             if not cm_serial:
-    #                 return render_template(
-    #                     "form.html",
-    #                     fields=page.fields,
-    #                     prefill_values=data,
-    #                     errors={"CM_serial": "Submit Serial Number Before Failing Test"},
-    #                     form_label=page.label,
-    #                     entry_id=entry.id,
-    #                     trigger_fail_prompt=True
-    #                 )
-
-    #             reason = request.form.get("fail_reason", "").strip()
-
-    #             entry.failure = True
-    #             entry.fail_reason = reason
-    #             entry.fail_stored = True
-    #             entry.is_finished = False
-    #             entry.is_saved = False
-    #             entry.timestamp = datetime.now(EASTERN_TZ)
-
-    #             if user.username not in entry.contributors:
-    #                 entry.contributors.append(user.username)
-
-    #             db.session.commit()
-    #             release_lock(entry)
-    #             user.form_id = None
-    #             db.session.commit()
-
-    #             return render_template("form_complete.html")
-
-    #         # =====================================================================
-    #         # 5) NEXT — VALIDATE AND MOVE FORWARD
-    #         # =====================================================================
-    #         if request.form.get("next") == "true":
-    #             print("[DEBUG] Next triggered.")
-    #             # Full validation
-    #             ok, errors = validate_form(page.fields, request, data)
-    #             if not ok:
-    #                 return render_template(
-    #                     "form.html",
-    #                     fields=page.fields,
-    #                     prefill_values=data,
-    #                     errors=errors,
-    #                     form_label=page.label,
-    #                     entry_id=entry.id
-    #                 )
-
-    #             # Go to next page
-    #             pages = FORMS_NON_DICT
-    #             idx = next((i for i, p in enumerate(pages) if p.name == page.name), None)
-    #             if idx is not None and idx + 1 < len(pages):
-    #                 next_page = pages[idx + 1].name
-    #                 entry.is_saved = True
-    #                 db.session.commit()
-    #                 return redirect(url_for("form_page", entry_id=entry.id, page_name=next_page))
-
-    #             # End of form → go to review
-    #             entry.is_saved = True
-    #             db.session.commit()
-    #             return redirect(url_for("review_entry", entry_id=entry.id))
-
-    #         # =====================================================================
-    #         # DEFAULT fallthrough
-    #         # =====================================================================
-    #         db.session.commit()
-    #         return redirect(url_for("form_page", entry_id=entry.id, page_name=page.name))
-
-    #     # =================================================================
-    #     # GET
-    #     # =================================================================
-    #     return render_template(
-    #         "form.html",
-    #         fields=page.fields,
-    #         prefill_values=data,
-    #         errors={},
-    #         form_label=page.label,
-    #         entry_id=entry.id
-    #     )
-
-    # @app.route("/entry/<int:entry_id>/form/<page_name>", methods=["GET", "POST"])
-    # def form_page(entry_id, page_name):
-    #     """
-    #     Minimal clean form page route that supports:
-    #       - GET: load page
-    #       - POST: partial save
-    #       - next, save_home, save_exit buttons
-    #     """
-
-    #     if "user_id" not in session:
-    #         return redirect(url_for("login"))
-        
-    #     user = current_user()
-    #     entry = TestEntry.query.get_or_404(entry_id)
-
-    #     # Lock check (optional)
-    #     if entry.lock_owner and entry.lock_owner != user.username:
-    #         return "This form is currently being edited by another user."
-
-    #     # Page object lookup
-    #     page_map = {p.name: p for p in FORMS_NON_DICT}
-    #     page = page_map.get(page_name)
-    #     if page is None:
-    #         abort(404)
-
-    #     # Ensure entry.data exists
-    #     if entry.data is None:
-    #         entry.data = {}
-
-    #     data = entry.data
-
-    #     # =============================
-    #     # POST — save partial changes
-    #     # =============================
-    #     if request.method == "POST":
-
-    #         # Update fields
-    #         for field in page.fields:
-    #             if not field.display_form:
-    #                 continue
-
-    #             val = field.get_value(request)
-    #             if val is not None:
-    #                 data[field.name] = val
-
-    #         # Save files
-    #         data.update(
-    #             process_file_fields(page.fields, request, app.config["UPLOAD_FOLDER"], data)
-    #         )
-
-    #         entry.data = data
-    #         flag_modified(entry, "data")
-    #         entry.timestamp = datetime.now(EASTERN_TZ)
-
-    #         # Track contributor
-    #         if user.username not in (entry.contributors or []):
-    #             entry.contributors = (entry.contributors or []) + [user.username]
-
-    #         # =========================
-    #         # BUTTON: Save & Return Home
-    #         # =========================
-    #         if request.form.get("save_home") == "true":
-    #             print("DEBUG: Save & Return Home button clicked FORM PAGE ROUTE")
-    #             db.session.commit()
-    #             return redirect(url_for("form_home", entry_id=entry.id))
-
-    #         # =========================
-    #         # BUTTON: Save & Exit
-    #         # =========================
-    #         if request.form.get("save_exit") == "true":
-    #             print("DEBUG: Save & Exit button clicked FORM PAGE ROUTE")
-    #             entry.is_saved = True
-    #             db.session.commit()
-    #             return redirect(url_for("dashboard"))
-
-    #         # =========================
-    #         # BUTTON: Next
-    #         # =========================
-    #         if request.form.get("next") == "true":
-    #             print("DEBUG: Next button clicked FORM PAGE ROUTE")
-    #             pages = FORMS_NON_DICT
-    #             i = next((idx for idx, p in enumerate(pages) if p.name == page_name), None)
-
-    #             if i is not None and i + 1 < len(pages):
-    #                 # go to next page
-    #                 db.session.commit()
-    #                 return redirect(url_for("form_page",
-    #                                         entry_id=entry.id,
-    #                                         page_name=pages[i + 1].name))
-
-    #             # last page → go to review or completion page
-    #             db.session.commit()
-    #             return redirect(url_for("review_entry", entry_id=entry.id))
-
-    #         # Default behavior: save & stay on same page
-    #         db.session.commit()
-    #         return redirect(url_for("form_page", entry_id=entry.id, page_name=page.name))
-
-    #     # =============================
-    #     # GET — show page
-    #     # =============================
-    #     return render_template(
-    #         "form.html",
-    #         fields=page.fields,
-    #         prefill_values=data,
-    #         form_label=page.label,
-    #         entry_id=entry.id,
-    #         errors={}
-    #     )
-
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
@@ -583,10 +254,10 @@ def form():
                         form_label=current_form.label,
                         name="Form"
                     )
-                    
+
         # Save & Exit to Form Home Page
         if request.form.get("save_home") == "true":
-            print("[DEBUG] Save & Exit Home Page triggered. OLD FORM")
+            #print("[DEBUG] Save & Exit Home Page triggered. OLD FORM")
             if serial_error or form_index == 0:
                 return render_template(
                     "form.html",
@@ -627,7 +298,7 @@ def form():
 
         # Save & Exit
         if request.form.get("save_exit") == "true":
-            print("[DEBUG] Save & Exit triggered. OLD FORM")
+            #print("[DEBUG] Save & Exit triggered. OLD FORM")
             if serial_error or form_index == 0:
                 return render_template(
                     "form.html",
@@ -763,7 +434,7 @@ def form():
             return render_template('form_complete.html')
 
         # Final Submission & Next
-        print("[DEBUG] Final Submission & Next triggered. OLD FORM")
+        #print("[DEBUG] Final Submission & Next triggered. OLD FORM")
         is_valid, errors = validate_form(current_form.fields, request, session.get('form_data'))
 
         if is_valid:

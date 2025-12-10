@@ -27,10 +27,6 @@ from constants import LOCK_TIMEOUT, EASTERN_TZ
 
 fishy_users = {}
 
-def get_page_map():
-    """Return mapping from page.name → FormPage instance."""
-    return {p.name: p for p in FORMS_NON_DICT}
-
 def validate_field(field, value, data=None):
     """Validate a single field value based on its type and requirements."""
     if field.validate:
