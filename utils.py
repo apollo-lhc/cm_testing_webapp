@@ -179,9 +179,9 @@ def validate_form(fields, req, data=None):
         valid, msg = validate_field_value(field, value, data)
         if not valid:
             errors[field.name] = msg
-        
-    if(len(errors) > 0):
-        print(f"Form validation errors: {errors}")
+
+    # if(len(errors) > 0):
+    #     print(f"Form validation errors: {errors}")
 
     return (len(errors) == 0), errors
 
