@@ -22,3 +22,6 @@ SERIAL_MIN = SERIAL_OFFSET
 LOCK_TIMEOUT = timedelta(minutes=20)   # how long before a stale lock is considered free (not implemented)
 
 EASTERN_TZ = ZoneInfo("America/New_York")
+
+OPTIONAL_TEXT_KEYWORDS = ("comment", "comments", "note", "notes", "text")
+REQUIRED_TYPES = {"integer", "float", "boolean", "file"}

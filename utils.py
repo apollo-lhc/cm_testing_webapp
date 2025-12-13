@@ -23,86 +23,56 @@ from werkzeug.utils import secure_filename
 
 from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
-from constants import LOCK_TIMEOUT, EASTERN_TZ
+from constants import LOCK_TIMEOUT, EASTERN_TZ, OPTIONAL_TEXT_KEYWORDS, REQUIRED_TYPES
 
 fishy_users = {}
 
+def is_field_required(field):
+    """
+    Returns True if this field is required to be filled.
+    """
+
+    # Skip non-form / non-history fields
+    if not field.display_form or not field.display_history:
+        return False
+
+    if field.type_field in (None, "blank"):
+        return False
+
+    # Always required
+    if field.type_field in REQUIRED_TYPES:
+        return True
+
+    # Conditional required: text fields
+    if field.type_field == "text":
+        name = (field.name or "").lower()
+        label = (field.label or "").lower()
+
+        if any(k in name for k in OPTIONAL_TEXT_KEYWORDS):
+            return False
+        if any(k in label for k in OPTIONAL_TEXT_KEYWORDS):
+            return False
+
+        return True
+
+    return False
+
 def page_is_complete(page, entry_data):
     """
-    A page is complete if ALL required fields are filled.
-    Required fields include:
-      - integer, float, boolean, file
-      - text fields EXCEPT those whose name/label contains comment-like keywords
+    Page is complete if ALL required fields are valid.
     """
 
-    required_types = {"integer", "float", "boolean", "file"}
-
-    # Keywords that make a text field OPTIONAL, not required
-    optional_text_keywords = ("comment", "comments", "note", "notes", "text")
-
-    required_fields = []
-    # print(f"[DEBUG] Required fields for {page.name}: {[f.name for f in required_fields]}")
-    # print(f"[DEBUG] entry_data: {entry_data}")
-
-
-    for f in page.fields:
-
-        # Skip non-form fields and blanks
-        if not f.display_form or not f.display_history:
-            continue
-        if f.type_field in (None, "blank"):
-            continue
-
-        # REQUIRED: integer, float, boolean, file
-        if f.type_field in required_types:
-            required_fields.append(f)
-            continue
-
-        # CONDITIONAL REQUIRED: text fields
-        if f.type_field == "text":
-            name_lower = (f.name or "").lower()
-            label_lower = (f.label or "").lower()
-
-            # If field name/label contains comment-like words → OPTIONAL
-            if any(k in name_lower for k in optional_text_keywords):
-                continue
-            if any(k in label_lower for k in optional_text_keywords):
-                continue
-
-            # Otherwise → text field IS required
-            required_fields.append(f)
-            continue
-
-    # If no required fields exist, page cannot be considered complete
+    required_fields = [f for f in page.fields if is_field_required(f)]
     if not required_fields:
         return False
 
-    # Validate required fields
-    for f in required_fields:
-        val = entry_data.get(f.name)
-
-        # File fields require filename present
-        if f.type_field == "file":
-            if not val:
-                return False
-            continue
-
-        # Boolean requires yes/no
-        if f.type_field == "boolean":
-            if val not in ("yes", "no"):
-                return False
-            continue
-
-        # Numeric or required text must not be empty
-        if val in (None, "", [], {}, " "):
+    for field in required_fields:
+        value = entry_data.get(field.name)
+        valid, _ = validate_field_value(field, value, entry_data, required=True)
+        if not valid:
             return False
 
     return True
-
-
-
-
-
 
 def validate_field(field, value, data=None):
     """Validate a single field value based on its type and requirements."""
@@ -135,18 +105,84 @@ def validate_field(field, value, data=None):
             return False, "File is required."
     return True, ""
 
+def validate_field_value(field, value, data=None, *, required=None):
+    """
+    Validate a field value.
+    - Required fields must be present
+    - Optional fields are validated ONLY if a value is provided
+    Returns (is_valid, error_message)
+    """
+
+    if required is None:
+        required = is_field_required(field)
+
+    # Normalize empty values
+    empty = value in (None, "", [], {}, " ")
+
+    # Custom validator ALWAYS runs if value exists
+    if field.validate and not empty:
+        valid, msg = field.validate(value)
+        if not valid:
+            return False, msg
+
+    # Required check
+    if required:
+        if field.type_field == "file":
+            existing = data.get(field.name) if data else None
+            if not value and not existing:
+                return False, "File is required."
+        else:
+            if empty:
+                return False, "This field is required."
+
+    # If optional and empty → skip type validation
+    if empty:
+        return True, ""
+
+    # Type validation (only when value exists)
+    if field.type_field == "integer":
+        try:
+            int(value)
+        except ValueError:
+            return False, "Must be an integer."
+
+    elif field.type_field == "float":
+        try:
+            float(value)
+        except ValueError:
+            return False, "Must be a number."
+
+    elif field.type_field == "boolean":
+        if value not in ("yes", "no"):
+            return False, "Please select yes or no."
+
+    elif field.type_field == "file":
+        # file exists → OK
+        pass
+
+    return True, ""
+
 def validate_form(fields, req, data=None):
-    """Validate all fields in the form. Returns (is_valid, errors_dict)."""
+    """
+    Validate all fields in the form.
+    Returns (is_valid, errors_dict).
+    """
     errors = {}
+
     for field in fields:
         if field.type_field == "file":
             file = req.files.get(field.name)
             value = file.filename if file and file.filename else None
         else:
             value = req.form.get(field.name)
-        valid, msg = validate_field(field, value, data)
+
+        valid, msg = validate_field_value(field, value, data)
         if not valid:
             errors[field.name] = msg
+        
+    if(len(errors) > 0):
+        print(f"Form validation errors: {errors}")
+
     return (len(errors) == 0), errors
 
 def determine_step_from_data(data):

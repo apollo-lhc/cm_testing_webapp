@@ -158,8 +158,6 @@ def form_home(entry_id):
         completion=completion,
     )
 
-
-
 @app.route('/form', methods=['GET', 'POST'])
 def form():
     """form submission save and failure function"""
@@ -423,11 +421,11 @@ def form():
             return render_template('form_complete.html')
 
         # Final Submission & Next
-        #print("[DEBUG] Final Submission & Next triggered. OLD FORM")
+        print("[DEBUG] Final Submission & Next triggered. OLD FORM")
         is_valid, errors = validate_form(current_form.fields, request, session.get('form_data'))
-
+        
         if is_valid:
-
+      
             entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
 
             if not entry:
@@ -439,7 +437,7 @@ def form():
                     return "This form is currently being edited by another user."
                 entry.data = session['form_data']
                 flag_modified(entry, "data")
-
+                              
             entry.timestamp = datetime.now(EASTERN_TZ)
 
             if user.username not in (entry.contributors or []):
@@ -456,6 +454,39 @@ def form():
 
             if form_index + 1 < len(FORMS_NON_DICT):
                 return redirect(url_for('form', step=form_index + 1))
+            
+            # Check to see if all pages are done
+            pages = FORMS_NON_DICT[1:]
+            
+            incomplete_pages = [
+                page.label or page.name
+                for page in pages
+                if not page_is_complete(page, session['form_data'])
+            ]
+            
+            if incomplete_pages:
+                print(f"Incomplete pages detected on final submission: {incomplete_pages}")
+                entry.data.update(session['form_data'])
+                flag_modified(entry, "data")
+                entry.timestamp = datetime.now(EASTERN_TZ)
+                entry.failure = False
+                entry.fail_reason = None
+                entry.fail_stored = False
+
+                if user.username not in (entry.contributors or []):
+                    entry.contributors = (entry.contributors or []) + [user.username]
+
+                db.session.add(entry)
+                db.session.commit()
+                
+                flash(
+                    "Form cannot be submitted. Incomplete sections: "
+                    + ", ".join(incomplete_pages),
+                    "error"
+                )
+                
+                return redirect(url_for("form_home", entry_id=entry.id))
+
 
             # Final submission - mark complete and final
             entry.is_saved = False
