@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Form Home{% endblock %}
+{% block page_title %}Apollo CM Testing • Form Home{% endblock %}
+
+{% block content %}
+<style>
+  .page-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+    text-align: left;
+    transition: box-shadow 0.15s ease-in-out;
+  }
+
+  .page-card:hover {
+    box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.08);
+  }
+
+  .status-complete {
+    color: #198754;
+    font-weight: 600;
+  }
+
+  .status-incomplete {
+    color: #dc3545;
+    font-weight: 600;
+  }
+
+  .label-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+
+  .sub-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+  }
+</style>
+
+<div class="container text-center">
+  <h2 class="my-4">Form Home for Entry {{ entry.id }}</h2>
+
+  <p class="mb-4">
+    <strong>CM Serial:</strong>
+    {{ entry.data["CM_serial"] if entry.data and "CM_serial" in entry.data else "N/A" }}
+  </p>
+    <div class="d-flex justify-content-center flex-wrap gap-2 mb-4 top-button-row">
+        <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-red">In-Progress Forms</a>
+        <a href="{{ url_for('admin.deleted_entries') }}" class="btn btn-outline-red">View Deleted Forms</a>
+        
+        {% if user and user.administrator %}
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
+        {% endif %}
+        
+        <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+    </div>
+
+
+  <div class="mx-auto" style="max-width: 650px; text-align: left;">
+    
+    {% for page in pages %}
+    <div class="page-card">
+
+      <!-- Title + internal name -->
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <div class="label-title">{{ page.label }}</div>
+          <div class="sub-label">{{ page.name }}</div>
+        </div>
+
+        <!-- Completion Badge -->
+        <div>
+          {% if completion.get(page.name) %}
+            <span class="status-complete">Complete</span>
+          {% else %}
+            <span class="status-incomplete">Incomplete</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="text-end mt-2">
+        <a href="{{ url_for('form', step=loop.index, entry_id=entry.id, force='true') }}"
+           class="btn btn-primary btn-sm">
+          Open
+        </a>
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+
+  <div style="height: 100px;"></div>
+</div>
+
+{% endblock %}
