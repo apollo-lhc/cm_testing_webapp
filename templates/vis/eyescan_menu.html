@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h2>Eyescans</h2>
+
+  <form method="get" action="{{ url_for('visualizations.viz_home') }}" class="mb-3">
+    <label>Serial directory</label>
+    <select name="serial" onchange="this.form.submit()">
+      <option value="">-- select --</option>
+      {% for s in serials %}
+        <option value="{{ s }}" {% if s == selected_serial %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  {% if selected_serial %}
+    <h4>{{ selected_serial }} dates</h4>
+    {% if dates %}
+      <ul class="list-group">
+        {% for d in dates %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <a href="{{ url_for('visualizations.viz_date', serial=selected_serial, date=d) }}">{{ d }}</a>
+            <span class="text-muted">/{{ selected_serial }}/scans/{{ d }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="alert alert-warning">
+        No date folders found under {{ selected_serial }}/scans/
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

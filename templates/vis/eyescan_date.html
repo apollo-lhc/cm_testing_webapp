@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="d-flex align-items-center justify-content-between">
+    <div>
+      <h2 class="mb-0">Eyescans</h2>
+      <div class="text-muted">{{ serial }} / {{ date }}</div>
+    </div>
+    <div>
+      <a class="btn btn-outline-secondary"
+         href="{{ url_for('visualizations.viz_home', serial=serial) }}">
+        Back
+      </a>
+    </div>
+  </div>
+
+  <hr>
+
+  <div id="status" class="text-muted mb-3">Loading…</div>
+  <div id="grid" style="display:flex; flex-wrap:wrap; gap:14px;"></div>
+</div>
+
+<script>
+(async function() {
+  const status = document.getElementById("status");
+  const grid = document.getElementById("grid");
+
+  const apiUrl = "{{ url_for('visualizations.viz_date_api', serial=serial, date=date) }}";
+
+  try {
+    const res = await fetch(apiUrl, { credentials: "same-origin" });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+
+    status.textContent = `Loaded ${data.count} eyescans`;
+
+    for (const item of data.items) {
+      const card = document.createElement("div");
+      card.style.width = "360px";
+      card.style.border = "1px solid #ddd";
+      card.style.borderRadius = "10px";
+      card.style.padding = "10px";
+
+      const title = document.createElement("div");
+      title.textContent = item.label;
+      title.style.fontWeight = "600";
+      title.style.marginBottom = "8px";
+      card.appendChild(title);
+
+      if (item.png) {
+        const a = document.createElement("a");
+        a.href = item.png;
+        a.target = "_blank";
+
+        const img = document.createElement("img");
+        img.src = item.png;
+        img.style.maxWidth = "100%";
+        img.style.border = "1px solid #eee";
+
+        a.appendChild(img);
+        card.appendChild(a);
+      }
+
+      const links = document.createElement("div");
+      links.style.marginTop = "8px";
+      links.style.display = "flex";
+      links.style.gap = "10px";
+
+      if (item.pdf) links.innerHTML += `<a href="${item.pdf}" target="_blank">PDF</a>`;
+      if (item.csv) links.innerHTML += `<a href="${item.csv}" target="_blank">CSV</a>`;
+      if (item.png) links.innerHTML += `<a href="${item.png}" target="_blank">PNG</a>`;
+
+      card.appendChild(links);
+      grid.appendChild(card);
+    }
+  } catch (e) {
+    status.textContent = "Failed to load eyescans";
+  }
+})();
+</script>
+{% endblock %}

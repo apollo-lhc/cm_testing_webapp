@@ -11,8 +11,12 @@ Constants:
 - EASTERN_TZ: Timezone object for Eastern Time, used for date and time handling.
 """
 
+import os
+import re
 from datetime import timedelta
 from zoneinfo import ZoneInfo
+from pathlib import Path
+
 
 
 # Constants
@@ -25,3 +29,23 @@ EASTERN_TZ = ZoneInfo("America/New_York")
 
 OPTIONAL_TEXT_KEYWORDS = ("comment", "comments", "note", "notes", "text")
 REQUIRED_TYPES = {"integer", "float", "boolean", "file"}
+
+# ====== EYESCAN BROWSING CONFIG ==========
+
+APOLLO_ROOT = Path(os.environ.get(
+    "APOLLO_ROOT",
+    "/nfs/cms/tracktrigger/apollo"
+)).resolve()
+
+# "date folders" look like 11-14-25
+DATE_RE = re.compile(r"^\d{2}-\d{2}-\d{2}$")
+
+# Your eyescan files look like:
+# eyescan_F1_1_Quad_121_X0Y4_to_F1_1_Quad_121_X0Y4.png
+EYESCAN_RE = re.compile(
+    r"^eyescan_(?P<a>.+?)_to_(?P<b>.+?)\.(?P<ext>png|pdf|csv)$",
+    re.IGNORECASE
+)
+
+IMG_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+ALLOWED_EXTS = IMG_EXTS | {".pdf", ".csv", ".txt", ".log", ".json"}

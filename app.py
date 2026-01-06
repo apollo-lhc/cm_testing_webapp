@@ -9,9 +9,8 @@ Features:
 - File download for uploaded reports
 """
 # TODO fix formatting of code and make constantly repeated code into helper functions?
-# TODO block using back button on forms?
-# TODO have files visible in js for form.html
 # TODO make a @loginrequired
+# TODO show current serial number when testing forms
 
 import os
 import io
@@ -30,6 +29,7 @@ from admin_routes import admin_bp
 from admin_form_editor import form_editor_bp
 from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock, page_is_complete
 from constants import EASTERN_TZ
+from visualizaions import visualizations_bp
 
 app = Flask(__name__)
 
@@ -56,8 +56,11 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 db.init_app(app)
 
+# ==== Register Blueprints ====
+
 app.register_blueprint(admin_bp)
 app.register_blueprint(form_editor_bp)
+app.register_blueprint(visualizations_bp, url_prefix='/vis')
 
 with app.app_context():
     db.create_all()
@@ -857,6 +860,9 @@ def clear_failed(entry_id):
 @app.context_processor
 def inject_user():
     return {"current_user": current_user}
+
+
+
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

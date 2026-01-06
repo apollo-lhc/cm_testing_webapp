@@ -18,12 +18,13 @@ Dependencies: Flask `session`, SQLAlchemy `User` and `TestEntry` models, `FORMS_
 import os
 import re
 from datetime import datetime
+from pathlib import Path
 from flask import session
 from werkzeug.utils import secure_filename
 
 from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
-from constants import LOCK_TIMEOUT, EASTERN_TZ, OPTIONAL_TEXT_KEYWORDS, REQUIRED_TYPES
+from constants import LOCK_TIMEOUT, EASTERN_TZ, OPTIONAL_TEXT_KEYWORDS, REQUIRED_TYPES, ALLOWED_EXTS, EYESCAN_RE, DATE_RE, APOLLO_ROOT
 
 fishy_users = {}
 
@@ -288,3 +289,100 @@ def authenticate_admin():
         fishy_users[username] = fishy_users.get(username, 0) + 1
         return False
     return True
+
+# ==== EYESCAN BROWSING HELPERS ====
+
+def _safe_under(root: Path, rel: str) -> Path:
+    rel = (rel or "").strip()
+    if rel.startswith(("/", "\\")) or ".." in rel:
+        raise ValueError("invalid rel path")
+    p = (root / rel).resolve()
+    if p != root and root not in p.parents:
+        raise ValueError("escapes root")
+    return p
+
+def _list_serial_dirs() -> list[str]:
+    """
+    List directories under APOLLO_ROOT that have a 'scans' subdirectory.
+    This matches your pattern: APOLLO_ROOT/CM3006/scans/...
+    """
+    out = []
+    if not APOLLO_ROOT.exists():
+        return out
+
+    for d in APOLLO_ROOT.iterdir():
+        if not d.is_dir():
+            continue
+        scans = d / "scans"
+        if scans.exists() and scans.is_dir():
+            out.append(d.name)
+
+    return sorted(out, key=str.lower)
+
+def _list_dates(serial_dir: str) -> list[str]:
+    scans_dir = _safe_under(APOLLO_ROOT, f"{serial_dir}/scans")
+    if not scans_dir.exists() or not scans_dir.is_dir():
+        return []
+    dates = [x.name for x in scans_dir.iterdir() if x.is_dir() and DATE_RE.match(x.name)]
+    # sort by actual date-ish string; lexicographic works for MM-DD-YY mostly, but reverse is nice
+    return sorted(dates, reverse=True)
+
+def _parse_label_from_filename(fname: str) -> str:
+    """
+    Turn eyescan_F1_1_Quad_121_X0Y4_to_F1_1_Quad_121_X0Y4.png
+    into a compact label. We can refine later.
+    """
+    m = EYESCAN_RE.match(fname)
+    if not m:
+        return fname
+    a = m.group("a")
+    b = m.group("b")
+    # Often a==b; in that case label just by side/quad/xy
+    if a == b:
+        return a.replace("_", " ")
+    return f"{a.replace('_',' ')} → {b.replace('_',' ')}"
+
+def _group_eyescan_artifacts(files: list[str]) -> list[dict]:
+    """
+    Group png/pdf/csv of the same base scan into one card.
+    """
+    buckets: dict[str, dict] = {}
+
+    for f in files:
+        p = Path(f)
+        ext = p.suffix.lower()
+        if ext not in ALLOWED_EXTS:
+            continue
+
+        m = EYESCAN_RE.match(p.name)
+        if not m:
+            # not a standard eyescan file; ignore for "eyescan grid"
+            continue
+
+        base = p.stem  # eyescan_..._to_...
+        if base not in buckets:
+            buckets[base] = {
+                "base": base,
+                "label": _parse_label_from_filename(p.name),
+                "png": None,
+                "pdf": None,
+                "csv": None,
+            }
+
+        if ext == ".png":
+            buckets[base]["png"] = p.name
+        elif ext == ".pdf":
+            buckets[base]["pdf"] = p.name
+        elif ext == ".csv":
+            buckets[base]["csv"] = p.name
+
+    # stable order by label
+    items = list(buckets.values())
+    items.sort(key=lambda x: x["label"].lower())
+    return items
+
+def _list_date_files(serial_dir: str, date: str) -> list[str]:
+    date_dir = _safe_under(APOLLO_ROOT, f"{serial_dir}/scans/{date}")
+    if not date_dir.exists() or not date_dir.is_dir():
+        return []
+    return sorted([x.name for x in date_dir.iterdir() if x.is_file()])
