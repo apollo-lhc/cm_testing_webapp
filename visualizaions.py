@@ -2,10 +2,10 @@
 """
 Defines routes and logic for visualizing Eyescan data in the Flask web application.
 Routes:
-- /viz: Main visualization menu for selecting serial numbers and dates.
-- /viz/<serial>/date/<date>: Page to view Eyescan data for a specific serial and date.
-- /viz/api/<serial>/date/<date>: API endpoint returning JSON data for Eyescan artifacts.
-- /viz/file/<serial>/<date>/<filename>: Endpoint to serve individual Eyescan files.
+- /eyescan: Main visualization menu for selecting serial numbers and dates.
+- /eyescan/<serial>/date/<date>: Page to view Eyescan data for a specific serial and date.
+- /eyescan/api/<serial>/date/<date>: API endpoint returning JSON data for Eyescan artifacts.
+- /eyescan/file/<serial>/<date>/<filename>: Endpoint to serve individual Eyescan files.
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, send_from_directory, abort, jsonify
@@ -26,16 +26,20 @@ def eyescan_home():
     dates = _list_dates(selected_serial) if selected_serial else []
 
     return render_template(
-        "viz/eyescan_menu.html",
+        "vis/eyescan_menu.html",
         serials=serials,
         selected_serial=selected_serial,
         dates=dates,
     )
 
+
 @visualizations_bp.route("/eyescan/<serial>/date/<date>")
 def eyescan_date(serial: str, date: str):
     if "user_id" not in session:
         return redirect(url_for("login"))
+
+    if not DATE_RE.match(date):
+        abort(400)
 
     # validate existence via safe resolve
     try:
@@ -43,20 +47,17 @@ def eyescan_date(serial: str, date: str):
     except ValueError:
         abort(400)
 
-    if not DATE_RE.match(date):
-        abort(400)
-
-    # Used by template JS to fetch JSON
     return render_template(
-        "viz/eyescan_date.html",
+        "vis/eyescan_date.html",
         serial=serial,
         date=date,
     )
 
+
 @visualizations_bp.route("/eyescan/api/<serial>/date/<date>")
 def eyescan_date_api(serial: str, date: str):
     if "user_id" not in session:
-        return abort(401)
+        abort(401)
 
     if not DATE_RE.match(date):
         abort(400)
@@ -66,15 +67,20 @@ def eyescan_date_api(serial: str, date: str):
 
     # Build URLs
     def file_url(fname: str) -> str:
-        return url_for("visualizations.viz_file", serial=serial, date=date, filename=fname)
+        return url_for(
+            "visualizations.eyescan_file",
+            serial=serial,
+            date=date,
+            filename=fname,
+        )
 
     payload = []
     for c in cards:
         payload.append({
             "label": c["label"],
-            "png": file_url(c["png"]) if c["png"] else None,
-            "pdf": file_url(c["pdf"]) if c["pdf"] else None,
-            "csv": file_url(c["csv"]) if c["csv"] else None,
+            "png": file_url(c["png"]) if c.get("png") else None,
+            "pdf": file_url(c["pdf"]) if c.get("pdf") else None,
+            "csv": file_url(c["csv"]) if c.get("csv") else None,
         })
 
     return jsonify({
@@ -83,6 +89,7 @@ def eyescan_date_api(serial: str, date: str):
         "count": len(payload),
         "items": payload,
     })
+
 
 @visualizations_bp.route("/eyescan/file/<serial>/<date>/<path:filename>")
 def eyescan_file(serial: str, date: str, filename: str):
