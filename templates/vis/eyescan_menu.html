@@ -3,7 +3,7 @@
 <div class="container">
   <h2>Eyescans</h2>
 
-  <form method="get" action="{{ url_for('visualizations.viz_home') }}" class="mb-3">
+  <form method="get" action="{{ url_for('visualizations.eyescan_home') }}" class="mb-3">
     <label>Serial directory</label>
     <select name="serial" onchange="this.form.submit()">
       <option value="">-- select --</option>
@@ -19,7 +19,7 @@
       <ul class="list-group">
         {% for d in dates %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
-            <a href="{{ url_for('visualizations.viz_date', serial=selected_serial, date=d) }}">{{ d }}</a>
+            <a href="{{ url_for('visualizations.eyescan_date', serial=selected_serial, date=d) }}">{{ d }}</a>
             <span class="text-muted">/{{ selected_serial }}/scans/{{ d }}</span>
           </li>
         {% endfor %}

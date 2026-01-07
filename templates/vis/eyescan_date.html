@@ -8,7 +8,7 @@
     </div>
     <div>
       <a class="btn btn-outline-secondary"
-         href="{{ url_for('visualizations.viz_home', serial=serial) }}">
+         href="{{ url_for('visualizations.eyescan_home', serial=serial) }}">
         Back
       </a>
     </div>
@@ -25,7 +25,7 @@
   const status = document.getElementById("status");
   const grid = document.getElementById("grid");
 
-  const apiUrl = "{{ url_for('visualizations.viz_date_api', serial=serial, date=date) }}";
+  const apiUrl = "{{ url_for('visualizations.eyescan_date_api', serial=serial, date=date) }}";
 
   try {
     const res = await fetch(apiUrl, { credentials: "same-origin" });
