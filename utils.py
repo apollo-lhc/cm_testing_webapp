@@ -292,7 +292,7 @@ def authenticate_admin():
 
 # ==== EYESCAN BROWSING HELPERS ====
 
-def _safe_under(root: Path, rel: str) -> Path:
+def _safe_under(root: Path, rel: str):
     rel = (rel or "").strip()
     if rel.startswith(("/", "\\")) or ".." in rel:
         raise ValueError("invalid rel path")
@@ -301,7 +301,7 @@ def _safe_under(root: Path, rel: str) -> Path:
         raise ValueError("escapes root")
     return p
 
-def _list_serial_dirs() -> list[str]:
+def _list_serial_dirs():
     """
     List directories under APOLLO_ROOT that have a 'scans' subdirectory.
     This matches your pattern: APOLLO_ROOT/CM3006/scans/...
@@ -319,7 +319,7 @@ def _list_serial_dirs() -> list[str]:
 
     return sorted(out, key=str.lower)
 
-def _list_dates(serial_dir: str) -> list[str]:
+def _list_dates(serial_dir: str):
     scans_dir = _safe_under(APOLLO_ROOT, f"{serial_dir}/scans")
     if not scans_dir.exists() or not scans_dir.is_dir():
         return []
@@ -327,7 +327,7 @@ def _list_dates(serial_dir: str) -> list[str]:
     # sort by actual date-ish string; lexicographic works for MM-DD-YY mostly, but reverse is nice
     return sorted(dates, reverse=True)
 
-def _parse_label_from_filename(fname: str) -> str:
+def _parse_label_from_filename(fname: str):
     """
     Turn eyescan_F1_1_Quad_121_X0Y4_to_F1_1_Quad_121_X0Y4.png
     into a compact label. We can refine later.
@@ -342,7 +342,7 @@ def _parse_label_from_filename(fname: str) -> str:
         return a.replace("_", " ")
     return f"{a.replace('_',' ')} → {b.replace('_',' ')}"
 
-def _group_eyescan_artifacts(files: list[str]) -> list[dict]:
+def _group_eyescan_artifacts(files: list[str]):
     """
     Group png/pdf/csv of the same base scan into one card.
     """
@@ -381,7 +381,7 @@ def _group_eyescan_artifacts(files: list[str]) -> list[dict]:
     items.sort(key=lambda x: x["label"].lower())
     return items
 
-def _list_date_files(serial_dir: str, date: str) -> list[str]:
+def _list_date_files(serial_dir: str, date: str):
     date_dir = _safe_under(APOLLO_ROOT, f"{serial_dir}/scans/{date}")
     if not date_dir.exists() or not date_dir.is_dir():
         return []
