@@ -3,6 +3,34 @@
 <div class="container">
   <h2>Eyescans</h2>
 
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% if session.get('user_id') %}
+    {% set user = current_user() %}
+  {% endif %}
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+    <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+    {% if user and user.administrator %}
+      <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
+      <a href="{{ url_for('admin.deleted_entries') }}" class="btn btn-outline-red">View Deleted Forms</a>
+    {% endif %}
+    <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+  </div>
+
   <form method="get" action="{{ url_for('visualizations.eyescan_home') }}" class="mb-3">
     <label>Serial directory</label>
     <select name="serial" onchange="this.form.submit()">
