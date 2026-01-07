@@ -342,11 +342,11 @@ def _parse_label_from_filename(fname: str):
         return a.replace("_", " ")
     return f"{a.replace('_',' ')} → {b.replace('_',' ')}"
 
-def _group_eyescan_artifacts(files: list[str]):
+def _group_eyescan_artifacts(files):
     """
     Group png/pdf/csv of the same base scan into one card.
     """
-    buckets: dict[str, dict] = {}
+    buckets = {}
 
     for f in files:
         p = Path(f)
