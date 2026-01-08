@@ -27,14 +27,14 @@
         role="button"
         data-bs-toggle="collapse"
         data-bs-target="#failedHelp"
-        aria-expanded="true">
+        aria-expanded="false">
       <strong>About this page</strong>
       <span id="help-toggle-text" class="text-muted small">
         Click to hide
       </span>
     </div>
 
-    <div id="failedHelp" class="collapse show">
+    <div id="failedHelp" class="collapse">
       <div class="card-body">
         <ul class="mb-0">
           <li>
@@ -233,5 +233,9 @@
     helpText.textContent = "Click to expand";
   });
 
+
 </script>
+
+
+
 {% endblock %}
