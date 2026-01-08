@@ -212,27 +212,48 @@
     }
   });
 
-  const helpCollapse = document.getElementById("failedHelp");
-  const helpText = document.getElementById("help-toggle-text");
+  // Help section state persistence on autorefresh and changing label
 
-  function setLabel() {
-    helpText.textContent = helpCollapse.classList.contains("show")
-      ? "Click to hide"
-      : "Click to expand";
-  }
+  document.addEventListener("DOMContentLoaded", () => {
+    const HELP_KEY = "failedHelpExpanded";
 
-  // correct initial label on load
-  setLabel();
+    const helpEl = document.getElementById("failedHelp");
+    const helpText = document.getElementById("help-toggle-text");
+    const helpHeader = document.querySelector('[data-bs-target="#failedHelp"]');
 
-  // instant updates (at start of transition)
-  helpCollapse.addEventListener("show.bs.collapse", () => {
-    helpText.textContent = "Click to hide";
+    if (!helpEl || !helpText) return;
+
+    // Create a Bootstrap Collapse controller
+    const help = new bootstrap.Collapse(helpEl, { toggle: false });
+
+    function setLabel(isOpen) {
+      helpText.textContent = isOpen ? "Click to hide" : "Click to expand";
+      if (helpHeader) helpHeader.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    }
+
+    // Restore state (default = closed)
+    const saved = localStorage.getItem(HELP_KEY);
+    const shouldOpen = (saved === "true");
+
+    if (shouldOpen) {
+      help.show();
+      setLabel(true);
+    } else {
+      help.hide();
+      setLabel(false);
+    }
+
+    // Persist state after transitions complete
+    helpEl.addEventListener("shown.bs.collapse", () => {
+      localStorage.setItem(HELP_KEY, "true");
+      setLabel(true);
+    });
+
+    helpEl.addEventListener("hidden.bs.collapse", () => {
+      localStorage.setItem(HELP_KEY, "false");
+      setLabel(false);
+    });
   });
-
-  helpCollapse.addEventListener("hide.bs.collapse", () => {
-    helpText.textContent = "Click to expand";
-  });
-
 
 </script>
 
