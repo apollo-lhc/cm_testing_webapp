@@ -133,10 +133,29 @@ def logout():
 
 @app.route('/')
 def home():
-    """home page route"""
-    if 'user_id' not in session:
+    """Home page route."""
+    user_id = session.get('user_id')
+    if not user_id:
         return redirect(url_for('login'))
-    return render_template('index.html')
+
+    user = User.query.get(user_id)
+    has_open_form = False
+
+    if user and user.form_id:
+        entry = TestEntry.query.get(user.form_id)
+
+        if entry and not entry.is_finished:
+            has_open_form = True
+        else:
+            user.form_id = None
+            db.session.commit()
+
+    return render_template(
+        'index.html',
+        user=user,
+        has_open_form=has_open_form,
+    )
+
 
 @app.route("/entry/<int:entry_id>/form_home")
 def form_home(entry_id):

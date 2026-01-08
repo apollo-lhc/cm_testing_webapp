@@ -164,7 +164,15 @@
     <div class="col-md-8 text-center">
 
       <div class="button-grid">
-        <a href="{{ url_for('restart_forms') }}" class="btn btn-outline-red btn-lg custom-btn">Start New Test Entry</a>
+        {% if has_open_form %}
+          <a href="{{ url_for('form') }}" class="btn btn-outline-red btn-lg custom-btn">
+            Resume Current Test Entry
+          </a>
+        {% else %}
+          <a href="{{ url_for('restart_forms') }}" class="btn btn-outline-red btn-lg custom-btn">
+            Start New Test Entry
+          </a>
+        {% endif %}
         <a href="{{ url_for('history') }}" class="btn btn-outline-red btn-lg custom-btn">View Test History</a>
         <a href="/dashboard" class="btn btn-outline-red btn-lg custom-btn">Saved Tests</a>
         <a href="{{ url_for('failed_tests') }}" class="btn btn-outline-red btn-lg custom-btn">Failed Tests</a>
