@@ -27,7 +27,7 @@ from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
 from admin_routes import admin_bp
 from admin_form_editor import form_editor_bp
-from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock, page_is_complete
+from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock, page_is_complete, _list_dates, _list_serial_dirs
 from constants import EASTERN_TZ
 from visualizaions import visualizations_bp
 
@@ -589,6 +589,7 @@ def history():
 
     return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle, now=datetime.now(EASTERN_TZ))
 
+
 @app.route('/entry/<int:entry_id>')
 def entry_detail(entry_id):
     """Expanded view of entry."""
@@ -596,21 +597,61 @@ def entry_detail(entry_id):
         return redirect(url_for('login'))
 
     entry = db.session.get(TestEntry, entry_id)
-
     if not entry:
-        flash(f"No entry found with ID{entry_id}.", "warning")
+        flash(f"No entry found with ID {entry_id}.", "warning")
         return redirect(url_for('history'))
 
-    # collect all visible fields (like in /history)
+    # collect all visible fields
     all_fields = []
     for form_page in FORMS_NON_DICT:
-        all_fields.extend([f for f in form_page.fields if getattr(f, "display_history", True)])
+        all_fields.extend(
+            f for f in form_page.fields
+            if getattr(f, "display_history", True)
+        )
+
+    # ---- Eyescan discovery  ----
+    eyescan_serial = None
+    eyescan_dates = []
+
+    try:
+        raw = (entry.data.get("CM_serial") or "").strip()
+        if raw:
+            # normalize to digits if possible
+            digits = raw[2:] if raw.upper().startswith("CM") else raw
+            digits = digits.strip()
+
+            # candidate directory names we will accept
+            candidates = []
+            if digits.isdigit():
+                candidates = [f"CM{digits}", digits]  # prefer CM#### but allow ####
+            else:
+                # if someone stored something odd, try it directly and as CM-prefixed
+                candidates = [raw, f"CM{raw}"]
+
+            # check what actually exists in APOLLO_ROOT
+            serial_dirs = set(_list_serial_dirs() or [])
+            for cand in candidates:
+                if cand in serial_dirs:
+                    eyescan_serial = cand
+                    break
+
+            # if we found a real directory, list scan dates
+            if eyescan_serial:
+                eyescan_dates = _list_dates(eyescan_serial) or []
+
+    except Exception:
+        #incase it doesnt exist or other error
+        eyescan_serial = None
+        eyescan_dates = []
 
     return render_template(
         "entry_detail.html",
         entry=entry,
         fields=all_fields,
+        eyescan_serial=eyescan_serial,
+        eyescan_dates=eyescan_dates,
     )
+
 
 @app.route('/export_csv')
 def export_csv():

@@ -22,7 +22,7 @@
   <div class="entry-container mx-auto">
     <div class="entry-header text-white fw-bold fs-5 px-4 py-3"
          style="background-color: {{ header_color }};">
-         
+
       <i class="bi bi-cpu"></i>
       CM{{ entry.data.get('CM_serial', '-') }} • {{ status|capitalize }}
     </div>
@@ -84,9 +84,70 @@
           </table>
         </div>
       </section>
+
+      <hr class="divider">
+
+      <section class="mb-4">
+        <h4 class="section-title">Eyescan Results</h4>
+
+        {% if eyescan_serial and eyescan_dates %}
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge rounded-pill text-bg-success">Available</span>
+            <span class="text-muted small">({{ eyescan_serial }})</span>
+
+            <div style="min-width: 260px;">
+              <select id="eyescan-date" class="form-select">
+                {% for d in eyescan_dates %}
+                  <option value="{{ d }}">{{ d }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <a id="eyescan-view-btn"
+               class="btn btn-outline-dark"
+               href="{{ url_for('visualizations.eyescan_date', serial=eyescan_serial, date=eyescan_dates[0]) }}">
+              View Eyescans
+            </a>
+          </div>
+        {% else %}
+          <div class="text-muted small fst-italic">
+            No eyescan data found for this entry.
+          </div>
+        {% endif %}
+      </section>
+
+
+
     </div>
   </div>
 </main>
+
+
+{% if eyescan_serial and eyescan_dates %}
+<script>
+(function () {
+  const serial = {{ eyescan_serial|tojson }};
+  const dateSelect = document.getElementById("eyescan-date");
+  const viewBtn = document.getElementById("eyescan-view-btn");
+  // use url for incase i change to /eyescan instead of /vis/...
+  const baseUrl = {{ url_for('visualizations.eyescan_date',
+                             serial='__SERIAL__',
+                             date='__DATE__') | tojson }};
+
+  function sync() {
+    const d = dateSelect.value;
+    viewBtn.href = baseUrl
+      .replace('__SERIAL__', encodeURIComponent(serial))
+      .replace('__DATE__', encodeURIComponent(d));
+  }
+
+  dateSelect.addEventListener("change", sync);
+  sync();
+})();
+</script>
+
+{% endif %}
+
 
 
 <style>
@@ -209,9 +270,6 @@
     .table tbody td {
     border-bottom: 1px solid #e2e2e2; /* softer horizontal divider */
     }
-
-
-
 
 
 </style>
