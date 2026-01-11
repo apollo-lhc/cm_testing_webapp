@@ -15,6 +15,25 @@ from utils import _safe_under, _list_serial_dirs, _list_dates, _list_date_files,
 
 visualizations_bp = Blueprint("visualizations", __name__)
 
+@visualizations_bp.route("/")
+def vis_home():
+    """
+    Visualizations landing page (mounted at /vis/).
+    """
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    viz_tiles = [
+        {
+            "title": "Eyescan Browser",
+            "description": "Browse eyescan artifacts by CM serial and scan date.",
+            "href": url_for("visualizations.eyescan_home"),
+            "icon": "bi-graph-up",  # optional if you're using Bootstrap Icons
+        },
+
+    ]
+
+    return render_template("vis/vis_home.html", viz_tiles=viz_tiles)
 
 @visualizations_bp.route("/eyescan")
 def eyescan_home():

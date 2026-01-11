@@ -156,7 +156,6 @@ def home():
         has_open_form=has_open_form,
     )
 
-
 @app.route("/entry/<int:entry_id>/form_home")
 def form_home(entry_id):
     if "user_id" not in session:
@@ -588,7 +587,6 @@ def history():
         entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
 
     return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle, now=datetime.now(EASTERN_TZ))
-
 
 @app.route('/entry/<int:entry_id>')
 def entry_detail(entry_id):

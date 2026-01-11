@@ -26,6 +26,7 @@
 
   <div class="d-flex flex-wrap gap-2 mb-3">
     <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+    <a href="{{ url_for('visualizations.vis_home') }}" class="btn btn-outline-red">Visualizations</a>
     <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
     {% if user and user.administrator %}
       <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
