@@ -1,0 +1,50 @@
+{# templates/vis/home.html #}
+{% extends "base.html" %}
+
+{% block title %}Visualizations{% endblock %}
+{% block page_title %}Apollo CM Testing • Visualizations{% endblock %}
+
+{% block content %}
+<main class="container py-5">
+
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h2 class="mb-1">Visualizations</h2>
+            <div class="text-muted">
+                Browse plots, scans, and diagnostic artifacts.
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 ms-auto">
+            <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+            <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+            <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+        </div>
+        <div class="d-flex justify-content-between align-items-start mt-4 flex-wrap">
+        </div>
+
+    <div class="row g-4">
+        {% for t in viz_tiles %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <a href="{{ t.href }}" class="text-decoration-none">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            {% if t.icon %}
+                            <i class="{{ t.icon }} fs-4"></i>
+                            {% endif %}
+                            <h5 class="card-title mb-0">{{ t.title }}</h5>
+                        </div>
+                        <p class="card-text text-muted mb-0">{{ t.description }}</p>
+                    </div>
+                    <div class="card-footer bg-white border-0 pt-0">
+                        <span class="btn btn-sm btn-primary fw-semibold">Open</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+</main>
+{% endblock %}

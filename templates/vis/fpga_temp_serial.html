@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}FPGA Temps • CM{{ serial }}{% endblock %}
+{% block page_title %}Apollo CM Testing • FPGA Temperature Detail • CM{{ serial }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="mb-0">CM{{ serial }} • FPGA Temperature</h2>
+      <div id="counts" class="text-muted small">Loading…</div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 ms-auto">
+
+      <a class="btn btn-outline-red"
+          href="#"
+          data-smart-back
+          data-fallback="{{ request.referrer or url_for('home') }}">
+          &larr; Back
+      </a>
+
+      <a href="{{ url_for('visualizations.fpga_temp_home') }}" class="btn btn-outline-red">All Boards</a>
+      <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+      <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>        <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+      <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+    </div>
+
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="text-muted small mb-2">
+        Each point is one test entry. Y-values are max temps recorded in that entry.
+      </div>
+      <canvas id="serialChart" height="130"></canvas>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-light">
+      <strong>Tests for CM{{ serial }} with FPGA Temp Data</strong>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Entry ID</th>
+              <th>FPGA1 max (°C)</th>
+              <th>FPGA2 max (°C)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="5" class="text-muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+(function() {
+  const apiUrl = "{{ url_for('visualizations.fpga_temp_api_serial', serial=serial) }}";
+
+  function fmtTs(iso) {
+    if (!iso) return "";
+    return iso.replace("T", " ").replace("Z", "").split(".")[0];
+  }
+  function fmtNum(x) {
+    if (x === null || x === undefined) return "";
+    const n = Number(x);
+    if (!Number.isFinite(n)) return "";
+    return n.toFixed(1);
+  }
+
+  fetch(apiUrl, { credentials: "same-origin" })
+    .then(r => r.json())
+    .then(data => {
+      const tests = data.tests || [];
+      document.getElementById("counts").textContent = `${data.count_tests || 0} tests with temp data`;
+
+      // ---- chart: max temps per entry over time ----
+      const labels = tests.map(t => fmtTs(t.timestamp));
+      const fpga1 = tests.map(t => t.fpga1_max);
+      const fpga2 = tests.map(t => t.fpga2_max);
+
+      const ctx = document.getElementById("serialChart");
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            { label: "FPGA 1 max (°C)", data: fpga1, spanGaps: true },
+            { label: "FPGA 2 max (°C)", data: fpga2, spanGaps: true },
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: true } },
+          scales: {
+            x: { title: { display: true, text: "Test timestamp" } },
+            y: { title: { display: true, text: "Temperature (°C)" } },
+          }
+        }
+      });
+
+      // ---- table ----
+      const tbody = document.getElementById("tbody");
+      if (!tests.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-muted">No tests found with temp data.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = "";
+      for (const t of tests.slice().reverse()) { // newest first in table
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="text-muted">${fmtTs(t.timestamp)}</td>
+          <td>${t.entry_id}</td>
+          <td>${fmtNum(t.fpga1_max)}</td>
+          <td>${fmtNum(t.fpga2_max)}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" href="/entry/${t.entry_id}">View entry detail</a>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById("tbody").innerHTML =
+        `<tr><td colspan="5" class="text-danger">Failed to load serial data.</td></tr>`;
+    });
+})();
+</script>
+{% endblock %}

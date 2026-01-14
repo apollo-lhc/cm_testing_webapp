@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% block title %}Power Up Test{% endblock %}
+{% block page_title %}Apollo CM Testing • Power Up Test{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <div class="d-flex align-items-center flex-wrap gap-3 mb-3">
+    <h2 class="mb-0">Power Up Test (All Boards)</h2>
+
+    <div class="d-flex flex-wrap gap-2 ms-auto">
+        <a class="btn btn-outline-red"
+          href="#"
+          data-smart-back
+          data-fallback="{{ request.referrer or url_for('home') }}">
+          &larr; Back
+        </a>
+        <a href="{{ url_for('visualizations.vis_home') }}" class="btn btn-outline-red">Visualizations</a>
+        <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+        <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+    </div>
+    </div>
+
+  <div class="mb-2 text-muted small">
+    Most recent test per board that contains any Power Up Test measurement.
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mb-3" id="metricControls">
+    <button type="button" class="btn btn-sm btn-primary active" data-metric="p_est_w">Est. Power (W)</button>
+    <button type="button" class="btn btn-sm btn-primary active" data-metric="power_supply_voltage_v">Voltage (V)</button>
+    <button type="button" class="btn btn-sm btn-primary active" data-metric="current_draw_ma">Current (mA)</button>
+    <button type="button" class="btn btn-sm btn-primary active" data-metric="management_power_ma">Mgmt 3.3V (mA)</button>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12" id="card_p_est_w">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small mb-2">Estimated Power (W) — latest per board</div>
+          <canvas id="chartPower" height="110"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12" id="card_power_supply_voltage_v">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small mb-2">Voltage (V) — latest per board</div>
+          <canvas id="chartVolt" height="110"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12" id="card_current_draw_ma">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small mb-2">Current Draw (mA) — latest per board</div>
+          <canvas id="chartCurr" height="110"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12" id="card_management_power_ma">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small mb-2">3.3V Mgmt Current (mA) — latest per board</div>
+          <canvas id="chartMgmt" height="110"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mt-3">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+      <strong>Tests with Power Up Test Data</strong>
+      <span id="counts" class="text-muted small"></span>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Serial</th>
+              <th>Entry</th>
+              <th>Timestamp</th>
+              <th>P_est (W)</th>
+              <th>V (V)</th>
+              <th>I (mA)</th>
+              <th>Mgmt (mA)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="testsTbody">
+            <tr><td colspan="8" class="text-muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+(function () {
+  const apiUrl = "{{ url_for('visualizations.power_api_all') }}";
+
+  // --- persistence key (all-boards page) ---
+  const STORAGE_KEY = "power_all_visible_metrics:v1";
+
+  const METRICS = [
+    "p_est_w",
+    "power_supply_voltage_v",
+    "current_draw_ma",
+    "management_power_ma",
+  ];
+
+  function fmtTs(iso) {
+    if (!iso) return "";
+    return iso.replace("T"," ").replace("Z","").split(".")[0];
+  }
+  function fmtNum(x, digits=2) {
+    if (x === null || x === undefined) return "";
+    const n = Number(x);
+    if (!Number.isFinite(n)) return "";
+    return n.toFixed(digits);
+  }
+
+  // default: show everything
+  const activeMetrics = new Set(METRICS);
+
+  function saveVisibleMetrics() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(activeMetrics)));
+    } catch (e) {}
+  }
+
+  function loadVisibleMetrics() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+
+      activeMetrics.clear();
+      for (const m of arr) {
+        if (METRICS.includes(m)) activeMetrics.add(m);
+      }
+      if (activeMetrics.size === 0) activeMetrics.add("p_est_w");
+    } catch (e) {}
+  }
+
+  // restore state before binding UI
+  loadVisibleMetrics();
+
+  function applyVisibility() {
+    for (const m of METRICS) {
+      const card = document.getElementById("card_" + m);
+      if (card) card.style.display = activeMetrics.has(m) ? "" : "none";
+    }
+  }
+
+  function toggleBtn(btn, on) {
+    btn.classList.toggle("active", on);
+    btn.classList.toggle("btn-primary", on);
+    btn.classList.toggle("btn-outline-primary", !on);
+  }
+
+  // chart colors (explicit so they don’t all look the same)
+  const COLORS = {
+    p_est_w: "#e45762",                 // red-ish
+    power_supply_voltage_v: "#4c78a8",  // blue
+    current_draw_ma: "#72b7b2",         // teal
+    management_power_ma: "#f2cf5b",     // yellow
+  };
+
+  document.querySelectorAll("#metricControls [data-metric]").forEach(btn => {
+    const m = btn.dataset.metric;
+    toggleBtn(btn, activeMetrics.has(m));
+
+    btn.addEventListener("click", () => {
+      if (activeMetrics.has(m)) activeMetrics.delete(m);
+      else activeMetrics.add(m);
+
+      // keep at least one visible
+      if (activeMetrics.size === 0) activeMetrics.add("p_est_w");
+
+      document.querySelectorAll("#metricControls [data-metric]").forEach(b => {
+        toggleBtn(b, activeMetrics.has(b.dataset.metric));
+      });
+
+      applyVisibility();
+      saveVisibleMetrics();
+    });
+  });
+
+  // apply immediately (before fetch) so UI doesn't flash everything open
+  applyVisibility();
+
+  let cached = null;
+  let charts = { power: null, volt: null, curr: null, mgmt: null };
+
+  function buildLineChart(canvasId, labels, data, label, yTitle, color) {
+    const el = document.getElementById(canvasId);
+    if (!el) return null;
+
+    return new Chart(el, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label,
+          data,
+          spanGaps: true,
+          borderColor: color,
+          backgroundColor: color,
+          borderWidth: 2,
+          pointRadius: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: true } },
+        scales: {
+          y: { title: { display: true, text: yTitle } }
+        }
+      }
+    });
+  }
+
+  function renderCharts(latest) {
+    const labels = latest.map(r => "CM" + r.serial);
+
+    if (charts.power) charts.power.destroy();
+    if (charts.volt) charts.volt.destroy();
+    if (charts.curr) charts.curr.destroy();
+    if (charts.mgmt) charts.mgmt.destroy();
+
+    charts.power = buildLineChart(
+      "chartPower",
+      labels,
+      latest.map(r => r.p_est_w),
+      "Est. Power (W)",
+      "W",
+      COLORS.p_est_w
+    );
+
+    charts.volt = buildLineChart(
+      "chartVolt",
+      labels,
+      latest.map(r => r.power_supply_voltage_v),
+      "Voltage (V)",
+      "V",
+      COLORS.power_supply_voltage_v
+    );
+
+    charts.curr = buildLineChart(
+      "chartCurr",
+      labels,
+      latest.map(r => r.current_draw_ma),
+      "Current Draw (mA)",
+      "mA",
+      COLORS.current_draw_ma
+    );
+
+    charts.mgmt = buildLineChart(
+      "chartMgmt",
+      labels,
+      latest.map(r => r.management_power_ma),
+      "Mgmt 3.3V Current (mA)",
+      "mA",
+      COLORS.management_power_ma
+    );
+  }
+
+  function renderTable(tests) {
+    const tbody = document.getElementById("testsTbody");
+    const counts = document.getElementById("counts");
+
+    counts.textContent = `${cached.count_latest || 0} boards • ${cached.count_tests || 0} tests`;
+
+    if (!tests.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-muted">No tests with power data found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = "";
+    for (const row of tests) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="fw-semibold">CM${row.serial}</td>
+        <td>${row.entry_id}</td>
+        <td class="text-muted">${fmtTs(row.timestamp)}</td>
+        <td>${fmtNum(row.p_est_w, 3)}</td>
+        <td>${fmtNum(row.power_supply_voltage_v, 3)}</td>
+        <td>${fmtNum(row.current_draw_ma, 1)}</td>
+        <td>${fmtNum(row.management_power_ma, 1)}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-secondary" href="${row.serial_url}">Board Detail</a>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  fetch(apiUrl, { credentials: "same-origin" })
+    .then(r => r.json())
+    .then(data => {
+      cached = data;
+      const latest = cached.latest_per_board || [];
+      renderCharts(latest);
+      renderTable(cached.tests || []);
+      applyVisibility();
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById("testsTbody").innerHTML =
+        `<tr><td colspan="8" class="text-danger">Failed to load power data.</td></tr>`;
+    });
+})();
+</script>
+
+{% endblock %}
