@@ -7,12 +7,9 @@
 
   <!-- Top nav row -->
   <div class="d-flex align-items-center flex-wrap gap-2 mb-4">
-    <a
-      href="{{ request.referrer or url_for('history') }}"
-      class="btn btn-outline-dark fw-semibold"
-    >
-      &larr; Back
-    </a>
+    <!--Make all back buttons safe with this-->
+    <a class="btn btn-outline-red" href="{{ request.referrer if request.referrer and request.referrer.startswith(request.host_url) else url_for('home') }}">
+      ← Back</a>
 
     <div class="d-flex flex-wrap gap-2 ms-auto">
       <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
@@ -134,7 +131,7 @@
         {% endif %}
       </section>
 
-            <hr class="divider">
+      <hr class="divider">
 
       <!-- FPGA Temp Section -->
       <section class="mb-4">
@@ -152,10 +149,92 @@
               href="{{ url_for('visualizations.fpga_temp_serial', serial=s) }}">
               View board temps over time
             </a>
+
+            <a class="btn btn-outline-dark"
+              href="{{ url_for('visualizations.fpga_temp_home') }}">
+              View all boards temp dashboard
+            </a>
           </div>
         {% else %}
           <div class="text-muted small fst-italic">
             No FPGA temp data found for this entry.
+          </div>
+        {% endif %}
+      </section>
+
+      <!-- Power Up Test -->
+
+      <hr class="divider">
+
+      <section class="mb-4">
+        <h4 class="section-title">Power Plots</h4>
+
+        {% set s = entry.data.get('CM_serial') %}
+        {% set v_raw = entry.data.get('power_supply_voltage') %}
+        {% set i_raw = entry.data.get('current_draw') %}
+        {% set mgmt_raw = entry.data.get('management_power') %}
+
+        {# Safe numeric conversion: only convert if not none/empty #}
+        {% set v_num = (v_raw|float) if (v_raw is not none and (v_raw|string)|trim != '') else none %}
+        {% set i_ma_num = (i_raw|float) if (i_raw is not none and (i_raw|string)|trim != '') else none %}
+        {% set mgmt_ma_num = (mgmt_raw|float) if (mgmt_raw is not none and (mgmt_raw|string)|trim != '') else none %}
+
+        {# Compute estimated power if we have V and I(mA) #}
+        {% set p_est = none %}
+        {% if v_num is not none and i_ma_num is not none %}
+          {% set p_est = v_num * (i_ma_num / 1000.0) %}
+        {% endif %}
+
+        {% set has_power = (v_num is not none) or (i_ma_num is not none) or (mgmt_ma_num is not none) %}
+
+        {% if s and has_power %}
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="badge rounded-pill text-bg-success">Available</span>
+            <span class="text-muted small">(CM{{ s }})</span>
+
+            <a class="btn btn-outline-dark"
+              href="{{ url_for('visualizations.power_serial', serial=s) }}">
+              View board power over time
+            </a>
+
+            {# update endpoint name if yours differs #}
+            <a class="btn btn-outline-dark"
+              href="{{ url_for('visualizations.power_home') }}">
+              View all boards power dashboard
+            </a>
+          </div>
+
+          <div class="text-muted small">
+            <span class="fw-semibold">This entry:</span>
+
+            {% if p_est is not none %}
+              P<sub>est</sub> ≈ <span class="fw-semibold">{{ "%.3f"|format(p_est) }}</span> W
+            {% else %}
+              P<sub>est</sub>: —
+            {% endif %}
+            &nbsp; • &nbsp;
+
+            V:
+            <span class="fw-semibold">
+              {% if v_num is not none %}{{ "%.3f"|format(v_num) }}{% else %}—{% endif %}
+            </span>
+
+            &nbsp; • &nbsp;
+            I:
+            <span class="fw-semibold">
+              {% if i_ma_num is not none %}{{ "%.1f"|format(i_ma_num) }}{% else %}—{% endif %}
+            </span> mA
+
+            &nbsp; • &nbsp;
+            Mgmt:
+            <span class="fw-semibold">
+              {% if mgmt_ma_num is not none %}{{ "%.1f"|format(mgmt_ma_num) }}{% else %}—{% endif %}
+            </span> mA
+          </div>
+
+        {% else %}
+          <div class="text-muted small fst-italic">
+            No Power Up Test data found for this entry.
           </div>
         {% endif %}
       </section>
@@ -189,6 +268,90 @@
   sync();
 })();
 </script>
+
+<script>
+(function () {
+  // Key per entry
+  const KEY = "entry_detail_scroll:" + {{ entry.id|tojson }};
+
+  // If the browser tries to do its own restoration + we do ours, it can jump.
+  if ("scrollRestoration" in history) {
+    history.scrollRestoration = "manual";
+  }
+
+  function getScrollY() {
+    return window.scrollY || document.documentElement.scrollTop || 0;
+  }
+
+  function setScrollY(y) {
+    window.scrollTo(0, y);
+  }
+
+  function save() {
+    try {
+      sessionStorage.setItem(KEY, String(getScrollY()));
+    } catch (e) {}
+  }
+
+  // Throttle saves to avoid spamming storage
+  let ticking = false;
+  window.addEventListener("scroll", () => {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(() => {
+      save();
+      ticking = false;
+    });
+  }, { passive: true });
+
+  // Decide if we should restore:
+  // - if returning via back/forward (bfcache) OR
+  // - if user explicitly adds ?restore=1 (optional) OR
+  // - if we have a saved value and the navigation type is "back_forward"
+  function shouldRestore() {
+    const qs = new URLSearchParams(window.location.search);
+    if (qs.get("restore") === "1") return true;
+
+    // PerformanceNavigationTiming is best effort; not always available
+    try {
+      const navs = performance.getEntriesByType("navigation");
+      if (navs && navs.length && navs[0].type === "back_forward") return true;
+    } catch (e) {}
+
+    return false;
+  }
+
+  function restore() {
+    let y = null;
+    try {
+      const raw = sessionStorage.getItem(KEY);
+      if (raw !== null) y = parseInt(raw, 10);
+    } catch (e) {}
+
+    if (!Number.isFinite(y) || y < 0) return;
+
+    // Wait a tick so layout is stable (tables, badges, etc.)
+    requestAnimationFrame(() => setScrollY(y));
+  }
+
+  // pageshow fires on normal load AND bfcache restore;
+  // persisted=true means from bfcache (classic "back button" case)
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted || shouldRestore()) restore();
+  });
+
+  // Also restore if user refreshes the page (optional).
+  // If you *don't* want refresh restore, delete this block.
+  window.addEventListener("load", () => {
+    // If you want refresh to restore too, uncomment:
+    // restore();
+  });
+
+  // Save right before leaving as well (some browsers won't fire scroll at the end)
+  window.addEventListener("pagehide", save);
+})();
+</script>
+
 
 {% endif %}
 

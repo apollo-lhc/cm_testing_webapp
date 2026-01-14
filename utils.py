@@ -202,7 +202,6 @@ def acquire_lock(entry_id, username):
     """Try to claim the lock; returns (success_flag, entry)."""
     now = datetime.now(EASTERN_TZ)
 
-    # ---- new WHERE clause (no imports needed) -----------------
     q = (
         TestEntry.query
         .filter(
@@ -213,8 +212,6 @@ def acquire_lock(entry_id, username):
             )
         )
     )
-    # -----------------------------------------------------------
-
     updated = q.update(
         {"lock_owner": username, "lock_acquired_at": now},
         synchronize_session=False,
@@ -291,7 +288,7 @@ def authenticate_admin():
         return False
     return True
 
-# ==== EYESCAN BROWSING HELPERS ====
+# ==== EYESCAN VIS BROWSING HELPERS ====
 
 def _safe_under(root: Path, rel: str):
     rel = (rel or "").strip()
@@ -325,7 +322,7 @@ def _list_dates(serial_dir: str):
     if not scans_dir.exists() or not scans_dir.is_dir():
         return []
     dates = [x.name for x in scans_dir.iterdir() if x.is_dir() and DATE_RE.match(x.name)]
-    # sort by actual date-ish string; lexicographic works for MM-DD-YY mostly, but reverse is nice
+    # sort by actual date string
     return sorted(dates, reverse=True)
 
 def _parse_label_from_filename(fname: str):
@@ -338,7 +335,6 @@ def _parse_label_from_filename(fname: str):
         return fname
     a = m.group("a")
     b = m.group("b")
-    # Often a==b; in that case label just by side/quad/xy
     if a == b:
         return a.replace("_", " ")
     return f"{a.replace('_',' ')} → {b.replace('_',' ')}"
@@ -357,10 +353,9 @@ def _group_eyescan_artifacts(files):
 
         m = EYESCAN_RE.match(p.name)
         if not m:
-            # not a standard eyescan file; ignore for "eyescan grid"
             continue
 
-        base = p.stem  # eyescan_..._to_...
+        base = p.stem
         if base not in buckets:
             buckets[base] = {
                 "base": base,
@@ -377,7 +372,6 @@ def _group_eyescan_artifacts(files):
         elif ext == ".csv":
             buckets[base]["csv"] = p.name
 
-    # stable order by label
     items = list(buckets.values())
     items.sort(key=lambda x: x["label"].lower())
     return items
@@ -399,7 +393,6 @@ def parse_csv_floats(raw):
     if raw is None:
         return []
     if isinstance(raw, (list, tuple)):
-        # if someone stored an array already
         out = []
         for x in raw:
             try:
@@ -428,19 +421,16 @@ def parse_csv_floats(raw):
             continue
     return out
 
-
 def _entry_serial(entry) -> str:
     d = entry.data if isinstance(entry.data, dict) else {}
     serial = str(d.get("CM_serial", "")).strip()
     return serial
-
 
 def _entry_fpga_temps(entry):
     d = entry.data if isinstance(entry.data, dict) else {}
     fpga1 = parse_csv_floats(d.get("link_test_fpga_temp_1"))
     fpga2 = parse_csv_floats(d.get("link_test_fpga_temp_2"))
     return fpga1, fpga2
-
 
 def _summarize(series):
     if not series:
@@ -449,3 +439,51 @@ def _summarize(series):
     mx = max(series)
     avg = sum(series) / n
     return {"n": n, "max": mx, "avg": avg}
+
+# ====== Power Test Vis Helpers ======
+
+def _as_float(x):
+    try:
+        if x is None:
+            return None
+        if isinstance(x, bool):
+            return None
+        s = str(x).strip()
+        if s == "":
+            return None
+        return float(s)
+    except (ValueError, TypeError):
+        return None
+
+def _entry_power_fields(e):
+    """
+    Pull scalar power-up-test fields from entry JSON:
+      - management_power (mA)
+      - power_supply_voltage (V)
+      - current_draw (mA)
+      - p_est_w = V * (mA/1000) if possible
+    """
+    d = e.data if isinstance(e.data, dict) else {}
+
+    mgmt_ma = _as_float(d.get("management_power"))
+    v = _as_float(d.get("power_supply_voltage"))
+    i_ma = _as_float(d.get("current_draw"))
+
+    p_est_w = None
+    if v is not None and i_ma is not None:
+        p_est_w = v * (i_ma / 1000.0)
+
+    return {
+        "management_power_ma": mgmt_ma,
+        "power_supply_voltage_v": v,
+        "current_draw_ma": i_ma,
+        "p_est_w": p_est_w,
+    }
+
+def _has_any_power_data(p):
+    return any(p.get(k) is not None for k in [
+        "management_power_ma",
+        "power_supply_voltage_v",
+        "current_draw_ma",
+        "p_est_w",
+    ])

@@ -1,4 +1,8 @@
 # visualizations.py
+
+# TODO Make one visualizaion tmeplate for all testing data just have a drop down to select what
+# TODO Fix vis back buttons getting stuck on intermediate menus
+
 """
 Defines routes and logic for visualizing Eyescan data in the Flask web application.
 Routes:
@@ -13,7 +17,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 
 from constants import APOLLO_ROOT, DATE_RE, ALLOWED_EXTS
 from models import TestEntry
-from utils import _safe_under, _list_serial_dirs, _list_dates, _list_date_files, _group_eyescan_artifacts, _entry_serial, _entry_fpga_temps, _summarize
+from utils import _safe_under, _list_serial_dirs, _list_dates, _list_date_files, _group_eyescan_artifacts, _entry_serial, _entry_fpga_temps, _summarize, _entry_power_fields, _has_any_power_data
 
 visualizations_bp = Blueprint("visualizations", __name__)
 
@@ -38,6 +42,12 @@ def vis_home():
             "href": url_for("visualizations.fpga_temp_home"),
             "icon": "bi-thermometer-half",
         },
+        {
+            "title": "Power Up Test",
+            "description": "Voltage/current measurements and estimated power across boards; drill into a board over time.",
+            "href": url_for("visualizations.power_home"),
+            "icon": "bi-battery-charging",
+        },
     ]
 
     return render_template("vis/vis_home.html", viz_tiles=viz_tiles)
@@ -58,7 +68,6 @@ def eyescan_home():
         dates=dates,
     )
 
-
 @visualizations_bp.route("/eyescan/<serial>/date/<date>")
 def eyescan_date(serial: str, date: str):
     if "user_id" not in session:
@@ -78,7 +87,6 @@ def eyescan_date(serial: str, date: str):
         serial=serial,
         date=date,
     )
-
 
 @visualizations_bp.route("/eyescan/api/<serial>/date/<date>")
 def eyescan_date_api(serial: str, date: str):
@@ -146,7 +154,6 @@ def eyescan_file(serial: str, date: str, filename: str):
 
     return send_from_directory(str(abs_dir), filename, as_attachment=False)
 
-
 # ================== FPGA TEMP VISUALIZATIONS  ==================
 
 @visualizations_bp.route("/fpga-temp")
@@ -155,13 +162,11 @@ def fpga_temp_home():
         return redirect(url_for("login"))
     return render_template("vis/fpga_temp_menu.html")
 
-
 @visualizations_bp.route("/fpga-temp/test/<int:entry_id>")
 def fpga_temp_test(entry_id: int):
     if "user_id" not in session:
         return redirect(url_for("login"))
     return render_template("vis/fpga_temp_test.html", entry_id=entry_id)
-
 
 @visualizations_bp.route("/fpga-temp/api/all")
 def fpga_temp_api_all():
@@ -173,7 +178,7 @@ def fpga_temp_api_all():
     if "user_id" not in session:
         abort(401)
 
-    # Tune this if needed. 5000 is usually plenty for dashboards.
+    # Tune this if needed, 5000 is usually plenty for dashboards.
     entries = (
         TestEntry.query
         .order_by(desc(TestEntry.timestamp))
@@ -211,12 +216,10 @@ def fpga_temp_api_all():
         }
         tests.append(row)
 
-        # first time we see a serial (we're iterating in desc timestamp order) => latest
         if serial not in latest_per_board:
             latest_per_board[serial] = row
 
     latest_list = list(latest_per_board.values())
-    # stable sort by serial (nice for x-axis)
     latest_list.sort(key=lambda r: str(r["serial"]).lower())
 
     return jsonify({
@@ -225,7 +228,6 @@ def fpga_temp_api_all():
         "count_latest": len(latest_list),
         "count_tests": len(tests),
     })
-
 
 @visualizations_bp.route("/fpga-temp/api/test/<int:entry_id>")
 def fpga_temp_api_test(entry_id: int):
@@ -254,13 +256,11 @@ def fpga_temp_serial(serial: str):
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    # serial stored as digits in DB (based on your _entry_serial)
     serial = str(serial).strip()
     if not serial.isdigit():
         abort(400)
 
     return render_template("vis/fpga_temp_serial.html", serial=serial)
-
 
 @visualizations_bp.route("/fpga-temp/api/serial/<serial>")
 def fpga_temp_api_serial(serial: str):
@@ -271,7 +271,6 @@ def fpga_temp_api_serial(serial: str):
     if not serial.isdigit():
         abort(400)
 
-    # Pull a bunch of entries; filter in python because CM_serial is inside JSON
     entries = (
         TestEntry.query
         .order_by(desc(TestEntry.timestamp))
@@ -304,7 +303,117 @@ def fpga_temp_api_serial(serial: str):
             "detail_url": url_for("visualizations.fpga_temp_test", entry_id=e.id),
         })
 
-    # reverse to chronological (nice for time series)
+    tests.sort(key=lambda r: r["timestamp"] or "")
+
+    return jsonify({
+        "serial": serial,
+        "tests": tests,
+        "count_tests": len(tests),
+    })
+
+# ================== POWER UP TEST VISUALIZATIONS  ==================
+
+@visualizations_bp.route("/power")
+def power_home():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    return render_template("vis/power_menu.html")
+
+@visualizations_bp.route("/power/serial/<serial>")
+def power_serial(serial: str):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    serial = str(serial).strip()
+    if not serial.isdigit():
+        abort(400)
+
+    return render_template("vis/power_serial.html", serial=serial)
+
+@visualizations_bp.route("/power/api/all")
+def power_api_all():
+    """
+    Returns:
+      - latest_per_board: most recent entry per serial that has any power-up-test data
+      - tests: all recent entries that have any power-up-test data
+    """
+    if "user_id" not in session:
+        abort(401)
+
+    entries = (
+        TestEntry.query
+        .order_by(desc(TestEntry.timestamp))
+        .limit(5000)
+        .all()
+    )
+
+    tests = []
+    latest_per_board = {}  # serial -> row
+
+    for e in entries:
+        serial = _entry_serial(e)
+        if not serial:
+            continue
+
+        p = _entry_power_fields(e)
+        if not _has_any_power_data(p):
+            continue
+
+        row = {
+            "entry_id": e.id,
+            "serial": serial,
+            "timestamp": e.timestamp.isoformat() if e.timestamp else None,
+            **p,
+            "serial_url": url_for("visualizations.power_serial", serial=serial),
+            "detail_url": url_for("entry_detail", entry_id=e.id) if "entry_detail" in globals() else f"/entry/{e.id}",
+        }
+        tests.append(row)
+
+        if serial not in latest_per_board:
+            latest_per_board[serial] = row
+
+    latest_list = list(latest_per_board.values())
+    latest_list.sort(key=lambda r: str(r["serial"]).lower())
+
+    return jsonify({
+        "latest_per_board": latest_list,
+        "tests": tests,
+        "count_latest": len(latest_list),
+        "count_tests": len(tests),
+    })
+
+@visualizations_bp.route("/power/api/serial/<serial>")
+def power_api_serial(serial: str):
+    if "user_id" not in session:
+        abort(401)
+
+    serial = str(serial).strip()
+    if not serial.isdigit():
+        abort(400)
+
+    entries = (
+        TestEntry.query
+        .order_by(desc(TestEntry.timestamp))
+        .limit(10000)
+        .all()
+    )
+
+    tests = []
+    for e in entries:
+        if _entry_serial(e) != serial:
+            continue
+
+        p = _entry_power_fields(e)
+        if not _has_any_power_data(p):
+            continue
+
+        tests.append({
+            "entry_id": e.id,
+            "timestamp": e.timestamp.isoformat() if e.timestamp else None,
+            **p,
+            "detail_url": f"/entry/{e.id}",
+        })
+
     tests.sort(key=lambda r: r["timestamp"] or "")
 
     return jsonify({

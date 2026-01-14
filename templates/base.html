@@ -171,3 +171,60 @@
     {% block scripts %}{% endblock %}
 </body>
 </html>
+
+
+<script>
+// Global script for smart back buttons and scroll position persistence
+(function () {
+  function keyForThisPage() {
+    return "scrollpos:" + location.pathname + location.search;
+  }
+
+  function saveScroll() {
+    try {
+      sessionStorage.setItem(keyForThisPage(), String(window.scrollY || 0));
+    } catch (e) {}
+  }
+
+  function restoreScroll() {
+    let y = null;
+    try {
+      const raw = sessionStorage.getItem(keyForThisPage());
+      if (raw != null) y = parseInt(raw, 10);
+    } catch (e) {}
+
+    if (!Number.isFinite(y) || y < 0) return;
+    requestAnimationFrame(() => window.scrollTo(0, y));
+  }
+
+  if ("scrollRestoration" in history) {
+    history.scrollRestoration = "manual";
+  }
+
+  window.addEventListener("pageshow", () => restoreScroll());
+
+  window.addEventListener("pagehide", saveScroll);
+
+  let ticking = false;
+  window.addEventListener("scroll", () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      saveScroll();
+      ticking = false;
+    });
+  }, { passive: true });
+
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-smart-back]");
+    if (!el) return;
+
+    e.preventDefault();
+    saveScroll();
+
+    const fallback = el.getAttribute("data-fallback") || "/";
+    if (history.length > 1) history.back();
+    else window.location.href = fallback;
+  });
+})();
+</script>
