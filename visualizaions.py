@@ -3,6 +3,7 @@
 # TODO Make one visualizaion tmeplate for all testing data just have a drop down to select what
 # TODO add a browser dark mode / light mode to fixx the coloring on the plots in all visualizations
 # TODO improve the print output for the power visualization in entry detail and other pages
+# TODO make power up test show only most rtecent test per serial on main page
 
 """
 Defines routes and logic for visualizing Eyescan data in the Flask web application.
