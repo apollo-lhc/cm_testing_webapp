@@ -2,6 +2,7 @@
 
 # TODO Make one visualizaion tmeplate for all testing data just have a drop down to select what
 # TODO add a browser dark mode / light mode to fixx the coloring on the plots in all visualizations
+# TODO improve the print output for the power visualization in entry detail and other pages
 
 """
 Defines routes and logic for visualizing Eyescan data in the Flask web application.
@@ -44,7 +45,7 @@ def vis_home():
         },
         {
             "title": "Power Up Test",
-            "description": "Voltage/current measurements and estimated power across boards; drill into a board over time.",
+            "description": "Voltage/current measurements and estimated power across boards.",
             "href": url_for("visualizations.power_home"),
             "icon": "bi-battery-charging",
         },
