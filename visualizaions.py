@@ -1,7 +1,7 @@
 # visualizations.py
 
 # TODO Make one visualizaion tmeplate for all testing data just have a drop down to select what
-# TODO Fix vis back buttons getting stuck on intermediate menus
+# TODO add a browser dark mode / light mode to fixx the coloring on the plots in all visualizations
 
 """
 Defines routes and logic for visualizing Eyescan data in the Flask web application.
