@@ -344,6 +344,12 @@
       {% endif %}
     </div>
     <div class="button-group">
+      <a
+        href="{{ request.referrer }}"
+        class="btn btn-outline-red custom-btn"
+      >
+        &larr; Back
+      </a>
       <a class="btn btn-outline-red custom-btn" href="/">Home</a>
       <a class="btn btn-outline-red custom-btn" href="/export_csv">Download CSV</a>
       <a class="btn btn-outline-red custom-btn" href="/form">Back to Form</a>
@@ -381,7 +387,7 @@
             Disable Row Coloring
           </button>
 
-          
+
         </div>
       </div>
 
@@ -391,7 +397,7 @@
               placeholder="Search all columns..." style="min-width: 220px;">
       </div>
 
-      
+
 
       <!-- Right: Column visibility controls -->
       <div class="d-flex align-items-center gap-2">
@@ -414,7 +420,7 @@
 
 
 
-  
+
     <div id="tabulator-table" style="margin-bottom: 2rem;"></div>
 
 
@@ -577,7 +583,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // --- Restore search query ---
         const savedSearch = localStorage.getItem("history_search") || "";
         document.getElementById("table-search").value = savedSearch;
-        
+
         if (savedSearch.trim() !== "") {
             tab.setFilter([
                 [
@@ -827,13 +833,6 @@ function fileDownloadFormatter(cell) {
             ${value}
         </a>`;
 }
-
-
-
-
-
-
-
 </script>
 
 

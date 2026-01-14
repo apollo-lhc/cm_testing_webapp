@@ -17,6 +17,7 @@ Dependencies: Flask `session`, SQLAlchemy `User` and `TestEntry` models, `FORMS_
 
 import os
 import re
+import math
 from datetime import datetime
 from pathlib import Path
 from flask import session
@@ -386,3 +387,65 @@ def _list_date_files(serial_dir: str, date: str):
     if not date_dir.exists() or not date_dir.is_dir():
         return []
     return sorted([x.name for x in date_dir.iterdir() if x.is_file()])
+
+# ====== FPGA Temp Vis Helpers ======
+
+def parse_csv_floats(raw):
+    """
+    Parse comma-separated floats from form text.
+    Accepts: "37, 41.3, 79, ..."
+    Returns: [37.0, 41.3, 79.0]
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, (list, tuple)):
+        # if someone stored an array already
+        out = []
+        for x in raw:
+            try:
+                fx = float(x)
+                if not math.isnan(fx) and math.isfinite(fx):
+                    out.append(fx)
+            except Exception:
+                continue
+        return out
+
+    s = str(raw).strip()
+    if not s:
+        return []
+
+    out = []
+    for part in s.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            fx = float(part)
+            if math.isnan(fx) or not math.isfinite(fx):
+                continue
+            out.append(fx)
+        except Exception:
+            continue
+    return out
+
+
+def _entry_serial(entry) -> str:
+    d = entry.data if isinstance(entry.data, dict) else {}
+    serial = str(d.get("CM_serial", "")).strip()
+    return serial
+
+
+def _entry_fpga_temps(entry):
+    d = entry.data if isinstance(entry.data, dict) else {}
+    fpga1 = parse_csv_floats(d.get("link_test_fpga_temp_1"))
+    fpga2 = parse_csv_floats(d.get("link_test_fpga_temp_2"))
+    return fpga1, fpga2
+
+
+def _summarize(series):
+    if not series:
+        return {"n": 0, "max": None, "avg": None}
+    n = len(series)
+    mx = max(series)
+    avg = sum(series) / n
+    return {"n": n, "max": mx, "avg": avg}

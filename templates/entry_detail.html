@@ -4,7 +4,23 @@
 
 {% block content %}
 <main class="container py-5">
-  <a href="{{ url_for('history') }}" class="btn btn-outline-dark mb-4 fw-semibold">&larr; Back to History</a>
+
+  <!-- Top nav row -->
+  <div class="d-flex align-items-center flex-wrap gap-2 mb-4">
+    <a
+      href="{{ request.referrer or url_for('history') }}"
+      class="btn btn-outline-dark fw-semibold"
+    >
+      &larr; Back
+    </a>
+
+    <div class="d-flex flex-wrap gap-2 ms-auto">
+      <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+      <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+      <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+      <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+    </div>
+  </div>
 
   {% set status = (
       'failed' if entry.failure else
@@ -85,8 +101,10 @@
         </div>
       </section>
 
+
       <hr class="divider">
 
+      <!-- Eyescan Section -->
       <section class="mb-4">
         <h4 class="section-title">Eyescan Results</h4>
 
@@ -116,7 +134,33 @@
         {% endif %}
       </section>
 
+            <hr class="divider">
 
+      <!-- FPGA Temp Section -->
+      <section class="mb-4">
+        <h4 class="section-title">FPGA Temperature</h4>
+
+        {# serial here should just be the CM serial number digits #}
+        {% set s = entry.data.get('CM_serial') %}
+
+        {% if s and (entry.data.get('link_test_fpga_temp_1') or entry.data.get('link_test_fpga_temp_2')) %}
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge rounded-pill text-bg-success">Available</span>
+            <span class="text-muted small">(CM{{ s }})</span>
+
+            <a class="btn btn-outline-dark"
+              href="{{ url_for('visualizations.fpga_temp_serial', serial=s) }}">
+              View board temps over time
+            </a>
+          </div>
+        {% else %}
+          <div class="text-muted small fst-italic">
+            No FPGA temp data found for this entry.
+          </div>
+        {% endif %}
+      </section>
+
+      <!-- Add More Vis here-->
 
     </div>
   </div>
