@@ -30,6 +30,7 @@ from admin_form_editor import form_editor_bp
 from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock, page_is_complete, _list_dates, _list_serial_dirs
 from constants import EASTERN_TZ
 from visualizaions import visualizations_bp
+from recovery_logger import init_recovery
 
 app = Flask(__name__)
 
@@ -46,7 +47,8 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(data_path, 'test.db')}"
 app.config['SQLALCHEMY_BINDS'] = {
     'main': f"sqlite:///{os.path.join(data_path, 'test.db')}",
-    'users': f"sqlite:///{os.path.join(data_path, 'users.db')}"
+    'users': f"sqlite:///{os.path.join(data_path, 'users.db')}",
+    'recovery': f"sqlite:///{os.path.join(data_path, 'recovery.db')}",
 }
 
 app.config['SESSION_COOKIE_SECURE'] = False       # allow HTTP
@@ -63,6 +65,7 @@ app.register_blueprint(form_editor_bp)
 app.register_blueprint(visualizations_bp, url_prefix='/vis')
 
 with app.app_context():
+    init_recovery(app) # allows for logging recovery events
     db.create_all()
 
 @app.route('/uploads/<path:filename>')

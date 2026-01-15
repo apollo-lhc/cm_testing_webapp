@@ -323,7 +323,116 @@ def load_forms_from_file(filepath=forms_config_path):
 
     return loaded
 
+def _ensure_unique_forms_config(forms):
+    """
+    Fail fast for collisions that can cause data loss.
+
+    Rules:
+    - Page `name` must be unique.
+    - Page `label` must be unique.
+    - Field `name` must be globally unique *ONLY for data-bearing fields*.
+      Helper / structural fields are allowed to reuse names (e.g. 'blank').
+    - Field `label` uniqueness check is per-page and only for fields that render on the page.
+    """
+
+    # Names that are explicitly allowed to repeat everywhere.
+    ALLOW_DUP_FIELD_NAMES = {
+        None,
+        "",
+        "blank",        # FormField.blank()
+        "spacer",       # incase add
+        "divider",      # incase add
+    }
+
+    def is_structural_field(f) -> bool:
+        """
+        True if this field is not intended to be persisted into TestEntry.data.
+        These can safely repeat names.
+        """
+        # obvious helper cases
+        if not getattr(f, "name", None) or f.name in ALLOW_DUP_FIELD_NAMES:
+            return True
+
+        # help_instance: display_form=False and display_history=False
+        if getattr(f, "display_form", True) is False and getattr(f, "display_history", True) is False:
+            return True
+
+        # blank(): type_field is None and display_history=False
+        if getattr(f, "type_field", None) is None and getattr(f, "display_history", True) is False:
+            return True
+
+        # null(): type_field == "null" and display_history=False (instruction-only)
+        if getattr(f, "type_field", None) == "null" and getattr(f, "display_history", True) is False:
+            return True
+
+        return False
+
+    errors = []
+
+    page_names = {}
+    page_labels = {}
+
+    for pi, page in enumerate(forms):
+        if page.name:
+            if page.name in page_names:
+                errors.append(
+                    f"Duplicate page.name '{page.name}' on pages {page_names[page.name]} and {pi}"
+                )
+            else:
+                page_names[page.name] = pi
+
+        if page.label:
+            if page.label in page_labels:
+                errors.append(
+                    f"Duplicate page.label '{page.label}' on pages {page_labels[page.label]} and {pi}"
+                )
+            else:
+                page_labels[page.label] = pi
+
+    # --- Field-level uniqueness ---
+    data_field_names = {}  # name -> (page_index, field_index)
+
+    for pi, page in enumerate(forms):
+        # Per-page label uniqueness (only for fields that actually render a label)
+        labels_in_page = {}
+
+        for fi, f in enumerate(page.fields):
+            fname = getattr(f, "name", None)
+            flabel = getattr(f, "label", None)
+
+            # Enforce GLOBAL uniqueness only for data-bearing fields
+            if not is_structural_field(f):
+                if fname in data_field_names:
+                    prev_pi, prev_fi = data_field_names[fname]
+                    errors.append(
+                        f"Duplicate DATA field.name '{fname}': "
+                        f"page {prev_pi} field {prev_fi} and page {pi} field {fi}"
+                    )
+                else:
+                    data_field_names[fname] = (pi, fi)
+
+            # Enforce per-page label uniqueness only for renderable fields
+            # (skip structural helpers; they often have empty labels or repeated instructions)
+            if flabel and not is_structural_field(f) and getattr(f, "display_form", True):
+                if flabel in labels_in_page:
+                    prev_fi = labels_in_page[flabel]
+                    errors.append(
+                        f"Duplicate field.label '{flabel}' within page {pi} ('{page.name}'): "
+                        f"fields {prev_fi} and {fi}"
+                    )
+                else:
+                    labels_in_page[flabel] = fi
+
+    if errors:
+        msg = (
+            "FORMS CONFIG VALIDATION FAILED — DUPLICATES DETECTED:\n"
+            + "\n".join(f"- {e}" for e in errors)
+        )
+        #failure if this exists
+        raise AssertionError(msg)
+
 FORMS_NON_DICT = load_forms_from_file()
+_ensure_unique_forms_config(FORMS_NON_DICT)
 
 def reset_forms():
     """Restores the form configuration to its default state.

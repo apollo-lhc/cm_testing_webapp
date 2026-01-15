@@ -20,10 +20,12 @@ Notes:
 - FormField and FormPage are used for dynamic form rendering and validation logic.
 """
 
+import uuid
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.dialects.sqlite import JSON
+#from sqlalchemy import JSON
 
 db = SQLAlchemy()
 
@@ -265,3 +267,43 @@ class FormPage:
         self.name = name
         self.label = label
         self.fields = fields
+
+class AuditEvent(db.Model):
+    """OSRS Recovery System"""
+    __bind_key__ = "recovery"
+    __tablename__ = "recovery_event"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_uuid = db.Column(
+        db.String(36),
+        unique=True,
+        nullable=False,
+        default=lambda: str(uuid.uuid4()),
+    )
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    username = db.Column(db.String(80), nullable=True)
+    user_id = db.Column(db.Integer, nullable=True)
+
+    path = db.Column(db.String(256), nullable=False)
+    method = db.Column(db.String(10), nullable=False)
+    query_args = db.Column(JSON, default=dict)
+
+    remote_addr = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(256), nullable=True)
+
+    form_index = db.Column(db.Integer, nullable=True)
+    expected_keys = db.Column(JSON, default=list)
+    missing_expected = db.Column(JSON, default=list)
+    unexpected_keys = db.Column(JSON, default=list)
+
+    form_payload = db.Column(JSON, default=dict)
+    files_payload = db.Column(JSON, default=dict)
+    session_snapshot = db.Column(JSON, default=dict)
+
+    entry_id = db.Column(db.Integer, nullable=True)
+    cm_serial = db.Column(db.String(64), nullable=True)
+
+    error = db.Column(db.Text, nullable=True)
+    raw_form_payload = db.Column(JSON, default=dict)   # exact request.form dict as received
+    status_code = db.Column(db.Integer, nullable=True) # optional
