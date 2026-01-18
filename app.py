@@ -17,13 +17,14 @@ import io
 import csv
 import json
 import re
+import uuid
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash, send_from_directory, abort
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash, send_from_directory, abort, jsonify
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import and_
 
 
-from models import db, User, TestEntry
+from models import db, User, TestEntry, UserSession
 from form_config import FORMS_NON_DICT
 from admin_routes import admin_bp
 from admin_form_editor import form_editor_bp
@@ -49,6 +50,7 @@ app.config['SQLALCHEMY_BINDS'] = {
     'main': f"sqlite:///{os.path.join(data_path, 'test.db')}",
     'users': f"sqlite:///{os.path.join(data_path, 'users.db')}",
     'recovery': f"sqlite:///{os.path.join(data_path, 'recovery.db')}",
+    'presence': f"sqlite:///{os.path.join(data_path, 'presence.db')}",
 }
 
 app.config['SESSION_COOKIE_SECURE'] = False       # allow HTTP
@@ -101,11 +103,13 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        print("DEBUG /login payload:",
+        print(
+            "DEBUG /login payload:",
             "js_ready=", request.form.get('js_ready'),
             "keys=", list(request.form.keys()),
-            "password.len=", len(request.form.get('password', "")))
-        # continue with your existing logic...
+            "password.len=", len(request.form.get('password', ""))
+            )
+
         username = request.form['username'].strip()
         password = request.form['password']
 
@@ -113,12 +117,45 @@ def login():
 
         if user and user.check_password(password):
             session['user_id'] = user.id
+            sess_uuid = str(uuid.uuid4())
+            session['session_uuid'] = sess_uuid
+
+            try:
+                db.session.add(UserSession(
+                    user_id=user.id,
+                    session_uuid=sess_uuid,
+                    login_at=datetime.utcnow(),
+                    last_seen=datetime.utcnow(),
+                    ip=request.headers.get("X-Forwarded-For", request.remote_addr),
+                    user_agent=(request.user_agent.string or "")[:256],
+                ))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
             return redirect(url_for('home'))
 
         flash("Invalid username or password.", "error")
         return render_template('login.html')
 
     return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Logout route (presence-aware)."""
+    user_id = session.get("user_id")
+    sess_uuid = session.get("session_uuid")
+    if user_id and sess_uuid:
+        try:
+            UserSession.query.filter_by(
+                user_id=user_id,
+                session_uuid=sess_uuid
+            ).delete()
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    session.pop("user_id", None)
+    session.pop("session_uuid", None)
+    return redirect(url_for('login'))
 
 @app.route('/form_complete')
 def form_complete():
@@ -127,12 +164,6 @@ def form_complete():
         return redirect(url_for('login'))
 
     return render_template('form_complete.html')
-
-@app.route('/logout')
-def logout():
-    """logout route"""
-    session.pop('user_id', None)
-    return redirect(url_for('login'))
 
 @app.route('/')
 def home():
@@ -653,7 +684,6 @@ def entry_detail(entry_id):
         eyescan_dates=eyescan_dates,
     )
 
-
 @app.route('/export_csv')
 def export_csv():
     """Export only visible (display_history=True) fields to CSV."""
@@ -922,8 +952,43 @@ def clear_failed(entry_id):
 def inject_user():
     return {"current_user": current_user}
 
+@app.before_request
+def _heartbeat_user_session():
+    user_id = session.get("user_id")
+    sess_uuid = session.get("session_uuid")
+    if not user_id or not sess_uuid:
+        return
 
+    try:
+        row = UserSession.query.filter_by(session_uuid=sess_uuid, user_id=user_id).first()
+        if row:
+            row.last_seen = datetime.utcnow()
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
 
+@app.route("/api/ping", methods=["POST"])
+def api_ping():
+    user_id = session.get("user_id")
+    sess_uuid = session.get("session_uuid")
+
+    if not user_id or not sess_uuid:
+        return jsonify({"ok": False}), 401
+
+    try:
+        row = UserSession.query.filter_by(
+            user_id=user_id,
+            session_uuid=sess_uuid
+        ).first()
+
+        if row:
+            row.last_seen = datetime.utcnow()
+            db.session.commit()
+
+        return jsonify({"ok": True})
+    except Exception:
+        db.session.rollback()
+        return jsonify({"ok": False}), 500
 
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
