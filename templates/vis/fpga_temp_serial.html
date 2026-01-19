@@ -3,6 +3,8 @@
 {% block page_title %}Apollo CM Testing • FPGA Temperature Detail • CM{{ serial }}{% endblock %}
 
 {% block content %}
+
+<div data-bs-theme="light" class="fpga-temp-page-light">
 <div class="container py-4">
 
   <div class="d-flex justify-content-between align-items-center mb-3">
@@ -32,7 +34,9 @@
       <div class="text-muted small mb-2">
         Each point is one test entry. Y-values are max temps recorded in that entry.
       </div>
-      <canvas id="serialChart" height="130"></canvas>
+      <div class="chart-wrap">
+        <canvas id="serialChart" height="130"></canvas>
+      </div>
     </div>
   </div>
 
@@ -61,6 +65,31 @@
   </div>
 
 </div>
+</div>
+
+<style>
+  /* ONLY CHANGE: keep the chart area + surrounding card padding light */
+  .fpga-temp-page-light .card,
+  .fpga-temp-page-light .card-body,
+  .fpga-temp-page-light .card-header {
+    background: #fff !important;
+    color: #212529 !important;
+  }
+
+  .fpga-temp-page-light .card-header.bg-light {
+    background: #f8f9fa !important;
+  }
+
+  .fpga-temp-page-light .chart-wrap,
+  .fpga-temp-page-light canvas {
+    background: #fff !important;
+    border-radius: 0.5rem;
+  }
+
+  .fpga-temp-page-light canvas {
+    display: block;
+  }
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 

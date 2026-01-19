@@ -3,16 +3,40 @@
 {% block page_title %}Apollo CM Testing • Power {% endblock %}
 
 {% block content %}
-<div class="container py-4">
 
-  <div class="d-flex align-items-center flex-wrap gap-3 mb-3">
-    <h2 class="mb-0">Power (All Boards)</h2>
+<style>
+  /* Hard override: make the chart cards/light content actually white */
+  .power-page-light .card,
+  .power-page-light .card-body,
+  .power-page-light .card-header {
+    background: #fff !important;
+    color: #212529 !important;
+  }
 
-    <div class="d-flex flex-wrap gap-2 ms-auto">
+  /* Keep the “bg-light” header actually light */
+  .power-page-light .card-header.bg-light {
+    background: #f8f9fa !important;
+  }
+
+  /* Ensure the canvas region itself is white too */
+  .power-page-light .chart-wrap,
+  .power-page-light canvas {
+    background: #fff !important;
+  }
+</style>
+
+<!-- Force Bootstrap light theme inside this page -->
+<div data-bs-theme="light" class="power-page-light">
+  <div class="container py-4">
+
+    <div class="d-flex align-items-center flex-wrap gap-3 mb-3">
+      <h2 class="mb-0">Power (All Boards)</h2>
+
+      <div class="d-flex flex-wrap gap-2 ms-auto">
         <a class="btn btn-outline-red"
-          href="#"
-          data-smart-back
-          data-fallback="{{ request.referrer or url_for('home') }}">
+           href="#"
+           data-smart-back
+           data-fallback="{{ request.referrer or url_for('home') }}">
           &larr; Back
         </a>
         <a href="{{ url_for('visualizations.vis_home') }}" class="btn btn-outline-red">Visualizations</a>
@@ -20,87 +44,108 @@
         <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
         <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
         <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+      </div>
     </div>
+
+    <div class="mb-2 text-muted small">
+      Most recent test per board that contains any power usage measurement.
     </div>
 
-  <div class="mb-2 text-muted small">
-    Most recent test per board that contains any power usage measurement.
-  </div>
+    <div class="d-flex flex-wrap gap-2 mb-3" id="metricControls">
+      <button type="button" class="btn btn-sm btn-primary active" data-metric="p_est_w">Est. Power (W)</button>
+      <button type="button" class="btn btn-sm btn-primary active" data-metric="power_supply_voltage_v">Voltage (V)</button>
+      <button type="button" class="btn btn-sm btn-primary active" data-metric="current_draw_ma">Current (mA)</button>
+      <button type="button" class="btn btn-sm btn-primary active" data-metric="management_power_ma">Mgmt 3.3V (mA)</button>
+    </div>
 
-  <div class="d-flex flex-wrap gap-2 mb-3" id="metricControls">
-    <button type="button" class="btn btn-sm btn-primary active" data-metric="p_est_w">Est. Power (W)</button>
-    <button type="button" class="btn btn-sm btn-primary active" data-metric="power_supply_voltage_v">Voltage (V)</button>
-    <button type="button" class="btn btn-sm btn-primary active" data-metric="current_draw_ma">Current (mA)</button>
-    <button type="button" class="btn btn-sm btn-primary active" data-metric="management_power_ma">Mgmt 3.3V (mA)</button>
-  </div>
+    <div class="row g-3">
+      <div class="col-12" id="card_p_est_w">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="text-muted small mb-2">Estimated Power (W) — latest per board</div>
+            <div class="chart-wrap">
+              <canvas id="chartPower" height="110"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
 
-  <div class="row g-3">
-    <div class="col-12" id="card_p_est_w">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <div class="text-muted small mb-2">Estimated Power (W) — latest per board</div>
-          <canvas id="chartPower" height="110"></canvas>
+      <div class="col-12" id="card_power_supply_voltage_v">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="text-muted small mb-2">Voltage (V) — latest per board</div>
+            <div class="chart-wrap">
+              <canvas id="chartVolt" height="110"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12" id="card_current_draw_ma">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="text-muted small mb-2">Current Draw (mA) — latest per board</div>
+            <div class="chart-wrap">
+              <canvas id="chartCurr" height="110"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12" id="card_management_power_ma">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="text-muted small mb-2">3.3V Mgmt Current (mA) — latest per board</div>
+            <div class="chart-wrap">
+              <canvas id="chartMgmt" height="110"></canvas>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="col-12" id="card_power_supply_voltage_v">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <div class="text-muted small mb-2">Voltage (V) — latest per board</div>
-          <canvas id="chartVolt" height="110"></canvas>
+    <div class="card shadow-sm mt-3">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <strong>Tests with Power Up Test Data</strong>
+        <span id="counts" class="text-muted small"></span>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Serial</th>
+                <th>Entry</th>
+                <th>Timestamp</th>
+                <th>P_est (W)</th>
+                <th>V (V)</th>
+                <th>I (mA)</th>
+                <th>Mgmt (mA)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="testsTbody">
+              <tr><td colspan="8" class="text-muted">Loading…</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
 
-    <div class="col-12" id="card_current_draw_ma">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <div class="text-muted small mb-2">Current Draw (mA) — latest per board</div>
-          <canvas id="chartCurr" height="110"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12" id="card_management_power_ma">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <div class="text-muted small mb-2">3.3V Mgmt Current (mA) — latest per board</div>
-          <canvas id="chartMgmt" height="110"></canvas>
-        </div>
-      </div>
-    </div>
   </div>
-
-  <div class="card shadow-sm mt-3">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-      <strong>Tests with Power Up Test Data</strong>
-      <span id="counts" class="text-muted small"></span>
-    </div>
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-sm table-hover align-middle">
-          <thead>
-            <tr>
-              <th>Serial</th>
-              <th>Entry</th>
-              <th>Timestamp</th>
-              <th>P_est (W)</th>
-              <th>V (V)</th>
-              <th>I (mA)</th>
-              <th>Mgmt (mA)</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="testsTbody">
-            <tr><td colspan="8" class="text-muted">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
 </div>
+
+<style>
+  .power-page-light .chart-wrap {
+    background: #fff;
+    border-radius: 0.5rem;
+  }
+  .power-page-light canvas {
+    display: block;
+    background: #fff;
+    border-radius: 0.5rem;
+  }
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 

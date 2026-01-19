@@ -3,6 +3,8 @@
 {% block page_title %}Apollo CM Testing • FPGA Temperatures{% endblock %}
 
 {% block content %}
+
+<div data-bs-theme="light" class="fpga-temp-page-light">
 <div class="container py-4">
 
     <div class="d-flex align-items-center flex-wrap gap-3 mb-3">
@@ -22,14 +24,14 @@
     </div>
     </div>
 
-
-
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <div class="mb-2 text-muted small">
                 Showing the most recent test per board (serial) that contains FPGA temperature data.
             </div>
-            <canvas id="allBoardsChart" height="120"></canvas>
+            <div class="chart-wrap">
+              <canvas id="allBoardsChart" height="120"></canvas>
+            </div>
         </div>
     </div>
 
@@ -62,6 +64,31 @@
     </div>
 
 </div>
+</div>
+
+<style>
+  /* ONLY CHANGE: keep the chart area + surrounding card padding light */
+  .fpga-temp-page-light .card,
+  .fpga-temp-page-light .card-body,
+  .fpga-temp-page-light .card-header {
+    background: #fff !important;
+    color: #212529 !important;
+  }
+
+  .fpga-temp-page-light .card-header.bg-light {
+    background: #f8f9fa !important;
+  }
+
+  .fpga-temp-page-light .chart-wrap,
+  .fpga-temp-page-light canvas {
+    background: #fff !important;
+    border-radius: 0.5rem;
+  }
+
+  .fpga-temp-page-light canvas {
+    display: block;
+  }
+</style>
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>

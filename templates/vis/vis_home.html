@@ -5,6 +5,8 @@
 {% block page_title %}Apollo CM Testing • Visualizations{% endblock %}
 
 {% block content %}
+
+<div data-bs-theme="light" class="vis-home-page-light">
 <main class="container py-5">
 
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
@@ -47,4 +49,19 @@
     </div>
 
 </main>
+</div>
+
+<style>
+  .vis-home-page-light .card,
+  .vis-home-page-light .card-body,
+  .vis-home-page-light .card-footer {
+    background: #fff !important;
+    color: #212529 !important;
+  }
+
+  .vis-home-page-light .card-footer.bg-white {
+    background: #fff !important;
+  }
+</style>
+
 {% endblock %}

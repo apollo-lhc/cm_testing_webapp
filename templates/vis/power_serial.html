@@ -3,117 +3,153 @@
 {% block page_title %}Apollo CM Testing • Power Detail • CM{{ serial }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
 
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <h2 class="mb-0">CM{{ serial }} • Power</h2>
-      <div id="counts" class="text-muted small">Loading…</div>
-    </div>
-    <div class="d-flex flex-wrap gap-2 ms-auto">
+<div data-bs-theme="light" class="power-page-light">
+  <div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h2 class="mb-0">CM{{ serial }} • Power</h2>
+        <div id="counts" class="text-muted small">Loading…</div>
+      </div>
+      <div class="d-flex flex-wrap gap-2 ms-auto">
         <a class="btn btn-outline-red"
-            href="#"
-            data-smart-back
-            data-fallback="{{ request.referrer or url_for('home') }}">
-            &larr; Back
+           href="#"
+           data-smart-back
+           data-fallback="{{ request.referrer or url_for('home') }}">
+          &larr; Back
         </a>
         <a class="btn btn-outline-red" href="{{ url_for('visualizations.power_home') }}">All Boards</a>
         <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
         <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
         <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
         <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+      </div>
     </div>
+
+    <!-- Charts container -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <div class="text-muted small mb-2">
+          Each point is one test entry. Values come from power usage fields; estimated power = V × I.
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3" id="metricControls">
+          <button type="button" class="btn btn-sm btn-primary active" data-metric="p_est_w">Est. Power (W)</button>
+          <button type="button" class="btn btn-sm btn-primary active" data-metric="power_supply_voltage_v">Voltage (V)</button>
+          <button type="button" class="btn btn-sm btn-primary active" data-metric="current_draw_ma">Current (mA)</button>
+          <button type="button" class="btn btn-sm btn-primary active" data-metric="management_power_ma">Mgmt 3.3V (mA)</button>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12" id="card_p_est_w">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <div class="text-muted small mb-2">Estimated Power (W)</div>
+                <div class="chart-wrap">
+                  <canvas id="chartPowerSerial" height="120"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12" id="card_power_supply_voltage_v">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <div class="text-muted small mb-2">Voltage (V)</div>
+                <div class="chart-wrap">
+                  <canvas id="chartVoltSerial" height="120"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12" id="card_current_draw_ma">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <div class="text-muted small mb-2">Current Draw (mA)</div>
+                <div class="chart-wrap">
+                  <canvas id="chartCurrSerial" height="120"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12" id="card_management_power_ma">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <div class="text-muted small mb-2">3.3V Mgmt Current (mA)</div>
+                <div class="chart-wrap">
+                  <canvas id="chartMgmtSerial" height="120"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /card-body -->
+    </div><!-- /card -->
+
+    <!-- Table -->
+    <div class="card shadow-sm">
+      <div class="card-header bg-light">
+        <strong>Tests for CM{{ serial }} with Power Up Test Data</strong>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Entry</th>
+                <th>P_est (W)</th>
+                <th>V (V)</th>
+                <th>I (mA)</th>
+                <th>Mgmt (mA)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="7" class="text-muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div>
-
-  <!-- Charts container -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-body">
-      <div class="text-muted small mb-2">
-        Each point is one test entry. Values come from power usage fields; estimated power = V × I.
-      </div>
-
-      <div class="d-flex flex-wrap gap-2 mb-3" id="metricControls">
-        <button type="button" class="btn btn-sm btn-primary active" data-metric="p_est_w">Est. Power (W)</button>
-        <button type="button" class="btn btn-sm btn-primary active" data-metric="power_supply_voltage_v">Voltage (V)</button>
-        <button type="button" class="btn btn-sm btn-primary active" data-metric="current_draw_ma">Current (mA)</button>
-        <button type="button" class="btn btn-sm btn-primary active" data-metric="management_power_ma">Mgmt 3.3V (mA)</button>
-      </div>
-
-      <div class="row g-3">
-        <div class="col-12" id="card_p_est_w">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <div class="text-muted small mb-2">Estimated Power (W)</div>
-              <canvas id="chartPowerSerial" height="120"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-12" id="card_power_supply_voltage_v">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <div class="text-muted small mb-2">Voltage (V)</div>
-              <canvas id="chartVoltSerial" height="120"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-12" id="card_current_draw_ma">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <div class="text-muted small mb-2">Current Draw (mA)</div>
-              <canvas id="chartCurrSerial" height="120"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-12" id="card_management_power_ma">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <div class="text-muted small mb-2">3.3V Mgmt Current (mA)</div>
-              <canvas id="chartMgmtSerial" height="120"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /card-body -->
-  </div><!-- /card -->
-
-  <!-- Table -->
-  <div class="card shadow-sm">
-    <div class="card-header bg-light">
-      <strong>Tests for CM{{ serial }} with Power Up Test Data</strong>
-    </div>
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-sm table-hover align-middle">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Entry</th>
-              <th>P_est (W)</th>
-              <th>V (V)</th>
-              <th>I (mA)</th>
-              <th>Mgmt (mA)</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tbody">
-            <tr><td colspan="7" class="text-muted">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
 </div>
+
+<style>
+  /* Hard override: make this page actually light */
+  .power-page-light .card,
+  .power-page-light .card-body,
+  .power-page-light .card-header {
+    background: #fff !important;
+    color: #212529 !important;
+  }
+
+  .power-page-light .card-header.bg-light {
+    background: #f8f9fa !important;
+  }
+
+  /* Ensure chart area isn't transparent */
+  .power-page-light .chart-wrap,
+  .power-page-light canvas {
+    background: #fff !important;
+    border-radius: 0.5rem;
+  }
+
+  .power-page-light canvas {
+    display: block;
+  }
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <script>
 (function () {
-  // ✅ serial page must call serial API
+  // serial page must call serial API
   const apiUrl = "{{ url_for('visualizations.power_api_serial', serial=serial) }}";
 
   function fmtTs(iso) {
@@ -129,7 +165,7 @@
   }
 
   // default: show everything
-    const activeMetrics = new Set([
+  const activeMetrics = new Set([
     "p_est_w",
     "power_supply_voltage_v",
     "current_draw_ma",
@@ -191,13 +227,11 @@
 
   applyVisibility();
 
-
-  // ✅ explicit colors so they aren’t all blue
   const COLORS = {
-    p_est_w: "#e45762",              // red-ish
+    p_est_w: "#e45762",                // red-ish
     power_supply_voltage_v: "#4c78a8", // blue
-    current_draw_ma: "#72b7b2",      // teal
-    management_power_ma: "#f2cf5b",  // yellow
+    current_draw_ma: "#72b7b2",        // teal
+    management_power_ma: "#f2cf5b",    // yellow
   };
 
   let charts = { power: null, volt: null, curr: null, mgmt: null };
