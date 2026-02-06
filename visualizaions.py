@@ -6,6 +6,9 @@
 # TODO make power up test show only most rtecent test per serial on main page
 
 """
+
+Should def make all types of visuilizations into a single class or something instead of doing what i am curretnly doing
+
 Defines routes and logic for visualizing Eyescan data in the Flask web application.
 Routes:
 - /eyescan: Main visualization menu for selecting serial numbers and dates.

@@ -80,9 +80,9 @@ class TestEntry(db.Model):
     lock_owner = db.Column(db.String(80), nullable=True)
     lock_acquired_at = db.Column(db.DateTime, nullable=True)
 
-
 class EntryHistory(db.Model):
-    """Model to keep track of who added / changed what in a test entry.
+    """ Not currently implemented (not necessary i think to keep track of form edits?)
+    Model to keep track of who added / changed what in a test entry.
     Currently unimplemented, but can be used to track changes"""
 
     __bind_key__ = 'main'
@@ -96,7 +96,7 @@ class EntryHistory(db.Model):
     changes = db.Column(JSON)  # Optional: record diff or snapshot of fields
 
 class DeletedEntry(db.Model):
-    """Model for admin deleted entries that are stored in the admin deleted entries table """
+    """Model for admin deleted entries that are stored in the admin deleted entries table"""
 
     __bind_key__ = 'main'
     id = db.Column(db.Integer, primary_key=True)
@@ -307,7 +307,6 @@ class AuditEvent(db.Model):
     error = db.Column(db.Text, nullable=True)
     raw_form_payload = db.Column(JSON, default=dict)   # exact request.form dict as received
     status_code = db.Column(db.Integer, nullable=True) # optional
-
 
 class UserSession(db.Model):
     __bind_key__ = "presence"

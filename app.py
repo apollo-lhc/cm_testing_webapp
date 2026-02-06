@@ -57,7 +57,6 @@ app.config['SESSION_COOKIE_SECURE'] = False       # allow HTTP
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'     # 'None' on HTTP will be rejected
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 
-
 db.init_app(app)
 
 # ==== Register Blueprints ====
@@ -68,7 +67,9 @@ app.register_blueprint(visualizations_bp, url_prefix='/vis')
 
 with app.app_context():
     init_recovery(app) # allows for logging recovery events
+    # this is where you call creatoin of all databases
     db.create_all()
+
 
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
@@ -990,7 +991,9 @@ def api_ping():
         db.session.rollback()
         return jsonify({"ok": False}), 500
 
+#change port here and otherruntime things
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs('instance', exist_ok=True)
     app.run(port=5001, debug=True, host='0.0.0.0')
+#dont go over 1000 lines pylint in github rn hates this

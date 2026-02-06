@@ -17,18 +17,16 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
 
-
-
 # Constants
 SERIAL_OFFSET = 3000 # to prevent wasting memory make this the first serial number so 'forms_per_serial'[0] maps to CM3000
-SERIAL_MAX = 3050
+SERIAL_MAX = 3050 # change these when we get different serial number bounds
 SERIAL_MIN = SERIAL_OFFSET
 LOCK_TIMEOUT = timedelta(minutes=20)   # how long before a stale lock is considered free (not implemented)
 
 EASTERN_TZ = ZoneInfo("America/New_York")
 
 OPTIONAL_TEXT_KEYWORDS = ("comment", "comments", "note", "notes", "text")
-REQUIRED_TYPES = {"integer", "float", "boolean", "file"}
+REQUIRED_TYPES = {"integer", "float", "boolean", "file"} # used for check if you are adding new types of form fields you need to add here if they need to be ignored
 
 # ====== EYESCAN VIS BROWSING CONFIG ==========
 

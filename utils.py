@@ -27,7 +27,7 @@ from models import db, User, TestEntry
 from form_config import FORMS_NON_DICT
 from constants import LOCK_TIMEOUT, EASTERN_TZ, OPTIONAL_TEXT_KEYWORDS, REQUIRED_TYPES, ALLOWED_EXTS, EYESCAN_RE, DATE_RE, APOLLO_ROOT
 
-fishy_users = {}
+fishy_users = {} # not really that useful but you can keep track of people who prob need admin through this
 
 def is_field_required(field):
     """
