@@ -351,3 +351,4 @@ Filesystem parsing helpers are in `utils.py`.
 - `FLASK_SECRET_KEY` **must** be set
 - `visualizaions.py` spelling is intentional (it was too late to fix :\ )
 - Serial bounds live in `constants.py`
+- Every POST request inside form route is saved to data/recover.db to prevent critical data loss
