@@ -95,6 +95,10 @@ The app will **not start** without this.
 ```bash
 export FLASK_SECRET_KEY="your-long-random-secret"
 ```
+Can also use (in terminal):
+```bash
+. ./gen_key.sh
+```
 
 ### 3. Run
 
@@ -345,6 +349,5 @@ Filesystem parsing helpers are in `utils.py`.
 ## Gotchas & Maintenance Notes
 
 - `FLASK_SECRET_KEY` **must** be set
-- `visualizaions.py` spelling is intentional
-- `UserSession` has conflicting DB bind keys (likely bug)
+- `visualizaions.py` spelling is intentional (it was too late to fix :\ )
 - Serial bounds live in `constants.py`
