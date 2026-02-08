@@ -28,7 +28,7 @@ This repository is designed to be maintainable by someone who did **not** origin
 
 ## Architecture Overview
 
-This application is a **Flask monolith** with clear internal separation:
+This application is a **Flask monolith** with clear internal separation.
 
 ### Core Files
 
@@ -49,6 +49,7 @@ This application is a **Flask monolith** with clear internal separation:
 
 ## Repository Layout
 
+```
 cm_testing_webapp/
 ├── README.md
 ├── app.py
@@ -67,252 +68,283 @@ cm_testing_webapp/
 ├── templates/
 ├── static/
 ├── data/
-│ ├── test.db
-│ ├── users.db
-│ ├── recovery.db
-│ ├── presence.db
-│ └── forms_config.json
+│   ├── test.db
+│   ├── users.db
+│   ├── recovery.db
+│   ├── presence.db
+│   └── forms_config.json
 └── uploads/
-
+```
 
 ---
 
 ## Quickstart (Local Development)
 
 ### 1. Create a virtual environment
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-2. Required environment variable
-The app will not start without this.
+```
 
+### 2. Required environment variable
+
+The app will **not start** without this.
+
+```bash
 export FLASK_SECRET_KEY="your-long-random-secret"
-3. Run
-python app.py
-Default port is typically 5001.
+```
 
-Docker Usage
-Build
+### 3. Run
+
+```bash
+python app.py
+```
+
+Default port is typically **5001**.
+
+---
+
+## Docker Usage
+
+### Build
+
+```bash
 docker build -t cm-testing-webapp .
-Run (Flask dev server)
+```
+
+### Run (Flask dev server)
+
+```bash
 docker run -p 5001:5001 \
   -e FLASK_SECRET_KEY="secret" \
   -v $(pwd)/uploads:/app/uploads \
   cm-testing-webapp
-Run (Gunicorn)
+```
+
+### Run (Gunicorn)
+
+```bash
 docker run -p 5001:5001 \
   -e SERVER_TYPE=gunicorn \
   -e FLASK_SECRET_KEY="secret" \
   -v $(pwd)/uploads:/app/uploads \
   cm-testing-webapp
+```
+
 Gunicorn behavior is configurable via:
 
-GUNICORN_WORKERS
+- `GUNICORN_WORKERS`
+- `GUNICORN_TIMEOUT`
+- `GUNICORN_KEEPALIVE`
 
-GUNICORN_TIMEOUT
+---
 
-GUNICORN_KEEPALIVE
+## Production Run Script
 
-Production Run Script
-run.sh supports a non-Docker production-style deployment.
+`run.sh` supports a non-Docker, production-style deployment.
 
 It:
-
-creates or reuses a venv
-
-runs Gunicorn
-
-reads a secret key from a file
+- creates or reuses a virtual environment
+- runs Gunicorn
+- reads a secret key from a file
 
 Before using, adjust:
+- `BASE_DIR`
+- `PORT`
+- secret key file location
 
-BASE_DIR
+---
 
-PORT
+## Authentication Model
 
-secret key file location
+### Users
+- `/register`
+- `/login`
+- stored in `users.db`
 
-Authentication Model
-Users
-/register
+### Password handling (important)
 
-/login
-
-stored in users.db
-
-Password handling (important)
 Passwords are:
-
-SHA-256 hashed client-side
-
-PBKDF2 hashed server-side
+- **SHA-256 hashed client-side**
+- **PBKDF2 hashed server-side**
 
 If modifying auth:
+- `User.set_password()` expects a SHA-256 hash
+- `User.check_password()` compares SHA-256 → PBKDF2
 
-User.set_password() expects a SHA-256 hash
+---
 
-User.check_password() compares SHA-256 → PBKDF2
+## Multi-Step Form System
 
-Multi-Step Form System
-Core concept
-Each test entry is collected through ordered pages (steps).
+### Core concept
 
-FormPage: page label + list of fields
+Each test entry is collected through **ordered pages (steps)**.
 
-FormField: name, type, label, help text, validation rules
+- `FormPage`: page label + list of fields
+- `FormField`: name, type, label, help text, validation rules
 
-Defined in models.py.
+Defined in `models.py`.
 
-Persistence
+### Persistence
+
 Active form definition is stored in:
 
+```
 data/forms_config.json
-If missing or invalid, defaults from form_config.py are used.
+```
 
-Step 0 (Serial Number)
+If missing or invalid, defaults from `form_config.py` are used.
+
+### Step 0 (Serial Number)
+
 The first page is special:
+- collects CM serial
+- validated against bounds in `constants.py`
+- checked for existing saved/failed entries
 
-collects CM serial
+This step **must exist**.
 
-validated against bounds in constants.py
+---
 
-checked for existing saved/failed entries
+## Form States & Retest Logic
 
-This step must exist.
+Each `TestEntry` tracks:
 
-Form States & Retest Logic
-Each TestEntry tracks:
+| Field | Meaning |
+|-----|--------|
+| `is_saved` | User saved and exited |
+| `is_finished` | Final submission |
+| `failure` | Test failed |
+| `fail_stored` | Failure pending retest |
+| `fail_reason` | Text reason |
+| `parent_id` | Retest linkage |
 
-Field	Meaning
-is_saved	User saved and exited
-is_finished	Final submission
-failure	Test failed
-fail_stored	Failure pending retest
-fail_reason	Text reason
-parent_id	Retest linkage
 Routes manage:
+- save & exit
+- fail test
+- retest
+- clear failed submission
 
-save & exit
+---
 
-fail test
+## Locking & Concurrency
 
-retest
-
-clear failed submission
-
-Locking & Concurrency
 Prevents multiple users editing the same entry.
 
-Key fields
-User.form_id
+### Key fields
+- `User.form_id`
+- `TestEntry.lock_owner`
+- `TestEntry.lock_acquired_at`
 
-TestEntry.lock_owner
-
-TestEntry.lock_acquired_at
-
-Helpers:
-
-acquire_lock()
-
-release_lock()
+### Helpers
+- `acquire_lock()`
+- `release_lock()`
 
 Admins can clear stale locks.
 
-File Upload System
-Storage
+---
+
+## File Upload System
+
+### Storage
+
 Uploads live under:
 
+```
 uploads/
+```
+
 Typically organized by CM serial.
 
-Behavior
-filenames replaced with UUIDs
+### Behavior
+- filenames replaced with UUIDs
+- metadata stored in `TestEntry.data`
+- served via `/uploads/<path>`
+- path traversal is blocked
 
-metadata stored in TestEntry.data
+---
 
-served via:
+## History, Detail View, CSV Export
 
-/uploads/<path>
-Path traversal is blocked.
-
-History, Detail View, CSV Export
-Features
-history list
-
-entry detail page
-
-CSV export
+### Features
+- history list
+- entry detail page
+- CSV export
 
 CSV export flattens stored JSON automatically.
 
-If you rename fields, verify CSV output.
+If you rename fields, **verify CSV output**.
 
-Admin Functionality
-Admin routes live under /admin/*.
+---
 
-Features:
+## Admin Functionality
 
-promote/demote users
+Admin routes live under `/admin/*`.
 
-unlock stuck forms
+### Features
+- promote/demote users
+- unlock stuck forms
+- delete entries (with archival)
+- inject dummy test data
+- edit live form structure
 
-delete entries (with archival)
+Templates live in:
 
-inject dummy test data
-
-edit live form structure
-
-Templates in:
-
+```
 templates/admin/
-Visualization System
+```
+
+---
+
+## Visualization System
+
 Mounted at:
 
+```
 /vis/*
+```
+
 Supports browsing:
-
-eyescan artifacts
-
-FPGA temperature data
-
-power metrics
+- eyescan artifacts
+- FPGA temperature data
+- power metrics
 
 Filesystem root:
 
+```
 APOLLO_ROOT=/nfs/cms/tracktrigger/apollo
-Patterns & regex live in constants.py.
+```
 
-Filesystem parsing helpers are in utils.py.
+Patterns & regex live in `constants.py`.
 
-Common Update Tasks
-Add a new form field
-Use admin form editor
+Filesystem parsing helpers are in `utils.py`.
 
-Confirm validation in utils.validate_form
+---
 
-Check detail view + CSV export
+## Common Update Tasks
 
-Add a new step
-Add page via admin editor
+### Add a new form field
+1. Use admin form editor
+2. Confirm validation in `utils.validate_form`
+3. Check detail view + CSV export
 
-Confirm step routing
+### Add a new step
+1. Add page via admin editor
+2. Confirm step routing
+3. Test resume behavior
 
-Test resume behavior
+### Add a visualization
+1. Add route in `visualizaions.py`
+2. Add template in `templates/vis`
+3. Update filesystem helpers if needed
 
-Add a visualization
-Add route in visualizaions.py
+---
 
-Add template in templates/vis
+## Gotchas & Maintenance Notes
 
-Update filesystem helpers if needed
-
-Gotchas & Maintenance Notes
-FLASK_SECRET_KEY must be set
-
-visualizaions.py spelling is intentional
-
-UserSession has conflicting DB bind keys (likely bug)
-
-Serial bounds live in constants.py
-
+- `FLASK_SECRET_KEY` **must** be set
+- `visualizaions.py` spelling is intentional
+- `UserSession` has conflicting DB bind keys (likely bug)
+- Serial bounds live in `constants.py`
