@@ -42,11 +42,11 @@ or removed in production environments.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from random import randint, uniform, choice
 from flask import render_template, request, redirect, url_for, session, current_app, Blueprint, flash
 
-from models import db, TestEntry, DeletedEntry, User
+from models import db, TestEntry, DeletedEntry, User, UserSession
 from form_config import FORMS_NON_DICT
 from utils import (current_user, authenticate_admin)
 from constants import SERIAL_MIN, SERIAL_MAX
@@ -201,6 +201,7 @@ def list_admin_commands():
         '/admin/promote_user': 'Promote an existing user to admin.',
         '/admin/demote_user': 'Demote an admin to a regular user.',
         '/admin/users': 'List all users, promote/demote or delete them.',
+        '/admin/active_users': 'View currently active users and their sessions.',
         '/admin/forms/': 'View and edit form fields, pages, and help page entries.',
         '/admin/forms/help': 'View help documentation for form editing.',
         '/admin/list_fishy_users': 'View users flagged for suspicious admin access attempts.',
@@ -215,7 +216,6 @@ def list_admin_commands():
     }
 
     return render_template('admin/admin_commands.html', commands=commands)
-
 
 # data generation commands - old as of 7/21 - not necessasary for time being
 
@@ -442,3 +442,46 @@ def list_users():
 
     users = User.query.all()
     return render_template('admin/manage_users.html', users=users)
+
+@admin_bp.route("/active_users")
+def active_users():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    if not authenticate_admin():
+        flash("Permission denied", "error")
+        return redirect(url_for("home"))
+
+    # cutoff window in minutes; tweakable via ?mins=30
+    try:
+        mins = int(request.args.get("mins", 15))
+    except ValueError:
+        mins = 15
+    mins = max(1, min(mins, 24 * 60))
+
+    now = datetime.utcnow()
+    cutoff = now - timedelta(minutes=mins)
+
+    total_users = User.query.count()
+    active_sessions = (
+        UserSession.query
+        .filter(UserSession.last_seen >= cutoff)
+        .order_by(UserSession.last_seen.desc())
+        .all()
+    )
+
+    active_user_ids = {s.user_id for s in active_sessions}
+    active_users_rows = User.query.filter(User.id.in_(active_user_ids)).all() if active_user_ids else []
+
+    sessions_by_user = {}
+    for s in active_sessions:
+        sessions_by_user.setdefault(s.user_id, []).append(s)
+
+    return render_template(
+        "admin/active_users.html",
+        total_users=total_users,
+        mins=mins,
+        cutoff=cutoff,
+        active_users=active_users_rows,
+        sessions_by_user=sessions_by_user,
+        now=now,
+    )

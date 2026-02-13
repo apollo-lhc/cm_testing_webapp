@@ -22,6 +22,40 @@
 <div class="container">
   <h2 class="mb-4">Failed Test Submissions</h2>
 
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center"
+        role="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#failedHelp"
+        aria-expanded="false">
+      <strong>About this page</strong>
+      <span id="help-toggle-text" class="text-muted small">
+        Click to hide
+      </span>
+    </div>
+
+    <div id="failedHelp" class="collapse">
+      <div class="card-body">
+        <ul class="mb-0">
+          <li>
+            This page lists <strong>failed test submissions</strong> that were aborted or marked as failed before completion.
+          </li>
+          <li>
+            <strong>Retest</strong> creates a new linked entry on the last failed step for simple testing resumes.
+          </li>
+          <li>
+            <strong>Clear</strong> removes failed test from queue allowing for a complete retest.
+          </li>
+          <li>
+            <strong>Auto-Refresh</strong> reloads the page every 10 seconds to show new failures in real time.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+
+
   {% block flash_messages %}
   {% endblock %}
 
@@ -46,6 +80,21 @@
       <button id="toggle-refresh" class="btn btn-outline-primary btn-sm">Enable Auto-Refresh</button>
     </div>
   </div>
+
+
+  <!--Button group -->
+  <div class="d-flex flex-wrap gap-2">
+    <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+    <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-red">In-Progress Forms</a>
+    {% if user and user.administrator %}
+      <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
+    {% endif %}
+    <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-start mt-4 flex-wrap">
 
   {% if entries %}
   <table class="table table-striped table-bordered align-middle">
@@ -95,27 +144,38 @@
     {% set user = current_user() %}
   {% endif %}
 
-  <div class="d-flex justify-content-between align-items-start mt-4 flex-wrap">
-    <!-- Left: Button group -->
-    <div class="d-flex flex-wrap gap-2">
-      <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
-      <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
-      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-red">In-Progress Forms</a>
-      {% if user and user.administrator %}
-        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
-      {% endif %}
-      <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
-      <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+  <div class="d-flex align-items-start mt-4 flex-wrap w-100">
+    <!-- Left: Rocket + (optional buttons) -->
+    <div class="d-flex flex-column flex-wrap gap-2">
+      <!-- Rocket on the left -->
+      <img src="{{ url_for('static', filename='images/rocket.png') }}"
+          alt="Rocket"
+          class="img-fluid"
+          style="max-height: 180px; opacity: 0.95;">
+
+      <!-- Left: Button group (kept commented for later) -->
+      <div class="d-flex flex-wrap gap-2">
+        <!-- <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-red">In-Progress Forms</a>
+        {% if user and user.administrator %}
+          <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
+        {% endif %}
+        <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a> -->
+      </div>
     </div>
 
-    <!-- Right: Astronaut -->
-    <div class="ms-3">
-      <img src="{{ url_for('static', filename='images/rocket.png') }}"
-          alt="Astronaut"
+    <!-- Right: Accelerator -->
+    <div class="ms-auto">
+      <img src="{{ url_for('static', filename='images/accelerator.png') }}"
+          alt="Accelerator"
           class="img-fluid"
           style="max-height: 180px; opacity: 0.95;">
     </div>
   </div>
+
+
 
 </div>
 
@@ -151,5 +211,52 @@
       startAutoRefresh();
     }
   });
+
+  // Help section state persistence on autorefresh and changing label
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const HELP_KEY = "failedHelpExpanded";
+
+    const helpEl = document.getElementById("failedHelp");
+    const helpText = document.getElementById("help-toggle-text");
+    const helpHeader = document.querySelector('[data-bs-target="#failedHelp"]');
+
+    if (!helpEl || !helpText) return;
+
+    // Create a Bootstrap Collapse controller
+    const help = new bootstrap.Collapse(helpEl, { toggle: false });
+
+    function setLabel(isOpen) {
+      helpText.textContent = isOpen ? "Click to hide" : "Click to expand";
+      if (helpHeader) helpHeader.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    }
+
+    // Restore state (default = closed)
+    const saved = localStorage.getItem(HELP_KEY);
+    const shouldOpen = (saved === "true");
+
+    if (shouldOpen) {
+      help.show();
+      setLabel(true);
+    } else {
+      help.hide();
+      setLabel(false);
+    }
+
+    // Persist state after transitions complete
+    helpEl.addEventListener("shown.bs.collapse", () => {
+      localStorage.setItem(HELP_KEY, "true");
+      setLabel(true);
+    });
+
+    helpEl.addEventListener("hidden.bs.collapse", () => {
+      localStorage.setItem(HELP_KEY, "false");
+      setLabel(false);
+    });
+  });
+
 </script>
+
+
+
 {% endblock %}

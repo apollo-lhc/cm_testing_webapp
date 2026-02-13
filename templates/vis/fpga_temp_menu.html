@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}FPGA Temperatures{% endblock %}
+{% block page_title %}Apollo CM Testing • FPGA Temperatures{% endblock %}
+
+{% block content %}
+
+<div data-bs-theme="light" class="fpga-temp-page-light">
+<div class="container py-4">
+
+    <div class="d-flex align-items-center flex-wrap gap-3 mb-3">
+    <h2 class="mb-0">FPGA Temperatures (All Boards)</h2>
+
+    <div class="d-flex flex-wrap gap-2 ms-auto">
+        <a class="btn btn-outline-red"
+          href="#"
+          data-smart-back
+          data-fallback="{{ request.referrer or url_for('home') }}">
+          &larr; Back
+        </a>
+        <a href="{{ url_for('visualizations.vis_home') }}" class="btn btn-outline-red">Visualizations</a>
+        <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>        <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+    </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="mb-2 text-muted small">
+                Showing the most recent test per board (serial) that contains FPGA temperature data.
+            </div>
+            <div class="chart-wrap">
+              <canvas id="allBoardsChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <strong>Tests with FPGA Temperature Data</strong>
+            <span id="counts" class="text-muted small"></span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle" id="testsTable">
+                    <thead>
+                        <tr>
+                            <th>Serial</th>
+                            <th>Entry ID</th>
+                            <th>Timestamp</th>
+                            <th>FPGA1 max (°C)</th>
+                            <th>FPGA2 max (°C)</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="testsTbody">
+                        <tr>
+                            <td colspan="6" class="text-muted">Loading…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+</div>
+
+<style>
+  /* ONLY CHANGE: keep the chart area + surrounding card padding light */
+  .fpga-temp-page-light .card,
+  .fpga-temp-page-light .card-body,
+  .fpga-temp-page-light .card-header {
+    background: #fff !important;
+    color: #212529 !important;
+  }
+
+  .fpga-temp-page-light .card-header.bg-light {
+    background: #f8f9fa !important;
+  }
+
+  .fpga-temp-page-light .chart-wrap,
+  .fpga-temp-page-light canvas {
+    background: #fff !important;
+    border-radius: 0.5rem;
+  }
+
+  .fpga-temp-page-light canvas {
+    display: block;
+  }
+</style>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+    (function () {
+        const apiUrl = "{{ url_for('visualizations.fpga_temp_api_all') }}";
+
+        function fmtTs(iso) {
+            if (!iso) return "";
+            return iso.replace("T", " ").replace("Z", "").split(".")[0];
+        }
+
+        function fmtNum(x) {
+            if (x === null || x === undefined) return "";
+            const n = Number(x);
+            if (!Number.isFinite(n)) return "";
+            return n.toFixed(1);
+        }
+
+        let chart = null;
+
+        fetch(apiUrl, { credentials: "same-origin" })
+            .then(r => r.json())
+            .then(data => {
+                // ---------- chart ----------
+                const latest = data.latest_per_board || [];
+                const labels = latest.map(r => "CM" + r.serial);
+                const fpga1 = latest.map(r => r.fpga1_max);
+                const fpga2 = latest.map(r => r.fpga2_max);
+
+                const ctx = document.getElementById("allBoardsChart");
+                chart = new Chart(ctx, {
+                    type: "line",
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: "FPGA 1 max (°C)", data: fpga1, spanGaps: true },
+                            { label: "FPGA 2 max (°C)", data: fpga2, spanGaps: true },
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: true }
+                        },
+                        scales: {
+                            y: { title: { display: true, text: "Temperature (°C)" } }
+                        }
+                    }
+                });
+
+                // ---------- table ----------
+                const tests = data.tests || [];
+                const tbody = document.getElementById("testsTbody");
+                const counts = document.getElementById("counts");
+                counts.textContent = `${data.count_latest || 0} boards • ${data.count_tests || 0} tests`;
+
+                if (!tests.length) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-muted">No tests with FPGA temp data found.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = "";
+                for (const row of tests) {
+                    const tr = document.createElement("tr");
+                //tr.style.cursor = "pointer";
+                //tr.addEventListener("click", () => {
+                //window.location.href = row.serial_url;
+                //});
+
+
+                tr.innerHTML = `
+                <td class="fw-semibold">CM${row.serial}</td>
+                <td>${row.entry_id}</td>
+                <td class="text-muted">${fmtTs(row.timestamp)}</td>
+                <td>${fmtNum(row.fpga1_max)}</td>
+                <td>${fmtNum(row.fpga2_max)}</td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-outline-secondary"
+                    href="${row.serial_url}"
+                    onclick="event.stopPropagation();">
+                    Board Detail
+                    </a>
+                </td>
+                `;
+
+                    tbody.appendChild(tr);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById("testsTbody").innerHTML =
+                    `<tr><td colspan="6" class="text-danger">Failed to load data.</td></tr>`;
+            });
+    })();
+</script>
+{% endblock %}

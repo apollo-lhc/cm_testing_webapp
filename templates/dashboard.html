@@ -45,6 +45,20 @@
     </div>
   </div>
 
+  
+  <div class="d-flex flex-wrap gap-2">
+    <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+    <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+    {% if user and user.administrator %}
+      <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
+      <a href="{{ url_for('admin.deleted_entries') }}" class="btn btn-outline-red">View Deleted Forms</a>
+    {% endif %}
+    <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+  </div>
+  <div class="d-flex justify-content-between align-items-start mt-4 flex-wrap">
+  </div>
+
   {% if entries %}
   <table class="table table-striped table-bordered align-middle">
     <thead class="table-red">
@@ -87,16 +101,22 @@
 
   <div class="d-flex justify-content-between align-items-start mt-4 flex-wrap">
     <!-- Left: Button group -->
+
     <div class="d-flex flex-wrap gap-2">
-      <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+    <img src="{{ url_for('static', filename='images/rocket.png') }}"
+          alt="Astronaut"
+          class="img-fluid"
+          style="max-height: 180px; opacity: 0.95;">
+      <!--<a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
       <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
       {% if user and user.administrator %}
         <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-red">Administrator Dashboard</a>
         <a href="{{ url_for('admin.deleted_entries') }}" class="btn btn-outline-red">View Deleted Forms</a>
       {% endif %}
       <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
-      <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+      <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>   -->
     </div>
+ 
 
     <!-- Right: Astronaut -->
     <div class="ms-3">

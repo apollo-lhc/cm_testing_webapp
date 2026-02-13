@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+{% block title %}Entry {{ entry.data.get('CM_serial') }}{% endblock %}
+{% block page_title %}Apollo CM Testing • Data Entry {{ entry.data.get('CM_serial') }} • ID: {{ entry.id }}{% endblock %}
+
+{% block content %}
+<main class="container py-5">
+
+  <!-- Top nav row -->
+  <div class="d-flex align-items-center flex-wrap gap-2 mb-4">
+    <!--Make all back buttons safe with this-->
+    <a class="btn btn-outline-red" href="{{ request.referrer if request.referrer and request.referrer.startswith(request.host_url) else url_for('home') }}">
+      ← Back</a>
+
+    <div class="d-flex flex-wrap gap-2 ms-auto">
+      <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+      <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+      <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+      <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+    </div>
+  </div>
+
+  {% set status = (
+      'failed' if entry.failure else
+      'finished' if entry.is_finished else
+      'saved' if entry.is_saved else
+      'inprogress'
+  ) %}
+  {% set header_color = {
+      'failed': '#e45762',
+      'finished': '#3ef168',
+      'saved': '#65e1f7',
+      'inprogress': '#ffd966'
+  }[status] %}
+
+  <div class="entry-container mx-auto">
+    <div class="entry-header text-white fw-bold fs-5 px-4 py-3"
+         style="background-color: {{ header_color }};">
+
+      <i class="bi bi-cpu"></i>
+      CM{{ entry.data.get('CM_serial', '-') }} • {{ status|capitalize }}
+    </div>
+
+    <div class="entry-body p-4">
+      <section class="mb-4">
+        <h4 class="section-title">General Information</h4>
+        <div class="row">
+          <div class="col-md-6 mb-2"><strong>Status:</strong> {{ status|capitalize }}</div>
+          <div class="col-md-6 mb-2"><strong>Contributors:</strong> {{ ', '.join(entry.contributors) if entry.contributors else 'None' }}</div>
+          <div class="col-md-6 mb-2"><strong>Timestamp:</strong> {{ entry.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+          {% if entry.failure %}
+            <div class="col-md-6 mb-2 text-danger"><strong>Failure Reason:</strong> {{ entry.fail_reason or '—' }}</div>
+          {% endif %}
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <section>
+        <h4 class="section-title">Test Data</h4>
+        <div class="table-wrapper">
+          <table class="table align-middle">
+            <thead>
+              <tr class="text-secondary small">
+                <th style="width: 35%">Field</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for field in fields %}
+                {% if field.name != 'CM_serial' %}
+                  {% set v = entry.data.get(field.name) %}
+                  <tr>
+                    <td class="fw-semibold">{{ field.label }}</td>
+                    <td>
+                      {% set v_str = v|string %}
+                      {% if v_str and (
+                          v_str.lower().endswith('.png') or
+                          v_str.lower().endswith('.jpg') or
+                          v_str.lower().endswith('.jpeg') or
+                          v_str.lower().endswith('.pdf')
+                      ) %}
+                        <a href="{{ url_for('uploaded_file', filename=v_str) }}" target="_blank">{{ v_str }}</a>
+                      {% elif v is boolean %}
+                        {{ 'Yes' if v else 'No' }}
+                      {% elif v is number %}
+                        {{ v }}
+                      {% elif v is none %}
+                        —
+                      {% else %}
+                        {{ v_str }}
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+      <hr class="divider">
+
+      <!-- Eyescan Section -->
+      <section class="mb-4">
+        <h4 class="section-title">Eyescan Results</h4>
+
+        {% if eyescan_serial and eyescan_dates %}
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge rounded-pill text-bg-success">Available</span>
+            <span class="text-muted small">({{ eyescan_serial }})</span>
+
+            <div style="min-width: 260px;">
+              <select id="eyescan-date" class="form-select">
+                {% for d in eyescan_dates %}
+                  <option value="{{ d }}">{{ d }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <a id="eyescan-view-btn"
+               class="btn btn-outline-dark"
+               href="{{ url_for('visualizations.eyescan_date', serial=eyescan_serial, date=eyescan_dates[0]) }}">
+              View Eyescans
+            </a>
+          </div>
+        {% else %}
+          <div class="text-muted small fst-italic">
+            No eyescan data found for this entry.
+          </div>
+        {% endif %}
+      </section>
+
+      <hr class="divider">
+
+      <!-- FPGA Temp Section -->
+      <section class="mb-4">
+        <h4 class="section-title">FPGA Temperature</h4>
+
+        {# serial here should just be the CM serial number digits #}
+        {% set s = entry.data.get('CM_serial') %}
+
+        {% if s and (entry.data.get('link_test_fpga_temp_1') or entry.data.get('link_test_fpga_temp_2')) %}
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge rounded-pill text-bg-success">Available</span>
+            <span class="text-muted small">(CM{{ s }})</span>
+
+            <a class="btn btn-outline-dark"
+              href="{{ url_for('visualizations.fpga_temp_serial', serial=s) }}">
+              View board temps over time
+            </a>
+
+            <a class="btn btn-outline-dark"
+              href="{{ url_for('visualizations.fpga_temp_home') }}">
+              View all boards temp dashboard
+            </a>
+          </div>
+        {% else %}
+          <div class="text-muted small fst-italic">
+            No FPGA temp data found for this entry.
+          </div>
+        {% endif %}
+      </section>
+
+      <!-- Power Up Test -->
+
+      <hr class="divider">
+
+      <section class="mb-4">
+        <h4 class="section-title">Power Plots</h4>
+
+        {% set s = entry.data.get('CM_serial') %}
+        {% set v_raw = entry.data.get('power_supply_voltage') %}
+        {% set i_raw = entry.data.get('current_draw') %}
+        {% set mgmt_raw = entry.data.get('management_power') %}
+
+        {# Safe numeric conversion: only convert if not none/empty #}
+        {% set v_num = (v_raw|float) if (v_raw is not none and (v_raw|string)|trim != '') else none %}
+        {% set i_ma_num = (i_raw|float) if (i_raw is not none and (i_raw|string)|trim != '') else none %}
+        {% set mgmt_ma_num = (mgmt_raw|float) if (mgmt_raw is not none and (mgmt_raw|string)|trim != '') else none %}
+
+        {# Compute estimated power if we have V and I(mA) #}
+        {% set p_est = none %}
+        {% if v_num is not none and i_ma_num is not none %}
+          {% set p_est = v_num * (i_ma_num / 1000.0) %}
+        {% endif %}
+
+        {% set has_power = (v_num is not none) or (i_ma_num is not none) or (mgmt_ma_num is not none) %}
+
+        {% if s and has_power %}
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="badge rounded-pill text-bg-success">Available</span>
+            <span class="text-muted small">(CM{{ s }})</span>
+
+            <a class="btn btn-outline-dark"
+              href="{{ url_for('visualizations.power_serial', serial=s) }}">
+              View board power over time
+            </a>
+
+            {# update endpoint name if yours differs #}
+            <a class="btn btn-outline-dark"
+              href="{{ url_for('visualizations.power_home') }}">
+              View all boards power dashboard
+            </a>
+          </div>
+
+          <div class="text-muted small">
+            <span class="fw-semibold">This entry:</span>
+
+            {% if p_est is not none %}
+              P<sub>est</sub> ≈ <span class="fw-semibold">{{ "%.3f"|format(p_est) }}</span> W
+            {% else %}
+              P<sub>est</sub>: —
+            {% endif %}
+            &nbsp; • &nbsp;
+
+            V:
+            <span class="fw-semibold">
+              {% if v_num is not none %}{{ "%.3f"|format(v_num) }}{% else %}—{% endif %}
+            </span>
+
+            &nbsp; • &nbsp;
+            I:
+            <span class="fw-semibold">
+              {% if i_ma_num is not none %}{{ "%.1f"|format(i_ma_num) }}{% else %}—{% endif %}
+            </span> mA
+
+            &nbsp; • &nbsp;
+            Mgmt:
+            <span class="fw-semibold">
+              {% if mgmt_ma_num is not none %}{{ "%.1f"|format(mgmt_ma_num) }}{% else %}—{% endif %}
+            </span> mA
+          </div>
+
+        {% else %}
+          <div class="text-muted small fst-italic">
+            No Power Up Test data found for this entry.
+          </div>
+        {% endif %}
+      </section>
+
+      <!-- Add More Vis here-->
+
+    </div>
+  </div>
+</main>
+
+
+{% if eyescan_serial and eyescan_dates %}
+<script>
+(function () {
+  const serial = {{ eyescan_serial|tojson }};
+  const dateSelect = document.getElementById("eyescan-date");
+  const viewBtn = document.getElementById("eyescan-view-btn");
+  // use url for incase i change to /eyescan instead of /vis/...
+  const baseUrl = {{ url_for('visualizations.eyescan_date',
+                             serial='__SERIAL__',
+                             date='__DATE__') | tojson }};
+
+  function sync() {
+    const d = dateSelect.value;
+    viewBtn.href = baseUrl
+      .replace('__SERIAL__', encodeURIComponent(serial))
+      .replace('__DATE__', encodeURIComponent(d));
+  }
+
+  dateSelect.addEventListener("change", sync);
+  sync();
+})();
+</script>
+
+<script>
+(function () {
+  // Key per entry
+  const KEY = "entry_detail_scroll:" + {{ entry.id|tojson }};
+
+  // If the browser tries to do its own restoration + we do ours, it can jump.
+  if ("scrollRestoration" in history) {
+    history.scrollRestoration = "manual";
+  }
+
+  function getScrollY() {
+    return window.scrollY || document.documentElement.scrollTop || 0;
+  }
+
+  function setScrollY(y) {
+    window.scrollTo(0, y);
+  }
+
+  function save() {
+    try {
+      sessionStorage.setItem(KEY, String(getScrollY()));
+    } catch (e) {}
+  }
+
+  // Throttle saves to avoid spamming storage
+  let ticking = false;
+  window.addEventListener("scroll", () => {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(() => {
+      save();
+      ticking = false;
+    });
+  }, { passive: true });
+
+  // Decide if we should restore:
+  // - if returning via back/forward (bfcache) OR
+  // - if user explicitly adds ?restore=1 (optional) OR
+  // - if we have a saved value and the navigation type is "back_forward"
+  function shouldRestore() {
+    const qs = new URLSearchParams(window.location.search);
+    if (qs.get("restore") === "1") return true;
+
+    // PerformanceNavigationTiming is best effort; not always available
+    try {
+      const navs = performance.getEntriesByType("navigation");
+      if (navs && navs.length && navs[0].type === "back_forward") return true;
+    } catch (e) {}
+
+    return false;
+  }
+
+  function restore() {
+    let y = null;
+    try {
+      const raw = sessionStorage.getItem(KEY);
+      if (raw !== null) y = parseInt(raw, 10);
+    } catch (e) {}
+
+    if (!Number.isFinite(y) || y < 0) return;
+
+    // Wait a tick so layout is stable (tables, badges, etc.)
+    requestAnimationFrame(() => setScrollY(y));
+  }
+
+  // pageshow fires on normal load AND bfcache restore;
+  // persisted=true means from bfcache (classic "back button" case)
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted || shouldRestore()) restore();
+  });
+
+  // Also restore if user refreshes the page (optional).
+  // If you *don't* want refresh restore, delete this block.
+  window.addEventListener("load", () => {
+    // If you want refresh to restore too, uncomment:
+    // restore();
+  });
+
+  // Save right before leaving as well (some browsers won't fire scroll at the end)
+  window.addEventListener("pagehide", save);
+})();
+</script>
+
+
+{% endif %}
+
+
+
+<style>
+  main.container {
+    max-width: 950px;
+  }
+
+  .entry-container {
+    background: #ffffff;
+    border-radius: 1rem;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.07);
+    overflow: hidden;
+  }
+
+  .entry-header {
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+    letter-spacing: 0.3px;
+  }
+
+  .entry-body {
+    background: #ffffff;
+    color: #212529;
+  }
+
+  .section-title {
+    color: #B31B1B;
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+
+  /* --- Soft table design --- */
+  .table-wrapper {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.96rem;
+  }
+
+  .table thead th {
+    background: #fafafa;
+    border-bottom: 2px solid #efefef;
+    font-weight: 600;
+    color: #000000;
+  }
+
+  .table tbody tr {
+    background: #fff;
+    border-bottom: 1px solid #f1f1f1;
+    transition: background 0.15s ease;
+  }
+
+  .table tbody tr:nth-child(odd) {
+    background: #fcfcfc;
+  }
+
+  .table tbody tr:hover {
+    background: #f7f9fa;
+  }
+
+  .table td, .table th {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+  }
+
+  .divider {
+    border: none;
+    border-top: 2px solid #f1f1f1;
+    margin: 2rem 0;
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  a {
+    color: #B31B1B;
+    text-decoration: underline;
+    font-weight: 500;
+  }
+
+  a:hover {
+    color: #8e1414;
+  }
+
+  /* --- Back button styling --- */
+  .btn-outline-dark {
+    border-radius: 0.6rem;
+    font-weight: 600;
+    padding: 0.4rem 1rem;
+    transition: all 0.2s ease-in-out;
+    border-color: #B31B1B !important;
+    color: #B31B1B !important;
+  }
+
+  .btn-outline-dark:hover,
+  .btn-outline-dark:focus,
+  .btn-outline-dark:active {
+    background-color: #B31B1B !important;
+    color: white !important;
+    border-color: #B31B1B !important;
+    box-shadow: 0 0 6px rgba(179, 27, 27, 0.4);
+  }
+
+  /* --- Column divider customization --- */
+    .table th + th,
+    .table td + td {
+    border-left: 1px solid #c9c9c9; /* medium gray vertical divider */
+    }
+
+    .table thead th {
+    border-bottom: 2px solid #d6d6d6; /* slightly darker header bottom */
+    }
+
+    .table tbody td {
+    border-bottom: 1px solid #e2e2e2; /* softer horizontal divider */
+    }
+
+
+</style>
+
+{% endblock %}

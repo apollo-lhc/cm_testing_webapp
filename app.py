@@ -9,22 +9,29 @@ Features:
 - File download for uploaded reports
 """
 # TODO fix formatting of code and make constantly repeated code into helper functions?
-# TODO block using back button on forms?
-# TODO have files visible in js for form.html
+# TODO make a @loginrequired
+# TODO show current serial number when testing forms
 
 import os
 import io
 import csv
+import json
+import re
+import uuid
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash, send_from_directory, abort
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash, send_from_directory, abort, jsonify
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy import and_
 
-from models import db, User, TestEntry
+
+from models import db, User, TestEntry, UserSession
 from form_config import FORMS_NON_DICT
 from admin_routes import admin_bp
 from admin_form_editor import form_editor_bp
-from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock
+from utils import validate_form, determine_step_from_data, release_lock, process_file_fields, current_user, acquire_lock, page_is_complete, _list_dates, _list_serial_dirs
 from constants import EASTERN_TZ
+from visualizaions import visualizations_bp
+from recovery_logger import init_recovery
 
 app = Flask(__name__)
 
@@ -41,16 +48,28 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(data_path, 'test.db')}"
 app.config['SQLALCHEMY_BINDS'] = {
     'main': f"sqlite:///{os.path.join(data_path, 'test.db')}",
-    'users': f"sqlite:///{os.path.join(data_path, 'users.db')}"
+    'users': f"sqlite:///{os.path.join(data_path, 'users.db')}",
+    'recovery': f"sqlite:///{os.path.join(data_path, 'recovery.db')}",
+    'presence': f"sqlite:///{os.path.join(data_path, 'presence.db')}",
 }
+
+app.config['SESSION_COOKIE_SECURE'] = False       # allow HTTP
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'     # 'None' on HTTP will be rejected
+app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 db.init_app(app)
 
+# ==== Register Blueprints ====
+
 app.register_blueprint(admin_bp)
 app.register_blueprint(form_editor_bp)
+app.register_blueprint(visualizations_bp, url_prefix='/vis')
 
 with app.app_context():
+    init_recovery(app) # allows for logging recovery events
+    # this is where you call creatoin of all databases
     db.create_all()
+
 
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
@@ -85,6 +104,13 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        print(
+            "DEBUG /login payload:",
+            "js_ready=", request.form.get('js_ready'),
+            "keys=", list(request.form.keys()),
+            "password.len=", len(request.form.get('password', ""))
+            )
+
         username = request.form['username'].strip()
         password = request.form['password']
 
@@ -92,12 +118,45 @@ def login():
 
         if user and user.check_password(password):
             session['user_id'] = user.id
+            sess_uuid = str(uuid.uuid4())
+            session['session_uuid'] = sess_uuid
+
+            try:
+                db.session.add(UserSession(
+                    user_id=user.id,
+                    session_uuid=sess_uuid,
+                    login_at=datetime.utcnow(),
+                    last_seen=datetime.utcnow(),
+                    ip=request.headers.get("X-Forwarded-For", request.remote_addr),
+                    user_agent=(request.user_agent.string or "")[:256],
+                ))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
             return redirect(url_for('home'))
 
         flash("Invalid username or password.", "error")
         return render_template('login.html')
 
     return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Logout route (presence-aware)."""
+    user_id = session.get("user_id")
+    sess_uuid = session.get("session_uuid")
+    if user_id and sess_uuid:
+        try:
+            UserSession.query.filter_by(
+                user_id=user_id,
+                session_uuid=sess_uuid
+            ).delete()
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    session.pop("user_id", None)
+    session.pop("session_uuid", None)
+    return redirect(url_for('login'))
 
 @app.route('/form_complete')
 def form_complete():
@@ -107,20 +166,53 @@ def form_complete():
 
     return render_template('form_complete.html')
 
-
-@app.route('/logout')
-def logout():
-    """logout route"""
-    session.pop('user_id', None)
-    return redirect(url_for('login'))
-
-
 @app.route('/')
 def home():
-    """home page route"""
-    if 'user_id' not in session:
+    """Home page route."""
+    user_id = session.get('user_id')
+    if not user_id:
         return redirect(url_for('login'))
-    return render_template('index.html')
+
+    user = User.query.get(user_id)
+    has_open_form = False
+
+    if user and user.form_id:
+        entry = TestEntry.query.get(user.form_id)
+
+        if entry and not entry.is_finished:
+            has_open_form = True
+        else:
+            user.form_id = None
+            db.session.commit()
+
+    return render_template(
+        'index.html',
+        user=user,
+        has_open_form=has_open_form,
+    )
+
+@app.route("/entry/<int:entry_id>/form_home")
+def form_home(entry_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    entry = TestEntry.query.get_or_404(entry_id)
+    data = entry.data or {}
+
+    # Page 0 = serial entry page, so skip it
+    pages = FORMS_NON_DICT[1:]
+
+    completion = {
+        page.name: page_is_complete(page, data)
+        for page in pages
+    }
+
+    return render_template(
+        "form_home.html",
+        entry=entry,
+        pages=pages,
+        completion=completion,
+    )
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
@@ -136,8 +228,11 @@ def form():
     form_index = request.args.get('step')
     form_index = int(form_index or 0)
 
+    # passed by the form home menu to ignore autoresume of last step
+    force = request.args.get("force") == "true"
+
     # always current user in progress form on correct step
-    if request.method == 'GET' and user.form_id is not None:
+    if(request.method == 'GET' and user.form_id is not None and not force):
         held_entry = db.session.get(TestEntry, user.form_id)
         if held_entry:
             last_step = held_entry.data.get("last_step", -1)
@@ -203,15 +298,57 @@ def form():
                         name="Form"
                     )
 
-        # Save & Exit
-        if request.form.get("save_exit") == "true":
+        # Save & Exit to Form Home Page
+        if request.form.get("save_home") == "true":
+            #print("[DEBUG] Save & Exit Home Page triggered. OLD FORM")
             if serial_error or form_index == 0:
                 return render_template(
                     "form.html",
                     fields=current_form.fields,
                     prefill_values=session['form_data'],
                     errors={"CM_serial": serial_error or "Submit Serial Number Before Saving"},
-                    form_label=current_form.get("label"),
+                    form_label=current_form.label,
+                    entry_id=user.form_id,
+                    name="Form"
+                )
+
+            entry = TestEntry.query.filter(TestEntry.id == user.form_id).first()
+
+            if not entry:
+                #DEBUG PRINT
+                #print(f"DEBUG Save - NEW ENTRY - no entry found for user {user.username} with form_id {user.form_id}")
+                entry = TestEntry(data={})
+
+            # Merge new data; do NOT overwrite existing uploaded filenames if none chosen
+            entry.data.update(session['form_data'])
+            flag_modified(entry, "data")
+            entry.timestamp = datetime.now(EASTERN_TZ)
+            entry.failure = False
+            entry.fail_reason = None
+            entry.fail_stored = False
+            # entry.is_saved = True
+
+            if user.username not in (entry.contributors or []):
+                entry.contributors = (entry.contributors or []) + [user.username]
+
+            # user.form_id = None
+
+            db.session.add(entry)
+            db.session.commit()
+            # release_lock(entry)
+            # session.pop('form_data', None)      # clear browser session copy
+            return redirect(url_for("form_home", entry_id=entry.id))
+
+        # Save & Exit
+        if request.form.get("save_exit") == "true":
+            #print("[DEBUG] Save & Exit triggered. OLD FORM")
+            if serial_error or form_index == 0:
+                return render_template(
+                    "form.html",
+                    fields=current_form.fields,
+                    prefill_values=session['form_data'],
+                    errors={"CM_serial": serial_error or "Submit Serial Number Before Saving"},
+                    form_label=current_form.label,
                     name="Form"
                 )
 
@@ -250,7 +387,7 @@ def form():
                     fields=current_form.fields,
                     prefill_values=session['form_data'],
                     errors={"CM_serial": serial_error or "Submit Serial Number Before Submitting Test as Failure"},
-                    form_label=current_form.get("label"),
+                    form_label=current_form.label,
                     name="Form",
                 )
 
@@ -340,6 +477,7 @@ def form():
             return render_template('form_complete.html')
 
         # Final Submission & Next
+        #print("[DEBUG] Final Submission & Next triggered. OLD FORM")
         is_valid, errors = validate_form(current_form.fields, request, session.get('form_data'))
 
         if is_valid:
@@ -372,6 +510,39 @@ def form():
 
             if form_index + 1 < len(FORMS_NON_DICT):
                 return redirect(url_for('form', step=form_index + 1))
+
+            # Check to see if all pages are done
+            pages = FORMS_NON_DICT[1:]
+
+            incomplete_pages = [
+                page.label or page.name
+                for page in pages
+                if not page_is_complete(page, session['form_data'])
+            ]
+
+            if incomplete_pages:
+                #print(f"Incomplete pages detected on final submission: {incomplete_pages}")
+                entry.data.update(session['form_data'])
+                flag_modified(entry, "data")
+                entry.timestamp = datetime.now(EASTERN_TZ)
+                entry.failure = False
+                entry.fail_reason = None
+                entry.fail_stored = False
+
+                if user.username not in (entry.contributors or []):
+                    entry.contributors = (entry.contributors or []) + [user.username]
+
+                db.session.add(entry)
+                db.session.commit()
+
+                flash(
+                    "Form cannot be submitted. Incomplete sections: "
+                    + ", ".join(incomplete_pages),
+                    "error"
+                )
+
+                return redirect(url_for("form_home", entry_id=entry.id))
+
 
             # Final submission - mark complete and final
             entry.is_saved = False
@@ -452,55 +623,158 @@ def history():
 
     return render_template('history.html', entries=entries, fields=all_fields, show_unique=unique_toggle, now=datetime.now(EASTERN_TZ))
 
-@app.route('/export_csv')
-def export_csv():
-    """Export all test entries to CSV."""
+@app.route('/entry/<int:entry_id>')
+def entry_detail(entry_id):
+    """Expanded view of entry."""
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
+    entry = db.session.get(TestEntry, entry_id)
+    if not entry:
+        flash(f"No entry found with ID {entry_id}.", "warning")
+        return redirect(url_for('history'))
+
+    # collect all visible fields
+    all_fields = []
+    for form_page in FORMS_NON_DICT:
+        all_fields.extend(
+            f for f in form_page.fields
+            if getattr(f, "display_history", True)
+        )
+
+    # ---- Eyescan discovery  ----
+    eyescan_serial = None
+    eyescan_dates = []
+
+    try:
+        raw = (entry.data.get("CM_serial") or "").strip()
+        if raw:
+            # normalize to digits if possible
+            digits = raw[2:] if raw.upper().startswith("CM") else raw
+            digits = digits.strip()
+
+            # candidate directory names we will accept
+            candidates = []
+            if digits.isdigit():
+                candidates = [f"CM{digits}", digits]  # prefer CM#### but allow ####
+            else:
+                # if someone stored something odd, try it directly and as CM-prefixed
+                candidates = [raw, f"CM{raw}"]
+
+            # check what actually exists in APOLLO_ROOT
+            serial_dirs = set(_list_serial_dirs() or [])
+            for cand in candidates:
+                if cand in serial_dirs:
+                    eyescan_serial = cand
+                    break
+
+            # if we found a real directory, list scan dates
+            if eyescan_serial:
+                eyescan_dates = _list_dates(eyescan_serial) or []
+
+    except Exception:
+        #incase it doesnt exist or other error
+        eyescan_serial = None
+        eyescan_dates = []
+
+    return render_template(
+        "entry_detail.html",
+        entry=entry,
+        fields=all_fields,
+        eyescan_serial=eyescan_serial,
+        eyescan_dates=eyescan_dates,
+    )
+
+@app.route('/export_csv')
+def export_csv():
+    """Export only visible (display_history=True) fields to CSV."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+
+
     unique_toggle = request.args.get('unique') == "true"
 
-    # Combine all fields from all forms for CSV export
-    all_fields = []
-    for single_form in FORMS_NON_DICT:
-        all_fields.extend(single_form.fields)
+    # ---------- 1) Only include visible fields ----------
+    visible_fields = []
+    for page in FORMS_NON_DICT:
+        for field in getattr(page, "fields", []) or []:
+            if getattr(field, "display_history", False):
+                visible_fields.append(field)
 
+    # ---------- 2) Prepare serializer to clean up text ----------
+    clean_ws = re.compile(r"[\r\n\t]+")
+    def safe(val):
+        if val is None:
+            return ""
+        if isinstance(val, datetime):
+            return val.replace(microsecond=0).isoformat(sep=" ")
+        if isinstance(val, bool):
+            return "yes" if val else "no"
+        if isinstance(val, (dict, list)):
+            return json.dumps(val, ensure_ascii=False, separators=(",", ":"))
+        return clean_ws.sub(" ", str(val)).strip()
 
+    # ---------- 3) Query entries ----------
     if unique_toggle:
-        subquery = (
+        subq = (
             db.session.query(
                 TestEntry.data["CM_serial"].as_integer().label("cm_serial"),
                 db.func.max(TestEntry.timestamp).label("latest")
             )
+            .filter(TestEntry.data["CM_serial"].isnot(None))
             .group_by(TestEntry.data["CM_serial"].as_integer())
             .subquery()
         )
-
         entries = (
             db.session.query(TestEntry)
-            .join(subquery, db.and_(
-                TestEntry.data["CM_serial"].as_integer() == subquery.c.cm_serial,
-                TestEntry.timestamp == subquery.c.latest
-            ))
+            .join(
+                subq,
+                and_(
+                    TestEntry.data["CM_serial"].as_integer() == subq.c.cm_serial,
+                    TestEntry.timestamp == subq.c.latest
+                )
+            )
             .order_by(TestEntry.timestamp.desc())
             .all()
         )
     else:
         entries = TestEntry.query.order_by(TestEntry.timestamp.desc()).all()
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Time', 'User'] + [f.label for f in all_fields] + ['File', "Test Aborted", "Reason Aborted"])
+    # ---------- 4) Write CSV ----------
+    output = io.StringIO(newline='')
+    writer = csv.writer(output, delimiter=',', lineterminator='\n', quoting=csv.QUOTE_MINIMAL)
+
+    headers = (
+        ["Time", "User"]
+        + [safe(getattr(f, "label", None) or f.name) for f in visible_fields]
+        + ["File", "Test Aborted", "Reason Aborted"]
+    )
+    writer.writerow(headers)
+
+    def username_for(entry):
+        u = getattr(entry, "user", None)
+        if u and getattr(u, "username", None):
+            return u.username
+        if isinstance(entry.contributors, list) and entry.contributors:
+            return str(entry.contributors[-1])
+        return ""
 
     for e in entries:
-        row = [e.timestamp, e.user.username]
-        row += [e.data.get(f.name) for f in all_fields]
-        row += [e.file_name, "yes" if e.failure else "no", e.fail_reason or ""]
+        data = e.data or {}
+        row = [safe(e.timestamp), safe(username_for(e))]
+        for f in visible_fields:
+            row.append(safe(data.get(f.name)))
+        row += [safe(e.file_name), "yes" if e.failure else "no", safe(e.fail_reason)]
         writer.writerow(row)
 
-    output.seek(0)
-    return send_file(io.BytesIO(output.read().encode()), mimetype='text/csv',
-                     as_attachment=True, download_name='test_results.csv')
+    csv_bytes = ("\ufeff" + output.getvalue()).encode("utf-8")
+    return send_file(
+        io.BytesIO(csv_bytes),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='test_results.csv'
+    )
 
 @app.route('/help')
 def help_button():
@@ -523,7 +797,6 @@ def help_button():
                 grouped_help_fields[section].append(field)
 
     return render_template("help.html", grouped_help_fields=grouped_help_fields)
-
 
 @app.route('/prod_test_doc')
 def prod_test_doc():
@@ -680,7 +953,47 @@ def clear_failed(entry_id):
 def inject_user():
     return {"current_user": current_user}
 
+@app.before_request
+def _heartbeat_user_session():
+    user_id = session.get("user_id")
+    sess_uuid = session.get("session_uuid")
+    if not user_id or not sess_uuid:
+        return
+
+    try:
+        row = UserSession.query.filter_by(session_uuid=sess_uuid, user_id=user_id).first()
+        if row:
+            row.last_seen = datetime.utcnow()
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+@app.route("/api/ping", methods=["POST"])
+def api_ping():
+    user_id = session.get("user_id")
+    sess_uuid = session.get("session_uuid")
+
+    if not user_id or not sess_uuid:
+        return jsonify({"ok": False}), 401
+
+    try:
+        row = UserSession.query.filter_by(
+            user_id=user_id,
+            session_uuid=sess_uuid
+        ).first()
+
+        if row:
+            row.last_seen = datetime.utcnow()
+            db.session.commit()
+
+        return jsonify({"ok": True})
+    except Exception:
+        db.session.rollback()
+        return jsonify({"ok": False}), 500
+
+#change port here and otherruntime things
 if __name__ == "__main__":
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs('instance', exist_ok=True)
     app.run(port=5001, debug=True, host='0.0.0.0')
+#dont go over 1000 lines pylint in github rn hates this

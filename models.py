@@ -20,10 +20,12 @@ Notes:
 - FormField and FormPage are used for dynamic form rendering and validation logic.
 """
 
+import uuid
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.dialects.sqlite import JSON
+#from sqlalchemy import JSON
 
 db = SQLAlchemy()
 
@@ -36,6 +38,9 @@ class User(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     administrator = db.Column(db.Boolean, default=False)
     form_id = db.Column(db.Integer, nullable=True)
+
+    # this is not the most secure implementation since it relies on client-side hashing, but it allows us to avoid handling raw passwords on the server and is sufficient for our use case since we are not implementing user registration or password changes
+    # can change to a more secure implementaion in the future if needed, but would require changes to the client-side code as well
 
     def set_password(self, sha256_hash):
         """Accepts SHA-256 hash directly and stores it with pbkdf2."""
@@ -78,9 +83,9 @@ class TestEntry(db.Model):
     lock_owner = db.Column(db.String(80), nullable=True)
     lock_acquired_at = db.Column(db.DateTime, nullable=True)
 
-
 class EntryHistory(db.Model):
-    """Model to keep track of who added / changed what in a test entry.
+    """ Not currently implemented (not necessary i think to keep track of form edits?)
+    Model to keep track of who added / changed what in a test entry.
     Currently unimplemented, but can be used to track changes"""
 
     __bind_key__ = 'main'
@@ -94,7 +99,7 @@ class EntryHistory(db.Model):
     changes = db.Column(JSON)  # Optional: record diff or snapshot of fields
 
 class DeletedEntry(db.Model):
-    """Model for admin deleted entries that are stored in the admin deleted entries table """
+    """Model for admin deleted entries that are stored in the admin deleted entries table"""
 
     __bind_key__ = 'main'
     id = db.Column(db.Integer, primary_key=True)
@@ -265,3 +270,68 @@ class FormPage:
         self.name = name
         self.label = label
         self.fields = fields
+
+class AuditEvent(db.Model):
+    """OSRS Recovery System"""
+    __bind_key__ = "recovery"
+    __tablename__ = "recovery_event"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_uuid = db.Column(
+        db.String(36),
+        unique=True,
+        nullable=False,
+        default=lambda: str(uuid.uuid4()),
+    )
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    username = db.Column(db.String(80), nullable=True)
+    user_id = db.Column(db.Integer, nullable=True)
+
+    path = db.Column(db.String(256), nullable=False)
+    method = db.Column(db.String(10), nullable=False)
+    query_args = db.Column(JSON, default=dict)
+
+    remote_addr = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(256), nullable=True)
+
+    form_index = db.Column(db.Integer, nullable=True)
+    expected_keys = db.Column(JSON, default=list)
+    missing_expected = db.Column(JSON, default=list)
+    unexpected_keys = db.Column(JSON, default=list)
+
+    form_payload = db.Column(JSON, default=dict)
+    files_payload = db.Column(JSON, default=dict)
+    session_snapshot = db.Column(JSON, default=dict)
+
+    entry_id = db.Column(db.Integer, nullable=True)
+    cm_serial = db.Column(db.String(64), nullable=True)
+
+    error = db.Column(db.Text, nullable=True)
+    raw_form_payload = db.Column(JSON, default=dict)   # exact request.form dict as received
+    status_code = db.Column(db.Integer, nullable=True) # optional
+
+class UserSession(db.Model):
+    __bind_key__ = "presence"
+    """Server-side record of a user's *browser session*.
+
+    Flask's default session implementation stores session data client-side (signed
+    cookie), so the server cannot enumerate sessions by default. This table gives
+    us a lightweight approximation of "currently logged in" by recording a
+    per-login session UUID and a rolling `last_seen` heartbeat.
+    """
+
+    __bind_key__ = "users"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    session_uuid = db.Column(db.String(36), unique=True, nullable=False, index=True)
+
+    login_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    ip = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(256), nullable=True)
+
+    user = db.relationship("User", backref=db.backref("sessions", lazy=True), foreign_keys=[user_id])

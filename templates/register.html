@@ -2,69 +2,61 @@
 <html>
 <head>
     <title>{{ 'Create Admin' if is_admin_creation else 'Register' }}</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .flash.error {
+            color: red;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border: 1px solid #cc0000;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        /* optional: success banner, if you want parity with login page */
+        .flash.success {
+            color: #155724;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
 </head>
-
-<style>
-    .flash.error {
-        color: red;
-        background-color: #ffe6e6;
-        padding: 10px;
-        border: 1px solid #cc0000;
-        margin-bottom: 15px;
-        border-radius: 5px;
-    }
-</style>
-
 <body>
 <div class="container">
     <h2>{{ 'Create Admin' if is_admin_creation else 'Register' }}</h2>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-            <div class="flash {{ category }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
     {% endwith %}
-    <form id="register-form" method="POST">
-        Username: <input type="text" name="username" required><br><br>
 
-        Password: <input type="password" id="visible-password" required><br><br>
+    <form id="register-form" method="POST" action="{{ url_for('register') }}">
+        <!-- diagnostics flag: lets you confirm JS ran (optional) -->
+        <input type="hidden" id="js_ready" name="js_ready" value="0">
 
-        <!-- Hidden field that carries the hashed version -->
-        <input type="hidden" name="password" id="hashed-password">
+        Username:
+        <input type="text" name="username" required>
+        <br><br>
+
+        <!-- Visible password: NO name attribute (JS hashes it into hidden field) -->
+        Password:
+        <input type="password" id="reg_password_visible" required autocomplete="new-password">
+        <br><br>
+
+        <!-- Hidden field the server expects (name="password") -->
+        <input type="hidden" name="password" id="reg_password_hashed">
 
         <input type="submit" value="{{ 'Create Admin' if is_admin_creation else 'Register' }}">
     </form>
 
     {% if not is_admin_creation %}
-        <p>Already have an account? <a href="/login">Login here</a></p>
+        <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
     {% endif %}
 </div>
 
-<script>
-    document.getElementById("register-form").addEventListener("submit", async function(event) {
-        event.preventDefault(); // stop form from submitting immediately
-
-        const visibleInput = document.getElementById("visible-password");
-        const hiddenInput = document.getElementById("hashed-password");
-        const password = visibleInput.value;
-
-        if (!password) {
-            alert("Password is required.");
-            return;
-        }
-
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password);
-        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashed = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-        hiddenInput.value = hashed;
-
-        this.submit(); // now submit with hashed password
-    });
-</script>
+<!-- Use the same external JS as login -->
+<script src="{{ url_for('static', filename='login.js') }}"></script>
 </body>
 </html>

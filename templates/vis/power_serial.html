@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+{% block title %}Power  • CM{{ serial }}{% endblock %}
+{% block page_title %}Apollo CM Testing • Power Detail • CM{{ serial }}{% endblock %}
+
+{% block content %}
+
+<div data-bs-theme="light" class="power-page-light">
+  <div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h2 class="mb-0">CM{{ serial }} • Power</h2>
+        <div id="counts" class="text-muted small">Loading…</div>
+      </div>
+      <div class="d-flex flex-wrap gap-2 ms-auto">
+        <a class="btn btn-outline-red"
+           href="#"
+           data-smart-back
+           data-fallback="{{ request.referrer or url_for('home') }}">
+          &larr; Back
+        </a>
+        <a class="btn btn-outline-red" href="{{ url_for('visualizations.power_home') }}">All Boards</a>
+        <a href="{{ url_for('home') }}" class="btn btn-outline-red">Home</a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline-red">All&nbsp;Submissions</a>
+        <a href="{{ url_for('help_button') }}" class="btn btn-outline-red">Help</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-red">Log&nbsp;out</a>
+      </div>
+    </div>
+
+    <!-- Charts container -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <div class="text-muted small mb-2">
+          Each point is one test entry. Values come from power usage fields; estimated power = V × I.
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3" id="metricControls">
+          <button type="button" class="btn btn-sm btn-primary active" data-metric="p_est_w">Est. Power (W)</button>
+          <button type="button" class="btn btn-sm btn-primary active" data-metric="power_supply_voltage_v">Voltage (V)</button>
+          <button type="button" class="btn btn-sm btn-primary active" data-metric="current_draw_ma">Current (mA)</button>
+          <button type="button" class="btn btn-sm btn-primary active" data-metric="management_power_ma">Mgmt 3.3V (mA)</button>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12" id="card_p_est_w">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <div class="text-muted small mb-2">Estimated Power (W)</div>
+                <div class="chart-wrap">
+                  <canvas id="chartPowerSerial" height="120"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12" id="card_power_supply_voltage_v">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <div class="text-muted small mb-2">Voltage (V)</div>
+                <div class="chart-wrap">
+                  <canvas id="chartVoltSerial" height="120"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12" id="card_current_draw_ma">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <div class="text-muted small mb-2">Current Draw (mA)</div>
+                <div class="chart-wrap">
+                  <canvas id="chartCurrSerial" height="120"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12" id="card_management_power_ma">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <div class="text-muted small mb-2">3.3V Mgmt Current (mA)</div>
+                <div class="chart-wrap">
+                  <canvas id="chartMgmtSerial" height="120"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /card-body -->
+    </div><!-- /card -->
+
+    <!-- Table -->
+    <div class="card shadow-sm">
+      <div class="card-header bg-light">
+        <strong>Tests for CM{{ serial }} with Power Up Test Data</strong>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Entry</th>
+                <th>P_est (W)</th>
+                <th>V (V)</th>
+                <th>I (mA)</th>
+                <th>Mgmt (mA)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="7" class="text-muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  /* Hard override: make this page actually light */
+  .power-page-light .card,
+  .power-page-light .card-body,
+  .power-page-light .card-header {
+    background: #fff !important;
+    color: #212529 !important;
+  }
+
+  .power-page-light .card-header.bg-light {
+    background: #f8f9fa !important;
+  }
+
+  /* Ensure chart area isn't transparent */
+  .power-page-light .chart-wrap,
+  .power-page-light canvas {
+    background: #fff !important;
+    border-radius: 0.5rem;
+  }
+
+  .power-page-light canvas {
+    display: block;
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+(function () {
+  // serial page must call serial API
+  const apiUrl = "{{ url_for('visualizations.power_api_serial', serial=serial) }}";
+
+  function fmtTs(iso) {
+    if (!iso) return "";
+    return iso.replace("T"," ").replace("Z","").split(".")[0];
+  }
+
+  function fmtNum(x, digits=2) {
+    if (x === null || x === undefined) return "";
+    const n = Number(x);
+    if (!Number.isFinite(n)) return "";
+    return n.toFixed(digits);
+  }
+
+  // default: show everything
+  const activeMetrics = new Set([
+    "p_est_w",
+    "power_supply_voltage_v",
+    "current_draw_ma",
+    "management_power_ma",
+  ]);
+
+  const STORAGE_KEY = `power_serial_visible_metrics:${{ serial|tojson }}`;
+
+  function saveVisibleMetrics() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(activeMetrics))); }
+    catch (e) {}
+  }
+
+  function loadVisibleMetrics() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      activeMetrics.clear();
+      for (const m of arr) activeMetrics.add(m);
+      if (activeMetrics.size === 0) activeMetrics.add("p_est_w");
+    } catch (e) {}
+  }
+
+  loadVisibleMetrics();
+
+  function applyVisibility() {
+    for (const m of ["p_est_w","power_supply_voltage_v","current_draw_ma","management_power_ma"]) {
+      const card = document.getElementById("card_" + m);
+      if (card) card.style.display = activeMetrics.has(m) ? "" : "none";
+    }
+  }
+
+  function toggleBtn(btn, on) {
+    btn.classList.toggle("active", on);
+    btn.classList.toggle("btn-primary", on);
+    btn.classList.toggle("btn-outline-primary", !on);
+  }
+
+  document.querySelectorAll("#metricControls [data-metric]").forEach(btn => {
+    toggleBtn(btn, activeMetrics.has(btn.dataset.metric));
+
+    btn.addEventListener("click", () => {
+      const m = btn.dataset.metric;
+      if (activeMetrics.has(m)) activeMetrics.delete(m);
+      else activeMetrics.add(m);
+
+      if (activeMetrics.size === 0) activeMetrics.add("p_est_w");
+
+      document.querySelectorAll("#metricControls [data-metric]").forEach(b => {
+        toggleBtn(b, activeMetrics.has(b.dataset.metric));
+      });
+
+      applyVisibility();
+      saveVisibleMetrics();
+    });
+  });
+
+  applyVisibility();
+
+  const COLORS = {
+    p_est_w: "#e45762",                // red-ish
+    power_supply_voltage_v: "#4c78a8", // blue
+    current_draw_ma: "#72b7b2",        // teal
+    management_power_ma: "#f2cf5b",    // yellow
+  };
+
+  let charts = { power: null, volt: null, curr: null, mgmt: null };
+
+  function buildLineChart(canvasId, labels, data, label, yTitle, color) {
+    const el = document.getElementById(canvasId);
+    if (!el) return null;
+    return new Chart(el, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label,
+          data,
+          spanGaps: true,
+          borderColor: color,
+          backgroundColor: color,
+          pointRadius: 2,
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: true } },
+        scales: {
+          x: { title: { display: true, text: "Test timestamp" } },
+          y: { title: { display: true, text: yTitle } },
+        }
+      }
+    });
+  }
+
+  function renderCharts(tests) {
+    const labels = tests.map(t => fmtTs(t.timestamp));
+
+    if (charts.power) charts.power.destroy();
+    if (charts.volt) charts.volt.destroy();
+    if (charts.curr) charts.curr.destroy();
+    if (charts.mgmt) charts.mgmt.destroy();
+
+    charts.power = buildLineChart(
+      "chartPowerSerial",
+      labels,
+      tests.map(t => t.p_est_w),
+      "Est. Power (W)",
+      "W",
+      COLORS.p_est_w
+    );
+
+    charts.volt = buildLineChart(
+      "chartVoltSerial",
+      labels,
+      tests.map(t => t.power_supply_voltage_v),
+      "Voltage (V)",
+      "V",
+      COLORS.power_supply_voltage_v
+    );
+
+    charts.curr = buildLineChart(
+      "chartCurrSerial",
+      labels,
+      tests.map(t => t.current_draw_ma),
+      "Current Draw (mA)",
+      "mA",
+      COLORS.current_draw_ma
+    );
+
+    charts.mgmt = buildLineChart(
+      "chartMgmtSerial",
+      labels,
+      tests.map(t => t.management_power_ma),
+      "Mgmt 3.3V Current (mA)",
+      "mA",
+      COLORS.management_power_ma
+    );
+  }
+
+  function renderTable(tests) {
+    const tbody = document.getElementById("tbody");
+
+    if (!tests.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-muted">No tests found with power data.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = "";
+    // newest first in table
+    for (const t of tests.slice().reverse()) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="text-muted">${fmtTs(t.timestamp)}</td>
+        <td>${t.entry_id}</td>
+        <td>${fmtNum(t.p_est_w, 3)}</td>
+        <td>${fmtNum(t.power_supply_voltage_v, 3)}</td>
+        <td>${fmtNum(t.current_draw_ma, 1)}</td>
+        <td>${fmtNum(t.management_power_ma, 1)}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-primary" href="/entry/${t.entry_id}">View entry detail</a>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  fetch(apiUrl, { credentials: "same-origin" })
+    .then(r => r.json())
+    .then(data => {
+      const tests = data.tests || [];
+      document.getElementById("counts").textContent =
+        `${data.count_tests || 0} tests with power data`;
+
+      renderCharts(tests);
+      renderTable(tests);
+      applyVisibility();
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById("tbody").innerHTML =
+        `<tr><td colspan="7" class="text-danger">Failed to load serial power data.</td></tr>`;
+    });
+})();
+</script>
+
+{% endblock %}

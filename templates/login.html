@@ -14,11 +14,8 @@
     }
 </style>
 
-<!DOCTYPE html>
-<html>
-<head>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     {% for category, message in messages %}
@@ -26,48 +23,39 @@
     {% endfor %}
   {% endif %}
 {% endwith %}
-{% block flash_messages %}{% endblock %}
-<body>
+
+<noscript>
+  <div class="flash error">JavaScript is required for secure login.</div>
+</noscript>
+
 <div class="container">
-    <h2>Login</h2>
-    <form id="login-form" method="POST">
-        Username: <input type="text" name="username" required><br><br>
 
-        <!-- Plaintext visible password input -->
-        Password: <input type="password" id="visible-password" required><br><br>
+  <h2>Login</h2>
 
-        <!-- Hidden field to carry the hashed password -->
-        <input type="hidden" name="password" id="hashed-password">
+  <form id="login-form" method="POST" action="{{ url_for('login') }}">
+    <!-- diagnostics flag: lets you confirm JS ran (optional) -->
+    <input type="hidden" id="js_ready" name="js_ready" value="0">
 
-        <input type="submit" value="Login">
-    </form>
-    <p>No account? <a href="/register">Register here</a></p>
+    <label>Username:
+      <input type="text" name="username" required>
+    </label>
+    <br><br>
+
+    <!-- Visible password: NO name attribute -->
+    <label>Password:
+      <input type="password" id="password_visible" autocomplete="current-password" required>
+    </label>
+
+    <!-- Hidden field the server expects (name="password") -->
+    <input type="hidden" id="password_hashed" name="password">
+
+    <br><br>
+    <input type="submit" value="Login">
+  </form>
+
+  <p>No account? <a href="{{ url_for('register') }}">Register here</a></p>
 </div>
 
-<script>
-    document.getElementById("login-form").addEventListener("submit", async function(event) {
-        event.preventDefault(); // prevent immediate form submission
-
-        const visibleInput = document.getElementById("visible-password");
-        const hiddenInput = document.getElementById("hashed-password");
-        const password = visibleInput.value;
-
-        if (!password) {
-            alert("Password is required.");
-            return;
-        }
-
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password);
-        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashed = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-        hiddenInput.value = hashed;
-
-        this.submit(); // manually submit form with hashed password now set
-    });
-</script>
-</body>
-</html>
+<!-- page script (external to avoid CSP issues) -->
+<script src="{{ url_for('static', filename='login.js') }}"></script>
 {% endblock %}
