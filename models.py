@@ -39,6 +39,9 @@ class User(db.Model):
     administrator = db.Column(db.Boolean, default=False)
     form_id = db.Column(db.Integer, nullable=True)
 
+    # this is not the most secure implementation since it relies on client-side hashing, but it allows us to avoid handling raw passwords on the server and is sufficient for our use case since we are not implementing user registration or password changes
+    # can change to a more secure implementaion in the future if needed, but would require changes to the client-side code as well
+
     def set_password(self, sha256_hash):
         """Accepts SHA-256 hash directly and stores it with pbkdf2."""
         self.password_hash = generate_password_hash(sha256_hash, method='pbkdf2:sha256', salt_length=16)
